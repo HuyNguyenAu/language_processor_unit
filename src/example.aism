@@ -1,0 +1,15 @@
+        ; Initialisation
+        mov r1, "king"
+        mov r2, "man"
+        mov r3, "woman"
+
+        ; Execution
+start:  sub r1, r2, r4
+        add r4, r3, r5
+
+        ; Validation
+        sim r5, "queen", r6
+        jlt r6, 95, start
+
+        ; Output
+        out r5

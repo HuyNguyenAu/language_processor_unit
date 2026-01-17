@@ -26,21 +26,33 @@ impl Scanner {
     }
 
     fn is_at_end(&self) -> bool {
-        return self.current >= self.source.chars().count();
+        return self.current >= self.source.chars().count() - 1;
     }
 
-    fn advance(&mut self) -> Option<char> {
+    fn advance(&mut self) -> char {
         self.current += 1;
 
-        return self.source.chars().nth(self.current - 1);
+        return self
+            .source
+            .chars()
+            .nth(self.current - 1)
+            .expect("Tried to advance past end of source.");
     }
 
-    fn peek(&self) -> Option<char> {
-        return self.source.chars().nth(self.current);
+    fn peek(&self) -> char {
+        return self
+            .source
+            .chars()
+            .nth(self.current)
+            .expect("Tried to peek past end of source.");
     }
 
-    fn peek_next(&self) -> Option<char> {
-        return self.source.chars().nth(self.current + 1);
+    fn peek_next(&self) -> char {
+        return self
+            .source
+            .chars()
+            .nth(self.current + 1)
+            .expect("Tried to peek next past end of source.");
     }
 
     fn make_token(&self, token_type: TokenType) -> Token {
@@ -49,6 +61,7 @@ impl Scanner {
             start: self.start,
             length: self.current - self.start,
             line: self.line,
+            error: None,
         };
     }
 
@@ -56,14 +69,15 @@ impl Scanner {
         return Token {
             token_type: TokenType::ERROR,
             start: self.start,
-            length: message.chars().count(),
+            length: self.current - self.start,
             line: self.line,
+            error: Some(message),
         };
     }
 
     fn skip_whitespace(&mut self) {
-        while let Some(char) = self.peek() {
-            match char {
+        loop {
+            match self.peek() {
                 ' ' | '\r' | '\t' => {
                     self.advance();
                 }
@@ -72,8 +86,12 @@ impl Scanner {
                     self.advance();
                 }
                 '/' => {
-                    while self.peek() != Some('\n') && !self.is_at_end() {
-                        self.advance();
+                    if self.peek_next() == '/' {
+                        while self.peek() != '\n' && !self.is_at_end() {
+                            self.advance();
+                        }
+                    } else {
+                        return;
                     }
                 }
                 _ => return,
@@ -82,7 +100,7 @@ impl Scanner {
     }
 
     fn identifier(&mut self) -> Token {
-        while let Some(char) = self.peek()
+        while let char = self.peek()
             && (self.is_alpha(char) || self.is_digit(char))
         {
             self.advance();
@@ -104,21 +122,21 @@ impl Scanner {
     }
 
     fn number(&mut self) -> Token {
-        while let Some(char) = self.peek()
+        while let char = self.peek()
             && self.is_digit(char)
         {
             self.advance();
         }
 
         // Look for a fractional part.
-        if self.peek() == Some('.')
-            && let Some(next_char) = self.peek_next()
+        if self.peek() == '.'
+            && let next_char = self.peek_next()
             && self.is_digit(next_char)
         {
             // Consume the decimal point.
             self.advance();
 
-            while let Some(char) = self.peek()
+            while let char = self.peek()
                 && self.is_digit(char)
             {
                 self.advance();
@@ -129,8 +147,8 @@ impl Scanner {
     }
 
     fn string(&mut self) -> Token {
-        while self.peek() != Some('"') && !self.is_at_end() {
-            if self.peek() == Some('\n') {
+        while self.peek() != '"' && !self.is_at_end() {
+            if self.peek() == '\n' {
                 self.line += 1;
             }
 
@@ -156,10 +174,7 @@ impl Scanner {
             return self.make_token(TokenType::EOF);
         }
 
-        let char = match self.advance() {
-            Some(char) => char.to_owned(),
-            None => return self.make_error("Unexpected end of input"),
-        };
+        let char = self.advance();
 
         if self.is_alpha(char) {
             return self.identifier();
@@ -172,15 +187,13 @@ impl Scanner {
         return match char {
             // Single-character tokens.
             ',' => self.make_token(TokenType::COMMA),
-            ';' => self.make_token(TokenType::SEMICOLON),
+            // ';' => self.make_token(TokenType::SEMICOLON),
             '-' => self.make_token(TokenType::MINUS),
             '+' => self.make_token(TokenType::PLUS),
-            '*' => self.make_token(TokenType::STAR),
-            '/' => self.make_token(TokenType::SLASH),
+            // '*' => self.make_token(TokenType::STAR),
+            // '/' => self.make_token(TokenType::SLASH),
             '"' => return self.string(),
-            _ => {
-                return self.make_error("Unexpected character");
-            }
+            _ => return self.make_error("Unexpected character"),
         };
     }
 }

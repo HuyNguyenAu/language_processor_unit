@@ -2,11 +2,11 @@
 pub enum TokenType {
     // Single-character.
     COMMA,
-    SEMICOLON,
+    // SEMICOLON,
     MINUS,
     PLUS,
-    STAR,
-    SLASH,
+    // STAR,
+    // SLASH,
 
     // Literals.
     IDENTIFIER,
@@ -34,4 +34,5 @@ pub struct Token {
     pub start: usize,
     pub length: usize,
     pub line: usize,
+    pub error: Option<&'static str>,
 }

@@ -5,6 +5,7 @@ pub struct Scanner {
     start: usize,
     current: usize,
     line: usize,
+    column: usize,
 }
 
 impl Scanner {
@@ -14,6 +15,7 @@ impl Scanner {
             current: 0,
             start: 0,
             line: 1,
+            column: 0,
         }
     }
 
@@ -31,6 +33,7 @@ impl Scanner {
 
     fn advance(&mut self) -> char {
         self.current += 1;
+        self.column += 1;
 
         return self.source.chars().nth(self.current - 1).expect(
             format!(
@@ -70,6 +73,7 @@ impl Scanner {
             start: self.start,
             length: self.current - self.start,
             line: self.line,
+            column: self.column,
             error: None,
         };
     }
@@ -80,6 +84,7 @@ impl Scanner {
             start: self.start,
             length: self.current - self.start,
             line: self.line,
+            column: self.column,
             error: Some(message),
         };
     }
@@ -89,18 +94,16 @@ impl Scanner {
             match self.peek() {
                 ' ' | '\r' | '\t' => {
                     self.advance();
-
-                    return;
                 }
                 '\n' => {
                     self.line += 1;
-                    self.advance();
+                    self.column = 0;
 
-                    return;
+                    self.advance();
                 }
                 '/' => {
                     if self.peek_next() == '/' {
-                        while self.peek() != '\n' && !self.is_at_end() {
+                        while !self.is_at_end() && self.peek() != '\n' {
                             self.advance();
                         }
                     } else {
@@ -160,9 +163,10 @@ impl Scanner {
     }
 
     fn string(&mut self) -> Token {
-        while self.peek() != '"' && !self.is_at_end() {
+        while !self.is_at_end() && self.peek() != '"' {
             if self.peek() == '\n' {
                 self.line += 1;
+                self.column = 0;
             }
 
             self.advance();

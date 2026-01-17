@@ -26,33 +26,42 @@ impl Scanner {
     }
 
     fn is_at_end(&self) -> bool {
-        return self.current >= self.source.chars().count() - 1;
+        return self.source.chars().nth(self.current).is_none();
     }
 
     fn advance(&mut self) -> char {
         self.current += 1;
 
-        return self
-            .source
-            .chars()
-            .nth(self.current - 1)
-            .expect("Tried to advance past end of source.");
+        return self.source.chars().nth(self.current - 1).expect(
+            format!(
+                "Tried to advance past end of source. Source length: {}, current: {}",
+                self.source.len(),
+                self.current - 1
+            )
+            .as_str(),
+        );
     }
 
     fn peek(&self) -> char {
-        return self
-            .source
-            .chars()
-            .nth(self.current)
-            .expect("Tried to peek past end of source.");
+        return self.source.chars().nth(self.current).expect(
+            format!(
+                "Tried to peek past end of source. Source length: {}, current: {}",
+                self.source.len(),
+                self.current
+            )
+            .as_str(),
+        );
     }
 
     fn peek_next(&self) -> char {
-        return self
-            .source
-            .chars()
-            .nth(self.current + 1)
-            .expect("Tried to peek next past end of source.");
+        return self.source.chars().nth(self.current + 1).expect(
+            format!(
+                "Tried to peek next past end of source. Source length: {}, current: {}",
+                self.source.len(),
+                self.current + 1
+            )
+            .as_str(),
+        );
     }
 
     fn make_token(&self, token_type: TokenType) -> Token {
@@ -76,14 +85,18 @@ impl Scanner {
     }
 
     fn skip_whitespace(&mut self) {
-        loop {
+        while !self.is_at_end() {
             match self.peek() {
                 ' ' | '\r' | '\t' => {
                     self.advance();
+
+                    return;
                 }
                 '\n' => {
                     self.line += 1;
                     self.advance();
+
+                    return;
                 }
                 '/' => {
                     if self.peek_next() == '/' {
@@ -166,13 +179,13 @@ impl Scanner {
     }
 
     pub fn scan_token(&mut self) -> Token {
-        if self.is_at_end() {
-            return self.make_token(TokenType::EOF);
-        }
-
         self.skip_whitespace();
 
         self.start = self.current;
+
+        if self.is_at_end() {
+            return self.make_token(TokenType::EOF);
+        }
 
         let char = self.advance();
 

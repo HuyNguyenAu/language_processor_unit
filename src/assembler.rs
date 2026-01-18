@@ -216,7 +216,7 @@ impl Assembler {
         };
 
         self.stack_levels
-            .insert(label_name.to_string(), self.stack_level);
+            .insert(label_name.to_string(), self.stack_level + 1);
 
         println!("[Stack Level {}] Label: {}", self.stack_level, label_name);
     }
@@ -385,7 +385,7 @@ impl Assembler {
                 Operand::Text(value) => format!("text:{}", value),
                 Operand::Variable(name) => format!("var:{}", name),
             },
-            label
+            format!("stack:{}", stack_level)
         );
     }
 

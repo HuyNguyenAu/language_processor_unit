@@ -81,14 +81,14 @@ impl Scanner {
         };
     }
 
-    fn make_error(&self, message: &'static str) -> Token {
+    fn make_error(&self, message: &str) -> Token {
         return Token {
             token_type: TokenType::ERROR,
             start: self.start,
             length: self.current - self.start,
             line: self.line,
             column: self.column,
-            error: Some(message),
+            error: Some(message.to_string()),
         };
     }
 
@@ -142,10 +142,7 @@ impl Scanner {
             "add" => self.make_token(TokenType::ADD),
             "sub" => self.make_token(TokenType::SUB),
             "sim" => self.make_token(TokenType::SIM),
-            // "label" => self.make_token(TokenType::LABEL),
             "jlt" => self.make_token(TokenType::JLT),
-            // "jmp" => self.make_token(TokenType::JMP),
-            // "stop" => self.make_token(TokenType::STOP),
             _ => self.make_token(TokenType::IDENTIFIER),
         };
     }
@@ -219,11 +216,6 @@ impl Scanner {
         return match char {
             // Single-character tokens.
             ',' => self.make_token(TokenType::COMMA),
-            // ';' => self.make_token(TokenType::SEMICOLON),
-            // '-' => self.make_token(TokenType::MINUS),
-            // '+' => self.make_token(TokenType::PLUS),
-            // '*' => self.make_token(TokenType::STAR),
-            // '/' => self.make_token(TokenType::SLASH),
             '"' => return self.string(),
             _ => return self.make_error("Unexpected character"),
         };

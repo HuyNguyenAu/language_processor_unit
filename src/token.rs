@@ -2,11 +2,6 @@
 pub enum TokenType {
     // Single-character.
     COMMA,
-    // SEMICOLON,
-    // MINUS,
-    // PLUS,
-    // STAR,
-    // SLASH,
 
     // Literals.
     IDENTIFIER,
@@ -15,16 +10,12 @@ pub enum TokenType {
 
     // Keywords.
     MOV,
-    // VAR,
     ADD,
     SUB,
     SIM,
     LABEL,
     JLT,
-    // JMP,
-    // IN,
-    OUT,
-    // HALT,
+    // OUT,
 
     // Misc.
     EOF,
@@ -38,5 +29,5 @@ pub struct Token {
     pub length: usize,
     pub line: usize,
     pub column: usize,
-    pub error: Option<&'static str>,
+    pub error: Option<String>,
 }

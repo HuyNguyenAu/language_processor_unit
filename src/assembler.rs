@@ -7,7 +7,7 @@ use crate::scanner::Scanner;
 use crate::token::{Token, TokenType};
 
 pub struct Assembler {
-    byte_code: Vec<u8>,
+    bytecode: Vec<u8>,
 
     source: &'static str,
     scanner: Scanner,
@@ -25,7 +25,7 @@ pub struct Assembler {
 impl Assembler {
     pub fn new(source: &'static str) -> Self {
         return Assembler {
-            byte_code: Vec::new(),
+            bytecode: Vec::new(),
             source,
             scanner: Scanner::new(source),
             previous: None,
@@ -194,33 +194,33 @@ impl Assembler {
         }
     }
 
-    fn emit_op_code_byte_code(&mut self, op_code: OpCode) {
-        self.byte_code.push(op_code as u8);
+    fn emit_op_code_bytecode(&mut self, op_code: OpCode) {
+        self.bytecode.push(op_code as u8);
     }
 
-    fn emit_register_byte_code(&mut self, register: u8) {
-        self.byte_code.push(register);
+    fn emit_register_bytecode(&mut self, register: u8) {
+        self.bytecode.push(register);
     }
 
-    fn emit_operand_byte_code(&mut self, operand: &Operand) {
+    fn emit_operand_bytecode(&mut self, operand: &Operand) {
         match operand {
             Operand::Number(value) => {
-                self.byte_code.push(OperandType::NUMBER as u8);
-                self.byte_code.push(1);
-                self.byte_code.push(*value);
+                self.bytecode.push(OperandType::NUMBER as u8);
+                self.bytecode.push(1);
+                self.bytecode.push(*value);
             }
             Operand::Text(value) => {
-                self.byte_code.push(OperandType::TEXT as u8);
+                self.bytecode.push(OperandType::TEXT as u8);
 
                 let bytes = value.as_bytes();
 
-                self.byte_code.push(bytes.len() as u8);
-                self.byte_code.extend(bytes);
+                self.bytecode.push(bytes.len() as u8);
+                self.bytecode.extend(bytes);
             }
             Operand::Register(value) => {
-                self.byte_code.push(OperandType::REGISTER as u8);
-                self.byte_code.push(1);
-                self.byte_code.push(*value);
+                self.bytecode.push(OperandType::REGISTER as u8);
+                self.bytecode.push(1);
+                self.bytecode.push(*value);
             }
         }
     }
@@ -241,9 +241,9 @@ impl Assembler {
             _ => return,
         };
 
-        self.emit_op_code_byte_code(OpCode::MOV);
-        self.emit_register_byte_code(register);
-        self.emit_operand_byte_code(&variable_value);
+        self.emit_op_code_bytecode(OpCode::MOV);
+        self.emit_register_bytecode(register);
+        self.emit_operand_bytecode(&variable_value);
     }
 
     fn label(&mut self) {
@@ -279,10 +279,10 @@ impl Assembler {
             _ => return,
         };
 
-        self.emit_op_code_byte_code(OpCode::SUB);
-        self.emit_operand_byte_code(&operand_1);
-        self.emit_operand_byte_code(&operand_2);
-        self.emit_register_byte_code(destination);
+        self.emit_op_code_bytecode(OpCode::SUB);
+        self.emit_operand_bytecode(&operand_1);
+        self.emit_operand_bytecode(&operand_2);
+        self.emit_register_bytecode(destination);
     }
 
     fn addition(&mut self) {
@@ -308,10 +308,10 @@ impl Assembler {
             _ => return,
         };
 
-        self.emit_op_code_byte_code(OpCode::ADD);
-        self.emit_operand_byte_code(&operand_1);
-        self.emit_operand_byte_code(&operand_2);
-        self.emit_register_byte_code(destination);
+        self.emit_op_code_bytecode(OpCode::ADD);
+        self.emit_operand_bytecode(&operand_1);
+        self.emit_operand_bytecode(&operand_2);
+        self.emit_register_bytecode(destination);
     }
 
     fn similarity(&mut self) {
@@ -337,10 +337,10 @@ impl Assembler {
             _ => return,
         };
 
-        self.emit_op_code_byte_code(OpCode::SIM);
-        self.emit_operand_byte_code(&operand_1);
-        self.emit_operand_byte_code(&operand_2);
-        self.emit_register_byte_code(destination);
+        self.emit_op_code_bytecode(OpCode::SIM);
+        self.emit_operand_bytecode(&operand_1);
+        self.emit_operand_bytecode(&operand_2);
+        self.emit_register_bytecode(destination);
     }
 
     fn jump_less_than(&mut self) {
@@ -374,10 +374,10 @@ impl Assembler {
             }
         };
 
-        self.emit_op_code_byte_code(OpCode::JLT);
-        self.emit_operand_byte_code(&operand_1);
-        self.emit_operand_byte_code(&operand_2);
-        self.emit_register_byte_code(current_stack_level as u8);
+        self.emit_op_code_bytecode(OpCode::JLT);
+        self.emit_operand_bytecode(&operand_1);
+        self.emit_operand_bytecode(&operand_2);
+        self.emit_register_bytecode(current_stack_level as u8);
     }
 
     pub fn assemble(&mut self) -> Option<Vec<u8>> {
@@ -404,6 +404,6 @@ impl Assembler {
             return None;
         }
 
-        return Some(self.byte_code.clone());
+        return Some(self.bytecode.clone());
     }
 }

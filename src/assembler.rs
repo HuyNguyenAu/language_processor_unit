@@ -15,8 +15,8 @@ pub struct Assembler {
     previous: Option<Token>,
     current: Option<Token>,
 
-    current_stack_level: u32,
-    stack_levels: HashMap<String, u32>,
+    current_stack_level: usize,
+    stack_levels: HashMap<String, usize>,
 
     had_error: bool,
     panic_mode: bool,

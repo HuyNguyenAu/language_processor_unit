@@ -20,7 +20,10 @@ impl Scanner {
     }
 
     fn is_alpha(&self, char: char) -> bool {
-        return (char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') || char == '_';
+        return (char >= 'a' && char <= 'z')
+            || (char >= 'A' && char <= 'Z')
+            || char == '_'
+            || char == ':';
     }
 
     fn is_digit(&self, char: char) -> bool {
@@ -111,6 +114,15 @@ impl Scanner {
         }
     }
 
+    fn label(&mut self) -> Token {
+        let token = self.make_token(TokenType::LABEL);
+
+        // Consume the ':'.
+        self.advance();
+
+        return token;
+    }
+
     fn identifier(&mut self) -> Token {
         while !self.is_at_end()
             && let char = self.peek()
@@ -121,12 +133,16 @@ impl Scanner {
 
         let identifier = &self.source[self.start..self.current];
 
+        if identifier.ends_with(':') {
+            return self.label();
+        }
+
         return match identifier.to_lowercase().as_str() {
-            "var" => self.make_token(TokenType::VAR),
+            "mov" => self.make_token(TokenType::MOV),
             "add" => self.make_token(TokenType::ADD),
             "sub" => self.make_token(TokenType::SUB),
             "sim" => self.make_token(TokenType::SIM),
-            "label" => self.make_token(TokenType::LABEL),
+            // "label" => self.make_token(TokenType::LABEL),
             "jlt" => self.make_token(TokenType::JLT),
             // "jmp" => self.make_token(TokenType::JMP),
             // "stop" => self.make_token(TokenType::STOP),
@@ -135,7 +151,8 @@ impl Scanner {
     }
 
     fn number(&mut self) -> Token {
-        while !self.is_at_end() && let char = self.peek()
+        while !self.is_at_end()
+            && let char = self.peek()
             && self.is_digit(char)
         {
             self.advance();
@@ -149,7 +166,8 @@ impl Scanner {
             // Consume the decimal point.
             self.advance();
 
-            while !self.is_at_end() && let char = self.peek()
+            while !self.is_at_end()
+                && let char = self.peek()
                 && self.is_digit(char)
             {
                 self.advance();

@@ -14,7 +14,8 @@ pub enum TokenType {
     NUMBER,
 
     // Keywords.
-    VAR,
+    MOV,
+    // VAR,
     ADD,
     SUB,
     SIM,

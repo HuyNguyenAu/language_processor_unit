@@ -2,8 +2,9 @@ mod assembler;
 mod instruction;
 mod scanner;
 mod token;
+mod processor;
 
-use crate::{scanner::Scanner, token::TokenType};
+// use crate::{scanner::Scanner, token::TokenType};
 
 use std::fs::read_to_string;
 
@@ -14,7 +15,7 @@ fn main() {
         Err(e) => panic!("Could not read file {}: {}", file_name, e),
     };
 
-    let mut scanner = Scanner::new(instructions);
+    // let mut scanner = Scanner::new(instructions);
 
     // loop {
     //     let token = scanner.scan_token();
@@ -40,6 +41,11 @@ fn main() {
     if let Some(byte_code) = compiler.assemble() {
         println!("Compilation succeeded.");
         println!("Bytecode: {:02X?}", byte_code);
+
+        let mut processor = processor::Processor::new();
+
+        processor.load_bytecode(byte_code);
+        processor.execute();
     } else {
         println!("Compilation failed.");
     }

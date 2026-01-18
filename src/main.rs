@@ -37,9 +37,9 @@ fn main() {
 
     let mut compiler = assembler::Assembler::new(instructions);
 
-    if compiler.assemble() {
+    if let Some(byte_code) = compiler.assemble() {
         println!("Compilation succeeded.");
-        println!("Bytecode: {:02X?}", compiler.byte_code);
+        println!("Bytecode: {:02X?}", byte_code);
     } else {
         println!("Compilation failed.");
     }

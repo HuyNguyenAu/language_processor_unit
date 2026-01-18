@@ -7,7 +7,7 @@ use crate::scanner::Scanner;
 use crate::token::{Token, TokenType};
 
 pub struct Assembler {
-    pub byte_code: Vec<u8>,
+    byte_code: Vec<u8>,
 
     source: &'static str,
     scanner: Scanner,
@@ -244,44 +244,6 @@ impl Assembler {
         self.emit_op_code_byte_code(OpCode::MOV);
         self.emit_register_byte_code(register);
         self.emit_operand_byte_code(&variable_value);
-
-        println!(
-            "[Stack Level {}] Register: {} with value {:#?} Bytes: [{:02X}] [{:02X}] [{:02X} {:02X} {}]",
-            self.current_stack_level,
-            register,
-            match &variable_value {
-                Operand::Number(value) => format!("number:{}", value),
-                Operand::Text(value) => format!("text:{}", value),
-                Operand::Register(value) => format!("reg:{}", value),
-            },
-            OpCode::MOV as u8,
-            register,
-            match &variable_value {
-                Operand::Number(_) => OperandType::NUMBER as u8,
-                Operand::Text(_) => OperandType::TEXT as u8,
-                Operand::Register(_) => OperandType::REGISTER as u8,
-            },
-            match &variable_value {
-                Operand::Number(_) => 1,
-                Operand::Text(value) => value
-                    .as_bytes()
-                    .iter()
-                    .map(|b| format!("{:02X}", b))
-                    .collect::<Vec<String>>()
-                    .len(),
-                Operand::Register(_) => 1,
-            },
-            match &variable_value {
-                Operand::Number(value) => format!("{:02X}", value),
-                Operand::Text(value) => value
-                    .as_bytes()
-                    .iter()
-                    .map(|b| format!("{:02X}", b))
-                    .collect::<Vec<String>>()
-                    .join(" "),
-                Operand::Register(value) => format!("{:02X}", value),
-            },
-        );
     }
 
     fn label(&mut self) {
@@ -290,9 +252,8 @@ impl Assembler {
         let label_name = self.previous_lexeme().to_string();
         let value = label_name.trim_end_matches(':');
 
-        self.stack_levels.insert(value.to_string(), self.current_stack_level + 1);
-
-        println!("[Stack Level {}] Label: {}", self.current_stack_level, value);
+        self.stack_levels
+            .insert(value.to_string(), self.current_stack_level + 1);
     }
 
     fn subtract(&mut self) {
@@ -322,67 +283,6 @@ impl Assembler {
         self.emit_operand_byte_code(&operand_1);
         self.emit_operand_byte_code(&operand_2);
         self.emit_register_byte_code(destination);
-
-        let operand_1_length = match &operand_1 {
-            Operand::Number(_) => 1,
-            Operand::Text(value) => value.as_bytes().len(),
-            Operand::Register(_) => 1,
-        };
-        let operand_2_length = match &operand_2 {
-            Operand::Number(_) => 1,
-            Operand::Text(value) => value.as_bytes().len(),
-            Operand::Register(_) => 1,
-        };
-
-        println!(
-            "[Stack Level {}] Subtract: {} - {} -> {} Bytes: [{:02X}] [{:02X} {:02X} {}] [{:02X} {:02X} {}] [{:02X}]",
-            self.current_stack_level,
-            match &operand_1 {
-                Operand::Number(value) => format!("number:{}", value),
-                Operand::Text(value) => format!("text:{}", value),
-                Operand::Register(name) => format!("reg:{}", name),
-            },
-            match &operand_2 {
-                Operand::Number(value) => format!("number:{}", value),
-                Operand::Text(value) => format!("text:{}", value),
-                Operand::Register(name) => format!("reg:{}", name),
-            },
-            destination,
-            OpCode::SUB as u8,
-            match &operand_1 {
-                Operand::Number(_) => OperandType::NUMBER as u8,
-                Operand::Text(_) => OperandType::TEXT as u8,
-                Operand::Register(_) => OperandType::REGISTER as u8,
-            },
-            operand_1_length,
-            match &operand_1 {
-                Operand::Number(value) => format!("{:02X}", value),
-                Operand::Text(value) => value
-                    .as_bytes()
-                    .iter()
-                    .map(|b| format!("{:02X}", b))
-                    .collect::<Vec<String>>()
-                    .join(" "),
-                Operand::Register(name) => format!("{:02X}", name),
-            },
-            match &operand_2 {
-                Operand::Number(_) => OperandType::NUMBER as u8,
-                Operand::Text(_) => OperandType::TEXT as u8,
-                Operand::Register(_) => OperandType::REGISTER as u8,
-            },
-            operand_2_length,
-            match &operand_2 {
-                Operand::Number(value) => format!("{:02X}", value),
-                Operand::Text(value) => value
-                    .as_bytes()
-                    .iter()
-                    .map(|b| format!("{:02X}", b))
-                    .collect::<Vec<String>>()
-                    .join(" "),
-                Operand::Register(name) => format!("{:02X}", name),
-            },
-            destination,
-        );
     }
 
     fn addition(&mut self) {
@@ -412,77 +312,6 @@ impl Assembler {
         self.emit_operand_byte_code(&operand_1);
         self.emit_operand_byte_code(&operand_2);
         self.emit_register_byte_code(destination);
-
-        let operand_1_length = match &operand_1 {
-            Operand::Number(_) => 1,
-            Operand::Text(value) => value
-                .as_bytes()
-                .iter()
-                .map(|b| format!("{:02X}", b))
-                .collect::<Vec<String>>()
-                .len(),
-            Operand::Register(_) => 1,
-        };
-        let operand_2_length = match &operand_2 {
-            Operand::Number(_) => 1,
-            Operand::Text(value) => value
-                .as_bytes()
-                .iter()
-                .map(|b| format!("{:02X}", b))
-                .collect::<Vec<String>>()
-                .len(),
-            Operand::Register(_) => 1,
-        };
-
-        println!(
-            "[Stack Level {}] Add: {} - {} -> {} Bytes: [{:02X}] [{:02X} {:02X} {}] [{:02X} {:02X} {}] [{:02X}]",
-            self.current_stack_level,
-            match &operand_1 {
-                Operand::Number(value) => format!("number:{}", value),
-                Operand::Text(value) => format!("text:{}", value),
-                Operand::Register(name) => format!("reg:{}", name),
-            },
-            match &operand_2 {
-                Operand::Number(value) => format!("number:{}", value),
-                Operand::Text(value) => format!("text:{}", value),
-                Operand::Register(name) => format!("reg:{}", name),
-            },
-            destination,
-            OpCode::ADD as u8,
-            match &operand_1 {
-                Operand::Number(_) => OperandType::NUMBER as u8,
-                Operand::Text(_) => OperandType::TEXT as u8,
-                Operand::Register(_) => OperandType::REGISTER as u8,
-            },
-            operand_1_length,
-            match &operand_1 {
-                Operand::Number(value) => format!("{:02X}", value),
-                Operand::Text(value) => value
-                    .as_bytes()
-                    .iter()
-                    .map(|b| format!("{:02X}", b))
-                    .collect::<Vec<String>>()
-                    .join(" "),
-                Operand::Register(name) => format!("{:02X}", name),
-            },
-            match &operand_2 {
-                Operand::Number(_) => OperandType::NUMBER as u8,
-                Operand::Text(_) => OperandType::TEXT as u8,
-                Operand::Register(_) => OperandType::REGISTER as u8,
-            },
-            operand_2_length,
-            match &operand_2 {
-                Operand::Number(value) => format!("{:02X}", value),
-                Operand::Text(value) => value
-                    .as_bytes()
-                    .iter()
-                    .map(|b| format!("{:02X}", b))
-                    .collect::<Vec<String>>()
-                    .join(" "),
-                Operand::Register(name) => format!("{:02X}", name),
-            },
-            destination,
-        );
     }
 
     fn similarity(&mut self) {
@@ -512,77 +341,6 @@ impl Assembler {
         self.emit_operand_byte_code(&operand_1);
         self.emit_operand_byte_code(&operand_2);
         self.emit_register_byte_code(destination);
-
-        let operand_1_length = match &operand_1 {
-            Operand::Number(_) => 1,
-            Operand::Text(value) => value
-                .as_bytes()
-                .iter()
-                .map(|b| format!("{:02X}", b))
-                .collect::<Vec<String>>()
-                .len(),
-            Operand::Register(_) => 1,
-        };
-        let operand_2_length = match &operand_2 {
-            Operand::Number(_) => 1,
-            Operand::Text(value) => value
-                .as_bytes()
-                .iter()
-                .map(|b| format!("{:02X}", b))
-                .collect::<Vec<String>>()
-                .len(),
-            Operand::Register(_) => 1,
-        };
-
-        println!(
-            "[Stack Level {}] Similarity: {} - {} -> {} Bytes: [{:02X}] [{:02X} {:02X} {}] [{:02X} {:02X} {}] [{:02X}]",
-            self.current_stack_level,
-            match &operand_1 {
-                Operand::Number(value) => format!("number:{}", value),
-                Operand::Text(value) => format!("text:{}", value),
-                Operand::Register(name) => format!("reg:{}", name),
-            },
-            match &operand_2 {
-                Operand::Number(value) => format!("number:{}", value),
-                Operand::Text(value) => format!("text:{}", value),
-                Operand::Register(name) => format!("reg:{}", name),
-            },
-            destination,
-            OpCode::SIM as u8,
-            match &operand_1 {
-                Operand::Number(_) => OperandType::NUMBER as u8,
-                Operand::Text(_) => OperandType::TEXT as u8,
-                Operand::Register(_) => OperandType::REGISTER as u8,
-            },
-            operand_1_length,
-            match &operand_1 {
-                Operand::Number(value) => format!("{:02X}", value),
-                Operand::Text(value) => value
-                    .as_bytes()
-                    .iter()
-                    .map(|b| format!("{:02X}", b))
-                    .collect::<Vec<String>>()
-                    .join(" "),
-                Operand::Register(name) => format!("{:02X}", name),
-            },
-            match &operand_2 {
-                Operand::Number(_) => OperandType::NUMBER as u8,
-                Operand::Text(_) => OperandType::TEXT as u8,
-                Operand::Register(_) => OperandType::REGISTER as u8,
-            },
-            operand_2_length,
-            match &operand_2 {
-                Operand::Number(value) => format!("{:02X}", value),
-                Operand::Text(value) => value
-                    .as_bytes()
-                    .iter()
-                    .map(|b| format!("{:02X}", b))
-                    .collect::<Vec<String>>()
-                    .join(" "),
-                Operand::Register(name) => format!("{:02X}", name),
-            },
-            destination,
-        );
     }
 
     fn jump_less_than(&mut self) {
@@ -620,80 +378,9 @@ impl Assembler {
         self.emit_operand_byte_code(&operand_1);
         self.emit_operand_byte_code(&operand_2);
         self.emit_register_byte_code(current_stack_level as u8);
-
-        let operand_1_length = match &operand_1 {
-            Operand::Number(_) => 1,
-            Operand::Text(value) => value
-                .as_bytes()
-                .iter()
-                .map(|b| format!("{:02X}", b))
-                .collect::<Vec<String>>()
-                .len(),
-            Operand::Register(_) => 1,
-        };
-        let operand_2_length = match &operand_2 {
-            Operand::Number(_) => 1,
-            Operand::Text(value) => value
-                .as_bytes()
-                .iter()
-                .map(|b| format!("{:02X}", b))
-                .collect::<Vec<String>>()
-                .len(),
-            Operand::Register(_) => 1,
-        };
-
-        println!(
-            "[Stack Level {}] Jump if Less Than: {} < {} -> {} Bytes: [{:02X}] [{:02X} {:02X} {}] [{:02X} {:02X} {}] [{:02X}]",
-            self.current_stack_level,
-            match &operand_1 {
-                Operand::Number(value) => format!("number:{}", value),
-                Operand::Text(value) => format!("text:{}", value),
-                Operand::Register(name) => format!("reg:{}", name),
-            },
-            match &operand_2 {
-                Operand::Number(value) => format!("number:{}", value),
-                Operand::Text(value) => format!("text:{}", value),
-                Operand::Register(name) => format!("reg:{}", name),
-            },
-            current_stack_level,
-            OpCode::JLT as u8,
-            match &operand_1 {
-                Operand::Number(_) => OperandType::NUMBER as u8,
-                Operand::Text(_) => OperandType::TEXT as u8,
-                Operand::Register(_) => OperandType::REGISTER as u8,
-            },
-            operand_1_length,
-            match &operand_1 {
-                Operand::Number(value) => format!("{:02X}", value),
-                Operand::Text(value) => value
-                    .as_bytes()
-                    .iter()
-                    .map(|b| format!("{:02X}", b))
-                    .collect::<Vec<String>>()
-                    .join(" "),
-                Operand::Register(name) => format!("{:02X}", name),
-            },
-            match &operand_2 {
-                Operand::Number(_) => OperandType::NUMBER as u8,
-                Operand::Text(_) => OperandType::TEXT as u8,
-                Operand::Register(_) => OperandType::REGISTER as u8,
-            },
-            operand_2_length,
-            match &operand_2 {
-                Operand::Number(value) => format!("{:02X}", value),
-                Operand::Text(value) => value
-                    .as_bytes()
-                    .iter()
-                    .map(|b| format!("{:02X}", b))
-                    .collect::<Vec<String>>()
-                    .join(" "),
-                Operand::Register(name) => format!("{:02X}", name),
-            },
-            current_stack_level,
-        );
     }
 
-    pub fn assemble(&mut self) -> bool {
+    pub fn assemble(&mut self) -> Option<Vec<u8>> {
         self.advance();
 
         while !self.panic_mode {
@@ -705,7 +392,7 @@ impl Assembler {
                     TokenType::ADD => self.addition(),
                     TokenType::SIM => self.similarity(),
                     TokenType::JLT => self.jump_less_than(),
-                    TokenType::EOF => return !self.had_error,
+                    TokenType::EOF => break,
                     _ => self.error_at_current("Unexpected keyword."),
                 }
             } else {
@@ -713,6 +400,10 @@ impl Assembler {
             }
         }
 
-        return !self.had_error;
+        if self.had_error {
+            return None;
+        }
+
+        return Some(self.byte_code.clone());
     }
 }

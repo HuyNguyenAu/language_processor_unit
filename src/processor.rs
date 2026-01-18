@@ -157,7 +157,7 @@ impl ControlUnit {
         }
     }
 
-    fn load_instruction(&mut self) {
+    fn decode(&mut self) {
         self.advance();
 
         loop {
@@ -199,6 +199,6 @@ impl Processor {
     }
 
     pub fn execute(&mut self) {
-        self.control.load_instruction();
+        self.control.decode();
     }
 }

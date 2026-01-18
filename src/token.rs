@@ -3,8 +3,8 @@ pub enum TokenType {
     // Single-character.
     COMMA,
     // SEMICOLON,
-    MINUS,
-    PLUS,
+    // MINUS,
+    // PLUS,
     // STAR,
     // SLASH,
 
@@ -18,12 +18,14 @@ pub enum TokenType {
     ADD,
     SUB,
     SIM,
-    BGE,
-    JMP,
-    STOP,
+    LABEL,
+    JLT,
+    // JMP,
+    // IN,
+    OUT,
+    // HALT,
 
     // Misc.
-    LABEL,
     EOF,
     ERROR,
 }
@@ -34,5 +36,6 @@ pub struct Token {
     pub start: usize,
     pub length: usize,
     pub line: usize,
+    pub column: usize,
     pub error: Option<&'static str>,
 }

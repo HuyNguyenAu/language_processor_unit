@@ -101,13 +101,9 @@ impl Scanner {
 
                     self.advance();
                 }
-                '/' => {
-                    if self.peek_next() == '/' {
-                        while !self.is_at_end() && self.peek() != '\n' {
-                            self.advance();
-                        }
-                    } else {
-                        return;
+                ';' => {
+                    while !self.is_at_end() && self.peek() != '\n' {
+                        self.advance();
                     }
                 }
                 _ => return,
@@ -116,7 +112,8 @@ impl Scanner {
     }
 
     fn identifier(&mut self) -> Token {
-        while let char = self.peek()
+        while !self.is_at_end()
+            && let char = self.peek()
             && (self.is_alpha(char) || self.is_digit(char))
         {
             self.advance();
@@ -129,16 +126,16 @@ impl Scanner {
             "add" => self.make_token(TokenType::ADD),
             "sub" => self.make_token(TokenType::SUB),
             "sim" => self.make_token(TokenType::SIM),
-            "bge" => self.make_token(TokenType::BGE),
             "label" => self.make_token(TokenType::LABEL),
-            "jmp" => self.make_token(TokenType::JMP),
-            "stop" => self.make_token(TokenType::STOP),
+            "jlt" => self.make_token(TokenType::JLT),
+            // "jmp" => self.make_token(TokenType::JMP),
+            // "stop" => self.make_token(TokenType::STOP),
             _ => self.make_token(TokenType::IDENTIFIER),
         };
     }
 
     fn number(&mut self) -> Token {
-        while let char = self.peek()
+        while !self.is_at_end() && let char = self.peek()
             && self.is_digit(char)
         {
             self.advance();
@@ -152,7 +149,7 @@ impl Scanner {
             // Consume the decimal point.
             self.advance();
 
-            while let char = self.peek()
+            while !self.is_at_end() && let char = self.peek()
                 && self.is_digit(char)
             {
                 self.advance();
@@ -205,8 +202,8 @@ impl Scanner {
             // Single-character tokens.
             ',' => self.make_token(TokenType::COMMA),
             // ';' => self.make_token(TokenType::SEMICOLON),
-            '-' => self.make_token(TokenType::MINUS),
-            '+' => self.make_token(TokenType::PLUS),
+            // '-' => self.make_token(TokenType::MINUS),
+            // '+' => self.make_token(TokenType::PLUS),
             // '*' => self.make_token(TokenType::STAR),
             // '/' => self.make_token(TokenType::SLASH),
             '"' => return self.string(),

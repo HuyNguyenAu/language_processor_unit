@@ -3,6 +3,7 @@ use std::fmt::format;
 
 use crate::instruction::OpCode;
 use crate::instruction::Operand;
+use crate::instruction::OperandType;
 use crate::scanner::Scanner;
 use crate::token::{Token, TokenType};
 
@@ -12,7 +13,7 @@ pub struct Assembler {
     previous: Option<Token>,
     current: Option<Token>,
     stack_level: u32,
-    stack_levels: HashMap<String, u32>,
+    labels: HashMap<String, u32>,
     had_error: bool,
     panic_mode: bool,
 }
@@ -25,7 +26,7 @@ impl Assembler {
             previous: None,
             current: None,
             stack_level: 0,
-            stack_levels: HashMap::new(),
+            labels: HashMap::new(),
             had_error: false,
             panic_mode: false,
         };
@@ -199,7 +200,7 @@ impl Assembler {
         };
 
         println!(
-            "[Stack Level {}] Register: {} with value {:#?} Bytes: [{:02X}] [{:02X}] [{:02X}] [{}]",
+            "[Stack Level {}] Register: {} with value {:#?} Bytes: [{:02X}] [{:02X}] [{:02X} {}]",
             self.stack_level,
             register,
             match &variable_value {
@@ -238,7 +239,7 @@ impl Assembler {
         let label_name = self.previous_lexeme().to_string();
         let value = label_name.trim_end_matches(':');
 
-        self.stack_levels
+        self.labels
             .insert(value.to_string(), self.stack_level + 1);
 
         println!("[Stack Level {}] Label: {}", self.stack_level, value);
@@ -262,12 +263,12 @@ impl Assembler {
 
         self.consume(TokenType::COMMA, "Expected ',' after second operand.");
 
-        let destination = match self.identifier("Expected destination after ','.") {
+        let destination = match self.register("Expected destination register after ','.") {
             Ok(name) => name,
             _ => return,
         };
 
-        let operand_1_size = match &operand_1 {
+        let operand_1_length = match &operand_1 {
             Operand::Number(_) => 1,
             Operand::Text(value) => value
                 .as_bytes()
@@ -277,7 +278,7 @@ impl Assembler {
                 .len(),
             Operand::Register(_) => 1,
         };
-        let operand_2_size = match &operand_2 {
+        let operand_2_length = match &operand_2 {
             Operand::Number(_) => 1,
             Operand::Text(value) => value
                 .as_bytes()
@@ -286,18 +287,10 @@ impl Assembler {
                 .collect::<Vec<String>>()
                 .len(),
             Operand::Register(_) => 1,
-        };
-        let destination_size = match &destination {
-            _ => destination
-                .as_bytes()
-                .iter()
-                .map(|b| format!("{:02X}", b))
-                .collect::<Vec<String>>()
-                .len(),
         };
 
         println!(
-            "[Stack Level {}] Subtract: {} - {} -> {} Bytes: [{:02X}] [{:02X}] [{}]",
+            "[Stack Level {}] Subtract: {} - {} -> {} Bytes: [{:02X}] [{:02X} {:02X} {}] [{:02X} {:02X} {}] [{:02X}]",
             self.stack_level,
             match &operand_1 {
                 Operand::Number(value) => format!("number:{}", value),
@@ -311,7 +304,12 @@ impl Assembler {
             },
             destination,
             OpCode::SUB as u8,
-            operand_1_size + operand_2_size + destination_size,
+            match &operand_1 {
+                Operand::Number(_) => OperandType::NUMBER as u8,
+                Operand::Text(_) => OperandType::TEXT as u8,
+                Operand::Register(_) => OperandType::REGISTER as u8,
+            },
+            operand_1_length,
             match &operand_1 {
                 Operand::Number(value) => format!("{:02X}", value),
                 Operand::Text(value) => value
@@ -321,7 +319,24 @@ impl Assembler {
                     .collect::<Vec<String>>()
                     .join(" "),
                 Operand::Register(name) => format!("{:02X}", name),
-            }
+            },
+            match &operand_2 {
+                Operand::Number(_) => OperandType::NUMBER as u8,
+                Operand::Text(_) => OperandType::TEXT as u8,
+                Operand::Register(_) => OperandType::REGISTER as u8,
+            },
+            operand_2_length,
+            match &operand_2 {
+                Operand::Number(value) => format!("{:02X}", value),
+                Operand::Text(value) => value
+                    .as_bytes()
+                    .iter()
+                    .map(|b| format!("{:02X}", b))
+                    .collect::<Vec<String>>()
+                    .join(" "),
+                Operand::Register(name) => format!("{:02X}", name),
+            },
+            destination,
         );
     }
 
@@ -343,25 +358,80 @@ impl Assembler {
 
         self.consume(TokenType::COMMA, "Expected ',' after second operand.");
 
-        let destination = match self.identifier("Expected destination after ','.") {
+        let destination = match self.register("Expected destination register after ','.") {
             Ok(name) => name,
             _ => return,
         };
 
+        let operand_1_length = match &operand_1 {
+            Operand::Number(_) => 1,
+            Operand::Text(value) => value
+                .as_bytes()
+                .iter()
+                .map(|b| format!("{:02X}", b))
+                .collect::<Vec<String>>()
+                .len(),
+            Operand::Register(_) => 1,
+        };
+        let operand_2_length = match &operand_2 {
+            Operand::Number(_) => 1,
+            Operand::Text(value) => value
+                .as_bytes()
+                .iter()
+                .map(|b| format!("{:02X}", b))
+                .collect::<Vec<String>>()
+                .len(),
+            Operand::Register(_) => 1,
+        };
+
         println!(
-            "[Stack Level {}] Add: {} + {} -> {}",
+            "[Stack Level {}] Add: {} - {} -> {} Bytes: [{:02X}] [{:02X} {:02X} {}] [{:02X} {:02X} {}] [{:02X}]",
             self.stack_level,
-            match operand_1 {
+            match &operand_1 {
                 Operand::Number(value) => format!("number:{}", value),
                 Operand::Text(value) => format!("text:{}", value),
                 Operand::Register(name) => format!("reg:{}", name),
             },
-            match operand_2 {
+            match &operand_2 {
                 Operand::Number(value) => format!("number:{}", value),
                 Operand::Text(value) => format!("text:{}", value),
                 Operand::Register(name) => format!("reg:{}", name),
             },
-            destination
+            destination,
+            OpCode::ADD as u8,
+            match &operand_1 {
+                Operand::Number(_) => OperandType::NUMBER as u8,
+                Operand::Text(_) => OperandType::TEXT as u8,
+                Operand::Register(_) => OperandType::REGISTER as u8,
+            },
+            operand_1_length,
+            match &operand_1 {
+                Operand::Number(value) => format!("{:02X}", value),
+                Operand::Text(value) => value
+                    .as_bytes()
+                    .iter()
+                    .map(|b| format!("{:02X}", b))
+                    .collect::<Vec<String>>()
+                    .join(" "),
+                Operand::Register(name) => format!("{:02X}", name),
+            },
+            match &operand_2 {
+                Operand::Number(_) => OperandType::NUMBER as u8,
+                Operand::Text(_) => OperandType::TEXT as u8,
+                Operand::Register(_) => OperandType::REGISTER as u8,
+            },
+            operand_2_length,
+            match &operand_2 {
+                Operand::Number(value) => format!("{:02X}", value),
+                Operand::Text(value) => value
+                    .as_bytes()
+                    .iter()
+                    .map(|b| format!("{:02X}", b))
+                    .collect::<Vec<String>>()
+                    .join(" "),
+                Operand::Register(name) => format!("{:02X}", name),
+            },
+            destination,
         );
     }
 
@@ -383,25 +453,80 @@ impl Assembler {
 
         self.consume(TokenType::COMMA, "Expected ',' after second operand.");
 
-        let destination = match self.identifier("Expected destination after ','.") {
+        let destination = match self.register("Expected destination register after ','.") {
             Ok(name) => name,
             _ => return,
         };
 
+        let operand_1_length = match &operand_1 {
+            Operand::Number(_) => 1,
+            Operand::Text(value) => value
+                .as_bytes()
+                .iter()
+                .map(|b| format!("{:02X}", b))
+                .collect::<Vec<String>>()
+                .len(),
+            Operand::Register(_) => 1,
+        };
+        let operand_2_length = match &operand_2 {
+            Operand::Number(_) => 1,
+            Operand::Text(value) => value
+                .as_bytes()
+                .iter()
+                .map(|b| format!("{:02X}", b))
+                .collect::<Vec<String>>()
+                .len(),
+            Operand::Register(_) => 1,
+        };
+
         println!(
-            "[Stack Level {}] Similarity: {} ~ {} -> {}",
+            "[Stack Level {}] Similarity: {} - {} -> {} Bytes: [{:02X}] [{:02X} {:02X} {}] [{:02X} {:02X} {}] [{:02X}]",
             self.stack_level,
-            match operand_1 {
+            match &operand_1 {
                 Operand::Number(value) => format!("number:{}", value),
                 Operand::Text(value) => format!("text:{}", value),
                 Operand::Register(name) => format!("reg:{}", name),
             },
-            match operand_2 {
+            match &operand_2 {
                 Operand::Number(value) => format!("number:{}", value),
                 Operand::Text(value) => format!("text:{}", value),
                 Operand::Register(name) => format!("reg:{}", name),
             },
-            destination
+            destination,
+            OpCode::ADD as u8,
+            match &operand_1 {
+                Operand::Number(_) => OperandType::NUMBER as u8,
+                Operand::Text(_) => OperandType::TEXT as u8,
+                Operand::Register(_) => OperandType::REGISTER as u8,
+            },
+            operand_1_length,
+            match &operand_1 {
+                Operand::Number(value) => format!("{:02X}", value),
+                Operand::Text(value) => value
+                    .as_bytes()
+                    .iter()
+                    .map(|b| format!("{:02X}", b))
+                    .collect::<Vec<String>>()
+                    .join(" "),
+                Operand::Register(name) => format!("{:02X}", name),
+            },
+            match &operand_2 {
+                Operand::Number(_) => OperandType::NUMBER as u8,
+                Operand::Text(_) => OperandType::TEXT as u8,
+                Operand::Register(_) => OperandType::REGISTER as u8,
+            },
+            operand_2_length,
+            match &operand_2 {
+                Operand::Number(value) => format!("{:02X}", value),
+                Operand::Text(value) => value
+                    .as_bytes()
+                    .iter()
+                    .map(|b| format!("{:02X}", b))
+                    .collect::<Vec<String>>()
+                    .join(" "),
+                Operand::Register(name) => format!("{:02X}", name),
+            },
+            destination,
         );
     }
 
@@ -428,7 +553,7 @@ impl Assembler {
             _ => return,
         };
 
-        let stack_level = match self.stack_levels.get(&label) {
+        let stack_level = match self.labels.get(&label) {
             Some(level) => *level,
             None => {
                 self.error_at_previous("Undefined label.");
@@ -436,20 +561,75 @@ impl Assembler {
             }
         };
 
+         let operand_1_length = match &operand_1 {
+            Operand::Number(_) => 1,
+            Operand::Text(value) => value
+                .as_bytes()
+                .iter()
+                .map(|b| format!("{:02X}", b))
+                .collect::<Vec<String>>()
+                .len(),
+            Operand::Register(_) => 1,
+        };
+        let operand_2_length = match &operand_2 {
+            Operand::Number(_) => 1,
+            Operand::Text(value) => value
+                .as_bytes()
+                .iter()
+                .map(|b| format!("{:02X}", b))
+                .collect::<Vec<String>>()
+                .len(),
+            Operand::Register(_) => 1,
+        };
+
         println!(
-            "[Stack Level {}] Jump if Less Than: {} < {} -> {}",
+            "[Stack Level {}] Jump if Less Than: {} < {} -> {} Bytes: [{:02X}] [{:02X} {:02X} {}] [{:02X} {:02X} {}] [{:02X}]",
             self.stack_level,
-            match operand_1 {
+            match &operand_1 {
                 Operand::Number(value) => format!("number:{}", value),
                 Operand::Text(value) => format!("text:{}", value),
                 Operand::Register(name) => format!("reg:{}", name),
             },
-            match operand_2 {
+            match &operand_2 {
                 Operand::Number(value) => format!("number:{}", value),
                 Operand::Text(value) => format!("text:{}", value),
                 Operand::Register(name) => format!("reg:{}", name),
             },
-            format!("stack:{}", stack_level)
+            stack_level,
+            OpCode::ADD as u8,
+            match &operand_1 {
+                Operand::Number(_) => OperandType::NUMBER as u8,
+                Operand::Text(_) => OperandType::TEXT as u8,
+                Operand::Register(_) => OperandType::REGISTER as u8,
+            },
+            operand_1_length,
+            match &operand_1 {
+                Operand::Number(value) => format!("{:02X}", value),
+                Operand::Text(value) => value
+                    .as_bytes()
+                    .iter()
+                    .map(|b| format!("{:02X}", b))
+                    .collect::<Vec<String>>()
+                    .join(" "),
+                Operand::Register(name) => format!("{:02X}", name),
+            },
+            match &operand_2 {
+                Operand::Number(_) => OperandType::NUMBER as u8,
+                Operand::Text(_) => OperandType::TEXT as u8,
+                Operand::Register(_) => OperandType::REGISTER as u8,
+            },
+            operand_2_length,
+            match &operand_2 {
+                Operand::Number(value) => format!("{:02X}", value),
+                Operand::Text(value) => value
+                    .as_bytes()
+                    .iter()
+                    .map(|b| format!("{:02X}", b))
+                    .collect::<Vec<String>>()
+                    .join(" "),
+                Operand::Register(name) => format!("{:02X}", name),
+            },
+            stack_level,
         );
     }
 

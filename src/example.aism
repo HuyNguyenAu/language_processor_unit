@@ -1,11 +1,12 @@
-var r1, "king"
-var r2, "man"
-// var r3 "woman"
+        ; Initialisation
+        mov r1, "king"
+        mov r2, "man"
+        mov r3, "woman"
 
-// abel start
-// sub r1, r2, r4
-// add r4, r3, r5
-// sim r5, "queen"
-// bge r6, 0.85, start
+        ; Execution
+start:  sub r1, r2, r4
+        add r4, r3, r5
 
-// stop
+        ; Validation
+        sim r5, "queen", r6
+        jlt r6, 85, start

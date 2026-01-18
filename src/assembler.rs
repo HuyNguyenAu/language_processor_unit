@@ -1,5 +1,7 @@
 use std::collections::HashMap;
+use std::fmt::format;
 
+use crate::instruction::OpCode;
 use crate::instruction::Operand;
 use crate::scanner::Scanner;
 use crate::token::{Token, TokenType};
@@ -118,16 +120,7 @@ impl Assembler {
         self.stack_level += 1;
     }
 
-    // fn make_instruction(&self, op_code: OPCode) -> Instruction {
-    //     return Instruction {
-    //         op_code,
-    //         operand_1: None,
-    //         operand_2: None,
-    //         operand_3: None,
-    //     };
-    // }
-
-    fn number(&mut self, message: &str) -> Result<f32, &'static str> {
+    fn number(&mut self, message: &str) -> Result<u8, &'static str> {
         self.consume(TokenType::NUMBER, message);
 
         if let Ok(value) = self.previous_lexeme().parse() {
@@ -135,6 +128,16 @@ impl Assembler {
         }
 
         return Err("Failed to parse number.");
+    }
+
+    fn register(&mut self, message: &str) -> Result<u8, &'static str> {
+        self.consume(TokenType::IDENTIFIER, message);
+
+        if let Ok(value) = self.previous_lexeme().chars().skip(1).collect::<String>().parse() {
+            return Ok(value);
+        }
+
+        return Err("Failed to parse register.");
     }
 
     fn string(&mut self, message: &str) -> Result<String, &'static str> {
@@ -171,24 +174,24 @@ impl Assembler {
                 Ok(value) => return Ok(Operand::Text(value)),
                 Err(e) => return Err(e),
             },
-            TokenType::IDENTIFIER => match self.identifier(message) {
-                Ok(value) => return Ok(Operand::Variable(value)),
+            TokenType::IDENTIFIER => match self.register(message) {
+                Ok(value) => return Ok(Operand::Register(value)),
                 Err(e) => return Err(e),
             },
-            _ => return Err("Expected number, string, or identifier as operand."),
+            _ => return Err("Expected number, string, or register as operand."),
         }
     }
 
-    fn variable(&mut self) {
+    fn _move(&mut self) {
         self.advance_stack_level();
-        self.consume(TokenType::VAR, "Expected 'var' keyword.");
+        self.consume(TokenType::MOV, "Expected 'mov' keyword.");
 
-        let variable_name = match self.identifier("Expected variable name.") {
+        let register = match self.register("Expected register name.") {
             Ok(name) => name,
             _ => return,
         };
 
-        self.consume(TokenType::COMMA, "Expected ',' after variable name.");
+        self.consume(TokenType::COMMA, "Expected ',' after register name.");
 
         let variable_value = match self.operand("Expected operand after ','.") {
             Ok(value) => value,
@@ -196,29 +199,49 @@ impl Assembler {
         };
 
         println!(
-            "[Stack Level {}] Variable: {} with value {:#?}",
+            "[Stack Level {}] Register: {} with value {:#?} Bytes: [{:02X}] [{:02X}] [{:02X}] [{}]",
             self.stack_level,
-            variable_name,
-            match variable_value {
+            register,
+            match &variable_value {
                 Operand::Number(value) => format!("number:{}", value),
                 Operand::Text(value) => format!("text:{}", value),
-                Operand::Variable(name) => format!("var:{}", name),
-            }
+                Operand::Register(value) => format!("reg:{}", value),
+            },
+            OpCode::MOV as u8,
+            register,
+            match &variable_value {
+                Operand::Number(_) => 1,
+                Operand::Text(value) => value
+                    .as_bytes()
+                    .iter()
+                    .map(|b| format!("{:02X}", b))
+                    .collect::<Vec<String>>()
+                    .len(),
+                Operand::Register(_) => 1,
+            },
+            match &variable_value {
+                Operand::Number(value) => format!("{:02X}", value),
+                Operand::Text(value) => value
+                    .as_bytes()
+                    .iter()
+                    .map(|b| format!("{:02X}", b))
+                    .collect::<Vec<String>>()
+                    .join(" "),
+                Operand::Register(value) => format!("{:02X}", value),
+            },
         );
     }
 
     fn label(&mut self) {
-        self.consume(TokenType::LABEL, "Expected 'label' keyword.");
+        self.consume(TokenType::LABEL, "Expected label name.");
 
-        let label_name = match self.identifier("Expected label name.") {
-            Ok(name) => name,
-            _ => return,
-        };
+        let label_name = self.previous_lexeme().to_string();
+        let value = label_name.trim_end_matches(':');
 
         self.stack_levels
-            .insert(label_name.to_string(), self.stack_level + 1);
+            .insert(value.to_string(), self.stack_level + 1);
 
-        println!("[Stack Level {}] Label: {}", self.stack_level, label_name);
+        println!("[Stack Level {}] Label: {}", self.stack_level, value);
     }
 
     fn subtract(&mut self) {
@@ -244,20 +267,61 @@ impl Assembler {
             _ => return,
         };
 
+        let operand_1_size = match &operand_1 {
+            Operand::Number(_) => 1,
+            Operand::Text(value) => value
+                .as_bytes()
+                .iter()
+                .map(|b| format!("{:02X}", b))
+                .collect::<Vec<String>>()
+                .len(),
+            Operand::Register(_) => 1,
+        };
+        let operand_2_size = match &operand_2 {
+            Operand::Number(_) => 1,
+            Operand::Text(value) => value
+                .as_bytes()
+                .iter()
+                .map(|b| format!("{:02X}", b))
+                .collect::<Vec<String>>()
+                .len(),
+            Operand::Register(_) => 1,
+        };
+        let destination_size = match &destination {
+            _ => destination
+                .as_bytes()
+                .iter()
+                .map(|b| format!("{:02X}", b))
+                .collect::<Vec<String>>()
+                .len(),
+        };
+
         println!(
-            "[Stack Level {}] Subtract: {} - {} -> {}",
+            "[Stack Level {}] Subtract: {} - {} -> {} Bytes: [{:02X}] [{:02X}] [{}]",
             self.stack_level,
-            match operand_1 {
+            match &operand_1 {
                 Operand::Number(value) => format!("number:{}", value),
                 Operand::Text(value) => format!("text:{}", value),
-                Operand::Variable(name) => format!("var:{}", name),
+                Operand::Register(name) => format!("reg:{}", name),
             },
-            match operand_2 {
+            match &operand_2 {
                 Operand::Number(value) => format!("number:{}", value),
                 Operand::Text(value) => format!("text:{}", value),
-                Operand::Variable(name) => format!("var:{}", name),
+                Operand::Register(name) => format!("reg:{}", name),
             },
-            destination
+            destination,
+            OpCode::SUB as u8,
+            operand_1_size + operand_2_size + destination_size,
+            match &operand_1 {
+                Operand::Number(value) => format!("{:02X}", value),
+                Operand::Text(value) => value
+                    .as_bytes()
+                    .iter()
+                    .map(|b| format!("{:02X}", b))
+                    .collect::<Vec<String>>()
+                    .join(" "),
+                Operand::Register(name) => format!("{:02X}", name),
+            }
         );
     }
 
@@ -290,12 +354,12 @@ impl Assembler {
             match operand_1 {
                 Operand::Number(value) => format!("number:{}", value),
                 Operand::Text(value) => format!("text:{}", value),
-                Operand::Variable(name) => format!("var:{}", name),
+                Operand::Register(name) => format!("reg:{}", name),
             },
             match operand_2 {
                 Operand::Number(value) => format!("number:{}", value),
                 Operand::Text(value) => format!("text:{}", value),
-                Operand::Variable(name) => format!("var:{}", name),
+                Operand::Register(name) => format!("reg:{}", name),
             },
             destination
         );
@@ -330,12 +394,12 @@ impl Assembler {
             match operand_1 {
                 Operand::Number(value) => format!("number:{}", value),
                 Operand::Text(value) => format!("text:{}", value),
-                Operand::Variable(name) => format!("var:{}", name),
+                Operand::Register(name) => format!("reg:{}", name),
             },
             match operand_2 {
                 Operand::Number(value) => format!("number:{}", value),
                 Operand::Text(value) => format!("text:{}", value),
-                Operand::Variable(name) => format!("var:{}", name),
+                Operand::Register(name) => format!("reg:{}", name),
             },
             destination
         );
@@ -378,12 +442,12 @@ impl Assembler {
             match operand_1 {
                 Operand::Number(value) => format!("number:{}", value),
                 Operand::Text(value) => format!("text:{}", value),
-                Operand::Variable(name) => format!("var:{}", name),
+                Operand::Register(name) => format!("reg:{}", name),
             },
             match operand_2 {
                 Operand::Number(value) => format!("number:{}", value),
                 Operand::Text(value) => format!("text:{}", value),
-                Operand::Variable(name) => format!("var:{}", name),
+                Operand::Register(name) => format!("reg:{}", name),
             },
             format!("stack:{}", stack_level)
         );
@@ -392,25 +456,23 @@ impl Assembler {
     pub fn assemble(&mut self) -> bool {
         self.advance();
 
-        loop {
+        while !self.panic_mode {
             if let Some(current_token) = &self.current {
                 match current_token.token_type {
-                    TokenType::VAR => self.variable(),
+                    TokenType::MOV => self._move(),
                     TokenType::LABEL => self.label(),
                     TokenType::SUB => self.subtract(),
                     TokenType::ADD => self.addition(),
                     TokenType::SIM => self.similarity(),
                     TokenType::JLT => self.jump_less_than(),
                     TokenType::EOF => return !self.had_error,
-                    _ => {
-                        self.error_at_current("Unexpected keyword.");
-
-                        return !self.had_error;
-                    }
+                    _ => self.error_at_current("Unexpected keyword."),
                 }
             } else {
                 panic!("Failed to assemble. Current token is None.")
             }
         }
+
+        return !self.had_error;
     }
 }

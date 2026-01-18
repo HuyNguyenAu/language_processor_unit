@@ -39,6 +39,7 @@ fn main() {
 
     if compiler.assemble() {
         println!("Compilation succeeded.");
+        println!("Bytecode: {:02X?}", compiler.byte_code);
     } else {
         println!("Compilation failed.");
     }

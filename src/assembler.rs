@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::fmt::format;
 
 use crate::instruction::OpCode;
 use crate::instruction::Operand;
@@ -8,12 +7,17 @@ use crate::scanner::Scanner;
 use crate::token::{Token, TokenType};
 
 pub struct Assembler {
+    pub byte_code: Vec<u8>,
+
     source: &'static str,
     scanner: Scanner,
+
     previous: Option<Token>,
     current: Option<Token>,
-    stack_level: u32,
-    labels: HashMap<String, u32>,
+
+    current_stack_level: u32,
+    stack_levels: HashMap<String, u32>,
+
     had_error: bool,
     panic_mode: bool,
 }
@@ -21,12 +25,13 @@ pub struct Assembler {
 impl Assembler {
     pub fn new(source: &'static str) -> Self {
         return Assembler {
+            byte_code: Vec::new(),
             source,
             scanner: Scanner::new(source),
             previous: None,
             current: None,
-            stack_level: 0,
-            labels: HashMap::new(),
+            current_stack_level: 0,
+            stack_levels: HashMap::new(),
             had_error: false,
             panic_mode: false,
         };
@@ -118,7 +123,7 @@ impl Assembler {
     }
 
     fn advance_stack_level(&mut self) {
-        self.stack_level += 1;
+        self.current_stack_level += 1;
     }
 
     fn number(&mut self, message: &str) -> Result<u8, &'static str> {
@@ -134,7 +139,13 @@ impl Assembler {
     fn register(&mut self, message: &str) -> Result<u8, &'static str> {
         self.consume(TokenType::IDENTIFIER, message);
 
-        if let Ok(value) = self.previous_lexeme().chars().skip(1).collect::<String>().parse() {
+        if let Ok(value) = self
+            .previous_lexeme()
+            .chars()
+            .skip(1)
+            .collect::<String>()
+            .parse()
+        {
             return Ok(value);
         }
 
@@ -183,6 +194,37 @@ impl Assembler {
         }
     }
 
+    fn emit_op_code_byte_code(&mut self, op_code: OpCode) {
+        self.byte_code.push(op_code as u8);
+    }
+
+    fn emit_register_byte_code(&mut self, register: u8) {
+        self.byte_code.push(register);
+    }
+
+    fn emit_operand_byte_code(&mut self, operand: &Operand) {
+        match operand {
+            Operand::Number(value) => {
+                self.byte_code.push(OperandType::NUMBER as u8);
+                self.byte_code.push(1);
+                self.byte_code.push(*value);
+            }
+            Operand::Text(value) => {
+                self.byte_code.push(OperandType::TEXT as u8);
+
+                let bytes = value.as_bytes();
+
+                self.byte_code.push(bytes.len() as u8);
+                self.byte_code.extend(bytes);
+            }
+            Operand::Register(value) => {
+                self.byte_code.push(OperandType::REGISTER as u8);
+                self.byte_code.push(1);
+                self.byte_code.push(*value);
+            }
+        }
+    }
+
     fn _move(&mut self) {
         self.advance_stack_level();
         self.consume(TokenType::MOV, "Expected 'mov' keyword.");
@@ -199,9 +241,13 @@ impl Assembler {
             _ => return,
         };
 
+        self.emit_op_code_byte_code(OpCode::MOV);
+        self.emit_register_byte_code(register);
+        self.emit_operand_byte_code(&variable_value);
+
         println!(
-            "[Stack Level {}] Register: {} with value {:#?} Bytes: [{:02X}] [{:02X}] [{:02X} {}]",
-            self.stack_level,
+            "[Stack Level {}] Register: {} with value {:#?} Bytes: [{:02X}] [{:02X}] [{:02X} {:02X} {}]",
+            self.current_stack_level,
             register,
             match &variable_value {
                 Operand::Number(value) => format!("number:{}", value),
@@ -210,6 +256,11 @@ impl Assembler {
             },
             OpCode::MOV as u8,
             register,
+            match &variable_value {
+                Operand::Number(_) => OperandType::NUMBER as u8,
+                Operand::Text(_) => OperandType::TEXT as u8,
+                Operand::Register(_) => OperandType::REGISTER as u8,
+            },
             match &variable_value {
                 Operand::Number(_) => 1,
                 Operand::Text(value) => value
@@ -239,10 +290,9 @@ impl Assembler {
         let label_name = self.previous_lexeme().to_string();
         let value = label_name.trim_end_matches(':');
 
-        self.labels
-            .insert(value.to_string(), self.stack_level + 1);
+        self.stack_levels.insert(value.to_string(), self.current_stack_level + 1);
 
-        println!("[Stack Level {}] Label: {}", self.stack_level, value);
+        println!("[Stack Level {}] Label: {}", self.current_stack_level, value);
     }
 
     fn subtract(&mut self) {
@@ -268,30 +318,25 @@ impl Assembler {
             _ => return,
         };
 
+        self.emit_op_code_byte_code(OpCode::SUB);
+        self.emit_operand_byte_code(&operand_1);
+        self.emit_operand_byte_code(&operand_2);
+        self.emit_register_byte_code(destination);
+
         let operand_1_length = match &operand_1 {
             Operand::Number(_) => 1,
-            Operand::Text(value) => value
-                .as_bytes()
-                .iter()
-                .map(|b| format!("{:02X}", b))
-                .collect::<Vec<String>>()
-                .len(),
+            Operand::Text(value) => value.as_bytes().len(),
             Operand::Register(_) => 1,
         };
         let operand_2_length = match &operand_2 {
             Operand::Number(_) => 1,
-            Operand::Text(value) => value
-                .as_bytes()
-                .iter()
-                .map(|b| format!("{:02X}", b))
-                .collect::<Vec<String>>()
-                .len(),
+            Operand::Text(value) => value.as_bytes().len(),
             Operand::Register(_) => 1,
         };
 
         println!(
             "[Stack Level {}] Subtract: {} - {} -> {} Bytes: [{:02X}] [{:02X} {:02X} {}] [{:02X} {:02X} {}] [{:02X}]",
-            self.stack_level,
+            self.current_stack_level,
             match &operand_1 {
                 Operand::Number(value) => format!("number:{}", value),
                 Operand::Text(value) => format!("text:{}", value),
@@ -363,6 +408,11 @@ impl Assembler {
             _ => return,
         };
 
+        self.emit_op_code_byte_code(OpCode::ADD);
+        self.emit_operand_byte_code(&operand_1);
+        self.emit_operand_byte_code(&operand_2);
+        self.emit_register_byte_code(destination);
+
         let operand_1_length = match &operand_1 {
             Operand::Number(_) => 1,
             Operand::Text(value) => value
@@ -386,7 +436,7 @@ impl Assembler {
 
         println!(
             "[Stack Level {}] Add: {} - {} -> {} Bytes: [{:02X}] [{:02X} {:02X} {}] [{:02X} {:02X} {}] [{:02X}]",
-            self.stack_level,
+            self.current_stack_level,
             match &operand_1 {
                 Operand::Number(value) => format!("number:{}", value),
                 Operand::Text(value) => format!("text:{}", value),
@@ -458,6 +508,11 @@ impl Assembler {
             _ => return,
         };
 
+        self.emit_op_code_byte_code(OpCode::SIM);
+        self.emit_operand_byte_code(&operand_1);
+        self.emit_operand_byte_code(&operand_2);
+        self.emit_register_byte_code(destination);
+
         let operand_1_length = match &operand_1 {
             Operand::Number(_) => 1,
             Operand::Text(value) => value
@@ -481,7 +536,7 @@ impl Assembler {
 
         println!(
             "[Stack Level {}] Similarity: {} - {} -> {} Bytes: [{:02X}] [{:02X} {:02X} {}] [{:02X} {:02X} {}] [{:02X}]",
-            self.stack_level,
+            self.current_stack_level,
             match &operand_1 {
                 Operand::Number(value) => format!("number:{}", value),
                 Operand::Text(value) => format!("text:{}", value),
@@ -493,7 +548,7 @@ impl Assembler {
                 Operand::Register(name) => format!("reg:{}", name),
             },
             destination,
-            OpCode::ADD as u8,
+            OpCode::SIM as u8,
             match &operand_1 {
                 Operand::Number(_) => OperandType::NUMBER as u8,
                 Operand::Text(_) => OperandType::TEXT as u8,
@@ -553,7 +608,7 @@ impl Assembler {
             _ => return,
         };
 
-        let stack_level = match self.labels.get(&label) {
+        let current_stack_level = match self.stack_levels.get(&label) {
             Some(level) => *level,
             None => {
                 self.error_at_previous("Undefined label.");
@@ -561,7 +616,12 @@ impl Assembler {
             }
         };
 
-         let operand_1_length = match &operand_1 {
+        self.emit_op_code_byte_code(OpCode::JLT);
+        self.emit_operand_byte_code(&operand_1);
+        self.emit_operand_byte_code(&operand_2);
+        self.emit_register_byte_code(current_stack_level as u8);
+
+        let operand_1_length = match &operand_1 {
             Operand::Number(_) => 1,
             Operand::Text(value) => value
                 .as_bytes()
@@ -584,7 +644,7 @@ impl Assembler {
 
         println!(
             "[Stack Level {}] Jump if Less Than: {} < {} -> {} Bytes: [{:02X}] [{:02X} {:02X} {}] [{:02X} {:02X} {}] [{:02X}]",
-            self.stack_level,
+            self.current_stack_level,
             match &operand_1 {
                 Operand::Number(value) => format!("number:{}", value),
                 Operand::Text(value) => format!("text:{}", value),
@@ -595,8 +655,8 @@ impl Assembler {
                 Operand::Text(value) => format!("text:{}", value),
                 Operand::Register(name) => format!("reg:{}", name),
             },
-            stack_level,
-            OpCode::ADD as u8,
+            current_stack_level,
+            OpCode::JLT as u8,
             match &operand_1 {
                 Operand::Number(_) => OperandType::NUMBER as u8,
                 Operand::Text(_) => OperandType::TEXT as u8,
@@ -629,7 +689,7 @@ impl Assembler {
                     .join(" "),
                 Operand::Register(name) => format!("{:02X}", name),
             },
-            stack_level,
+            current_stack_level,
         );
     }
 

@@ -96,7 +96,7 @@ impl ControlUnit {
             let text_length = *length_byte as usize;
             let mut text_bytes: Vec<u8> = Vec::new();
 
-            for _ in 0..text_length {
+            for _ in 0..text_length + 1 {
                 self.advance();
 
                 if let Some(current) = &self.current {
@@ -137,6 +137,8 @@ impl ControlUnit {
         } else {
             panic!("Failed to determine operand type for MOV instruction.");
         }
+
+        println!();
     }
 
     fn op_code(&mut self) {
@@ -144,12 +146,13 @@ impl ControlUnit {
             match OpCode::from_byte(current_byte) {
                 Ok(op_code) => match op_code {
                     OpCode::MOV => self._move(),
-                    OpCode::ADD => println!("ADD instruction"),
-                    OpCode::SUB => println!("SUB instruction"),
-                    OpCode::SIM => println!("SIM instruction"),
-                    OpCode::JLT => println!("JLT instruction"),
+                    // OpCode::ADD => println!("ADD instruction"),
+                    // OpCode::SUB => println!("SUB instruction"),
+                    // OpCode::SIM => println!("SIM instruction"),
+                    // OpCode::JLT => println!("JLT instruction"),
+                    _ => panic!("Opcode not implemented yet. Byte: {:02X}", current_byte),
                 },
-                Err(error) => panic!("{}", error),
+                Err(error) => panic!("{} Byte: {:02X}", error, current_byte),
             }
         }
     }
@@ -159,7 +162,6 @@ impl ControlUnit {
 
         loop {
             self.op_code();
-            break;
         }
     }
 }

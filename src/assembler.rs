@@ -15,8 +15,8 @@ pub struct Assembler {
     previous: Option<Token>,
     current: Option<Token>,
 
-    current_stack_level: usize,
-    stack_levels: HashMap<String, usize>,
+    current_bytecode_index: usize,
+    bytecode_indices: HashMap<String, usize>,
 
     had_error: bool,
     panic_mode: bool,
@@ -30,8 +30,8 @@ impl Assembler {
             scanner: Scanner::new(source),
             previous: None,
             current: None,
-            current_stack_level: 0,
-            stack_levels: HashMap::new(),
+            current_bytecode_index: 0,
+            bytecode_indices: HashMap::new(),
             had_error: false,
             panic_mode: false,
         };
@@ -123,33 +123,31 @@ impl Assembler {
     }
 
     fn advance_stack_level(&mut self) {
-        self.current_stack_level = self.bytecode.len() - 1;
+        self.current_bytecode_index = self.bytecode.len() - 1;
     }
 
     fn number(&mut self, message: &str) -> Result<u8, &'static str> {
         self.consume(TokenType::NUMBER, message);
 
-        if let Ok(value) = self.previous_lexeme().parse() {
-            return Ok(value);
-        }
-
-        return Err("Failed to parse number.");
+        return match self.previous_lexeme().parse() {
+            Ok(value) => Ok(value),
+            Err(_) => Err("Failed to parse number."),
+        };
     }
 
     fn register(&mut self, message: &str) -> Result<u8, &'static str> {
         self.consume(TokenType::IDENTIFIER, message);
 
-        if let Ok(value) = self
+        return match self
             .previous_lexeme()
             .chars()
             .skip(1)
             .collect::<String>()
             .parse()
         {
-            return Ok(value);
-        }
-
-        return Err("Failed to parse register.");
+            Ok(value) => Ok(value),
+            Err(_) => Err("Failed to parse register."),
+        };
     }
 
     fn string(&mut self, message: &str) -> Result<String, &'static str> {
@@ -257,8 +255,8 @@ impl Assembler {
         let label_name = self.previous_lexeme().to_string();
         let value = label_name.trim_end_matches(':');
 
-        self.stack_levels
-            .insert(value.to_string(), self.current_stack_level + 1);
+        self.bytecode_indices
+            .insert(value.to_string(), self.current_bytecode_index + 1);
     }
 
     fn subtract(&mut self) {
@@ -373,7 +371,7 @@ impl Assembler {
             _ => return,
         };
 
-        let current_stack_level = match self.stack_levels.get(&label) {
+        let current_bytecode_index = match self.bytecode_indices.get(&label) {
             Some(level) => *level,
             None => {
                 self.error_at_previous("Undefined label.");
@@ -384,9 +382,7 @@ impl Assembler {
         self.emit_op_code_bytecode(OpCode::JLT);
         self.emit_operand_bytecode(&operand_1);
         self.emit_operand_bytecode(&operand_2);
-        self.emit_number_bytecode(current_stack_level as u8);
-
-        println!("Jumping to label '{}' at stack level {}.", label, current_stack_level);
+        self.emit_number_bytecode(current_bytecode_index as u8);
 
         self.advance_stack_level();
     }

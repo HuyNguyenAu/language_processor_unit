@@ -163,10 +163,17 @@ impl ControlUnit {
         panic!("{}", message);
     }
 
-    fn number(&mut self, message: &str) {
-        if let Some(number_byte) = self.current_byte {
-            // Consume the number byte.
+    fn number(&mut self, length_byte: bool, message: &str) {
+        // Consume number length byte if needed.
+        if length_byte {
             self.advance();
+        }
+
+        if let Some(number_byte) = self.current_byte {
+            if !self.is_at_end() {
+                // Consume number byte.
+                self.advance();
+            }
 
             print!("{} ", number_byte);
         } else {
@@ -204,7 +211,9 @@ impl ControlUnit {
         // Consume value operand.
         if let Ok(operand_type) = self.operand_type() {
             match operand_type {
-                OperandType::NUMBER => self.number("Failed to read number for MOV instruction."),
+                OperandType::NUMBER => {
+                    self.number(true, "Failed to read number for MOV instruction.")
+                }
                 OperandType::TEXT => self.text("Failed to read text for MOV instruction."),
                 OperandType::REGISTER => {
                     self.register(true, "Failed to read source register for MOV instruction.")
@@ -225,8 +234,13 @@ impl ControlUnit {
         // Consume the first operand.
         if let Ok(operand_type) = self.operand_type() {
             match operand_type {
-                OperandType::NUMBER => self.number("Failed to read first number operand for SUB instruction."),
-                OperandType::TEXT => self.text("Failed to read first text operand for SUB instruction."),
+                OperandType::NUMBER => self.number(
+                    true,
+                    "Failed to read first number operand for SUB instruction.",
+                ),
+                OperandType::TEXT => {
+                    self.text("Failed to read first text operand for SUB instruction.")
+                }
                 OperandType::REGISTER => self.register(
                     true,
                     "Failed to read first register operand for SUB instruction.",
@@ -238,8 +252,13 @@ impl ControlUnit {
 
         if let Ok(operand_type) = self.operand_type() {
             match operand_type {
-                OperandType::NUMBER => self.number("Failed to read second number operand for SUB instruction."),
-                OperandType::TEXT => self.text("Failed to read second text operand for SUB instruction."),
+                OperandType::NUMBER => self.number(
+                    true,
+                    "Failed to read second number operand for SUB instruction.",
+                ),
+                OperandType::TEXT => {
+                    self.text("Failed to read second text operand for SUB instruction.")
+                }
                 OperandType::REGISTER => self.register(
                     true,
                     "Failed to read second register operand for SUB instruction.",
@@ -249,7 +268,10 @@ impl ControlUnit {
             panic!("Failed to determine second operand type for SUB instruction.");
         }
 
-        self.register(false, "Failed to read destination register for SUB instruction.");
+        self.register(
+            false,
+            "Failed to read destination register for SUB instruction.",
+        );
 
         println!();
     }
@@ -261,9 +283,17 @@ impl ControlUnit {
 
         if let Ok(operand_type) = self.operand_type() {
             match operand_type {
-                OperandType::NUMBER => self.number("Failed to read first number operand for ADD instruction."),
-                OperandType::TEXT => self.text("Failed to read first text operand for ADD instruction."),
-                OperandType::REGISTER => self.register(true, "Failed to read first register operand for ADD instruction."),
+                OperandType::NUMBER => self.number(
+                    true,
+                    "Failed to read first number operand for ADD instruction.",
+                ),
+                OperandType::TEXT => {
+                    self.text("Failed to read first text operand for ADD instruction.")
+                }
+                OperandType::REGISTER => self.register(
+                    true,
+                    "Failed to read first register operand for ADD instruction.",
+                ),
             }
         } else {
             panic!("Failed to determine first operand type for ADD instruction.");
@@ -271,15 +301,26 @@ impl ControlUnit {
 
         if let Ok(operand_type) = self.operand_type() {
             match operand_type {
-                OperandType::NUMBER => self.number("Failed to read second number operand for ADD instruction."),
-                OperandType::TEXT => self.text("Failed to read second text operand for ADD instruction."),
-                OperandType::REGISTER => self.register(true, "Failed to read second register operand for ADD instruction."),
+                OperandType::NUMBER => self.number(
+                    true,
+                    "Failed to read second number operand for ADD instruction.",
+                ),
+                OperandType::TEXT => {
+                    self.text("Failed to read second text operand for ADD instruction.")
+                }
+                OperandType::REGISTER => self.register(
+                    true,
+                    "Failed to read second register operand for ADD instruction.",
+                ),
             }
         } else {
             panic!("Failed to determine second operand type for ADD instruction.");
         }
 
-        self.register(false, "Failed to read destination register for ADD instruction.");
+        self.register(
+            false,
+            "Failed to read destination register for ADD instruction.",
+        );
 
         println!();
     }
@@ -291,9 +332,17 @@ impl ControlUnit {
 
         if let Ok(operand_type) = self.operand_type() {
             match operand_type {
-                OperandType::NUMBER => self.number("Failed to read first number operand for SIM instruction."),
-                OperandType::TEXT => self.text("Failed to read first text operand for SIM instruction."),
-                OperandType::REGISTER => self.register(true, "Failed to read first register operand for SIM instruction."),
+                OperandType::NUMBER => self.number(
+                    true,
+                    "Failed to read first number operand for SIM instruction.",
+                ),
+                OperandType::TEXT => {
+                    self.text("Failed to read first text operand for SIM instruction.")
+                }
+                OperandType::REGISTER => self.register(
+                    true,
+                    "Failed to read first register operand for SIM instruction.",
+                ),
             }
         } else {
             panic!("Failed to determine first operand type for SIM instruction.");
@@ -301,15 +350,26 @@ impl ControlUnit {
 
         if let Ok(operand_type) = self.operand_type() {
             match operand_type {
-                OperandType::NUMBER => self.number("Failed to read second number operand for SIM instruction."),
-                OperandType::TEXT => self.text("Failed to read second text operand for SIM instruction."),
-                OperandType::REGISTER => self.register(true, "Failed to read second register operand for SIM instruction."),
+                OperandType::NUMBER => self.number(
+                    true,
+                    "Failed to read second number operand for SIM instruction.",
+                ),
+                OperandType::TEXT => {
+                    self.text("Failed to read second text operand for SIM instruction.")
+                }
+                OperandType::REGISTER => self.register(
+                    true,
+                    "Failed to read second register operand for SIM instruction.",
+                ),
             }
         } else {
             panic!("Failed to determine second operand type for SIM instruction.");
         }
 
-        self.register(false, "Failed to read destination register for SIM instruction.");
+        self.register(
+            false,
+            "Failed to read destination register for SIM instruction.",
+        );
 
         println!();
     }
@@ -319,11 +379,21 @@ impl ControlUnit {
         self.advance();
         print!("JLT: ");
 
+        // self.debug("Before reading first operand for JLT instruction");
+
         if let Ok(operand_type) = self.operand_type() {
             match operand_type {
-                OperandType::NUMBER => self.number("Failed to read first number operand for JLT instruction."),
-                OperandType::TEXT => self.text("Failed to read first text operand for JLT instruction."),
-                OperandType::REGISTER => self.register(true, "Failed to read first register operand for JLT instruction."),
+                OperandType::NUMBER => self.number(
+                    true,
+                    "Failed to read first number operand for JLT instruction.",
+                ),
+                OperandType::TEXT => {
+                    self.text("Failed to read first text operand for JLT instruction.")
+                }
+                OperandType::REGISTER => self.register(
+                    true,
+                    "Failed to read first register operand for JLT instruction.",
+                ),
             }
         } else {
             panic!("Failed to determine first operand type for JLT instruction.");
@@ -331,15 +401,26 @@ impl ControlUnit {
 
         if let Ok(operand_type) = self.operand_type() {
             match operand_type {
-                OperandType::NUMBER => self.number("Failed to read second number operand for JLT instruction."),
-                OperandType::TEXT => self.text("Failed to read second text operand for JLT instruction."),
-                OperandType::REGISTER => self.register(true, "Failed to read second register operand for JLT instruction."),
+                OperandType::NUMBER => self.number(
+                    true,
+                    "Failed to read second number operand for JLT instruction.",
+                ),
+                OperandType::TEXT => {
+                    self.text("Failed to read second text operand for JLT instruction.")
+                }
+                OperandType::REGISTER => self.register(
+                    true,
+                    "Failed to read second register operand for JLT instruction.",
+                ),
             }
         } else {
             panic!("Failed to determine second operand type for JLT instruction.");
         }
 
-        self.register(false, "Failed to read destination register for JLT instruction.");
+        self.number(
+            false,
+            "Failed to read byte code jump index for JLT instruction.",
+        );
 
         println!();
     }

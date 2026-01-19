@@ -123,7 +123,7 @@ impl Assembler {
     }
 
     fn advance_stack_level(&mut self) {
-        self.current_stack_level += 1;
+        self.current_stack_level = self.bytecode.len() - 1;
     }
 
     fn number(&mut self, message: &str) -> Result<u8, &'static str> {
@@ -194,6 +194,10 @@ impl Assembler {
         }
     }
 
+    fn emit_number_bytecode(&mut self, value: u8) {
+        self.bytecode.push(value);
+    }
+
     fn emit_op_code_bytecode(&mut self, op_code: OpCode) {
         self.bytecode.push(op_code as u8);
     }
@@ -226,7 +230,6 @@ impl Assembler {
     }
 
     fn _move(&mut self) {
-        self.advance_stack_level();
         self.consume(TokenType::MOV, "Expected 'mov' keyword.");
 
         let register = match self.register("Expected register name.") {
@@ -244,6 +247,8 @@ impl Assembler {
         self.emit_op_code_bytecode(OpCode::MOV);
         self.emit_register_bytecode(register);
         self.emit_operand_bytecode(&variable_value);
+
+        self.advance_stack_level();
     }
 
     fn label(&mut self) {
@@ -257,7 +262,6 @@ impl Assembler {
     }
 
     fn subtract(&mut self) {
-        self.advance_stack_level();
         self.consume(TokenType::SUB, "Expected 'sub' keyword.");
 
         let operand_1 = match self.operand("Expected first operand after 'sub'.") {
@@ -283,10 +287,11 @@ impl Assembler {
         self.emit_operand_bytecode(&operand_1);
         self.emit_operand_bytecode(&operand_2);
         self.emit_register_bytecode(destination);
+
+        self.advance_stack_level();
     }
 
     fn addition(&mut self) {
-        self.advance_stack_level();
         self.consume(TokenType::ADD, "Expected 'add' keyword.");
 
         let operand_1 = match self.operand("Expected first operand after 'add'.") {
@@ -312,10 +317,11 @@ impl Assembler {
         self.emit_operand_bytecode(&operand_1);
         self.emit_operand_bytecode(&operand_2);
         self.emit_register_bytecode(destination);
+
+        self.advance_stack_level();
     }
 
     fn similarity(&mut self) {
-        self.advance_stack_level();
         self.consume(TokenType::SIM, "Expected 'sim' keyword.");
 
         let operand_1 = match self.operand("Expected first operand after 'sim'.") {
@@ -341,10 +347,11 @@ impl Assembler {
         self.emit_operand_bytecode(&operand_1);
         self.emit_operand_bytecode(&operand_2);
         self.emit_register_bytecode(destination);
+
+        self.advance_stack_level();
     }
 
     fn jump_less_than(&mut self) {
-        self.advance_stack_level();
         self.consume(TokenType::JLT, "Expected 'jlt' keyword.");
 
         let operand_1 = match self.operand("Expected first operand after 'jlt'.") {
@@ -377,7 +384,11 @@ impl Assembler {
         self.emit_op_code_bytecode(OpCode::JLT);
         self.emit_operand_bytecode(&operand_1);
         self.emit_operand_bytecode(&operand_2);
-        self.emit_register_bytecode(current_stack_level as u8);
+        self.emit_number_bytecode(current_stack_level as u8);
+
+        println!("Jumping to label '{}' at stack level {}.", label, current_stack_level);
+
+        self.advance_stack_level();
     }
 
     pub fn assemble(&mut self) -> Option<Vec<u8>> {

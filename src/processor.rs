@@ -1,28 +1,25 @@
 use crate::instruction::{Instruction, OpCode, OperandType};
 
 struct MemoryUnit {
-    data: Option<Vec<u8>>,
+    data: Vec<u8>,
 }
 
 impl MemoryUnit {
     fn new() -> Self {
-        MemoryUnit { data: None }
+        MemoryUnit { data: Vec::new() }
     }
 
     fn load(&mut self, bytecode: Vec<u8>) {
-        self.data = Some(bytecode);
+        println!("Loading bytecode of length {}", bytecode.len());
+        self.data = bytecode;
     }
 
     fn read_byte(&self, address: usize) -> &u8 {
-        if let Some(data) = &self.data {
-            if let Some(byte) = data.get(address) {
-                return byte;
-            }
-
-            panic!("Address out of bounds.");
+        if let Some(byte) = self.data.get(address) {
+            return byte;
         }
 
-        panic!("No bytecode loaded in memory.");
+        panic!("Address out of bounds.");
     }
 }
 
@@ -37,6 +34,18 @@ struct Registers {
 }
 
 impl Registers {
+    fn new() -> Self {
+        Registers {
+            register_1: 0,
+            register_2: 0,
+            register_3: 0,
+            register_4: 0,
+            register_5: 0,
+            register_6: 0,
+            instruction_pointer: 0,
+        }
+    }
+
     fn advance_instruction_pointer(&mut self) {
         self.instruction_pointer += 1;
     }
@@ -45,28 +54,45 @@ impl Registers {
 struct ControlUnit {
     memory: MemoryUnit,
     registers: Registers,
-    previous: Option<u8>,
-    current: Option<u8>,
+    previous_byte: Option<u8>,
+    current_byte: Option<u8>,
+    previous_instruction: Option<Instruction>,
+    current_instruction: Option<Instruction>,
 }
 
 impl ControlUnit {
+    fn new() -> Self {
+        ControlUnit {
+            memory: MemoryUnit::new(),
+            registers: Registers::new(),
+            previous_byte: None,
+            current_byte: None,
+            previous_instruction: None,
+            current_instruction: None,
+        }
+    }
+
+    fn is_at_end(&self) -> bool {
+        return self.registers.instruction_pointer as usize >= self.memory.data.len() - 1;
+    }
+
     fn advance(&mut self) {
-        self.previous = self.current;
+        self.registers.advance_instruction_pointer();
+
+        self.previous_byte = self.current_byte;
 
         let current_byte = self
             .memory
             .read_byte(self.registers.instruction_pointer as usize);
-        self.current = Some(*current_byte);
-
-        self.registers.advance_instruction_pointer();
+        self.current_byte = Some(*current_byte);
     }
 
     fn operand_type(&mut self) -> Result<OperandType, &'static str> {
-        // Consume operand type byte.
-        self.advance();
+        if let Some(operand_byte) = self.current_byte {
+            // Consume operand type byte.
+            self.advance();
 
-        if let Some(operand_byte) = &self.current {
-            return match OperandType::from_byte(operand_byte) {
+            return match OperandType::from_byte(&operand_byte) {
                 Ok(operand_type) => match operand_type {
                     OperandType::NUMBER => {
                         print!("NUM=");
@@ -88,37 +114,80 @@ impl ControlUnit {
         return Err("No current byte to determine operand type.");
     }
 
-    fn text(&mut self) {
-        // Consume text length byte.
-        self.advance();
+    fn text(&mut self, message: &str) {
+        if let Some(length_byte) = self.current_byte {
+            // Consume text length byte.
+            self.advance();
 
-        if let Some(length_byte) = &self.current {
-            let text_length = *length_byte as usize;
+            let text_length = length_byte as usize;
             let mut text_bytes: Vec<u8> = Vec::new();
 
-            for _ in 0..text_length + 1 {
-                self.advance();
+            while text_bytes.len() < text_length {
+                if let Some(text_byte) = self.current_byte {
+                    if !self.is_at_end() {
+                        // Consume text byte.
+                        self.advance();
+                    }
 
-                if let Some(current) = &self.current {
-                    text_bytes.push(current.clone());
+                    text_bytes.push(text_byte);
                 } else {
-                    panic!("Text byte expected but not found.");
+                    panic!("{}", message);
                 }
             }
 
             if let Ok(text) = String::from_utf8(text_bytes) {
                 print!("{} ", text);
             } else {
-                panic!("Failed to decode text from bytes.");
+                panic!("{}", message);
             }
         }
     }
 
-    fn register(&mut self) {
-        // Consume the register byte.
-        if let Some(current) = &self.current {
-            print!("r{} ", current);
+    fn register(&mut self, length_byte: bool, message: &str) {
+        // Consume register length byte if needed.
+        if length_byte {
+            self.advance();
         }
+
+        if let Some(register_byte) = self.current_byte {
+            if !self.is_at_end() {
+                // Consume register byte.
+                self.advance();
+            }
+
+            print!("r{} ", register_byte);
+
+            return;
+        }
+
+        panic!("{}", message);
+    }
+
+    fn number(&mut self, message: &str) {
+        if let Some(number_byte) = self.current_byte {
+            // Consume the number byte.
+            self.advance();
+
+            print!("{} ", number_byte);
+        } else {
+            panic!("{}", message);
+        }
+    }
+
+    fn debug(&self, message: &str) {
+        println!(
+            "[{}] IP: {}, Prev Byte: {:02X}, Curr Byte: {:02X}",
+            message,
+            self.registers.instruction_pointer,
+            match self.previous_byte {
+                Some(value) => value as i32,
+                None => -1,
+            },
+            match self.current_byte {
+                Some(value) => value as i32,
+                None => -1,
+            }
+        );
     }
 
     fn _move(&mut self) {
@@ -126,13 +195,20 @@ impl ControlUnit {
         self.advance();
         print!("MOV: ");
 
-        self.register();
+        // Consume the destination register.
+        self.register(
+            false,
+            "Failed to read destination register for MOV instruction.",
+        );
 
+        // Consume value operand.
         if let Ok(operand_type) = self.operand_type() {
             match operand_type {
-                OperandType::NUMBER => {}
-                OperandType::TEXT => self.text(),
-                OperandType::REGISTER => self.register(),
+                OperandType::NUMBER => self.number("Failed to read number for MOV instruction."),
+                OperandType::TEXT => self.text("Failed to read text for MOV instruction."),
+                OperandType::REGISTER => {
+                    self.register(true, "Failed to read source register for MOV instruction.")
+                }
             }
         } else {
             panic!("Failed to determine operand type for MOV instruction.");
@@ -141,15 +217,142 @@ impl ControlUnit {
         println!();
     }
 
+    fn subtract(&mut self) {
+        // Consume SUB opcode.
+        self.advance();
+        print!("SUB: ");
+
+        // Consume the first operand.
+        if let Ok(operand_type) = self.operand_type() {
+            match operand_type {
+                OperandType::NUMBER => self.number("Failed to read first number operand for SUB instruction."),
+                OperandType::TEXT => self.text("Failed to read first text operand for SUB instruction."),
+                OperandType::REGISTER => self.register(
+                    true,
+                    "Failed to read first register operand for SUB instruction.",
+                ),
+            }
+        } else {
+            panic!("Failed to determine first operand type for SUB instruction.");
+        }
+
+        if let Ok(operand_type) = self.operand_type() {
+            match operand_type {
+                OperandType::NUMBER => self.number("Failed to read second number operand for SUB instruction."),
+                OperandType::TEXT => self.text("Failed to read second text operand for SUB instruction."),
+                OperandType::REGISTER => self.register(
+                    true,
+                    "Failed to read second register operand for SUB instruction.",
+                ),
+            }
+        } else {
+            panic!("Failed to determine second operand type for SUB instruction.");
+        }
+
+        self.register(false, "Failed to read destination register for SUB instruction.");
+
+        println!();
+    }
+
+    fn addition(&mut self) {
+        // Consume ADD opcode.
+        self.advance();
+        print!("ADD: ");
+
+        if let Ok(operand_type) = self.operand_type() {
+            match operand_type {
+                OperandType::NUMBER => self.number("Failed to read first number operand for ADD instruction."),
+                OperandType::TEXT => self.text("Failed to read first text operand for ADD instruction."),
+                OperandType::REGISTER => self.register(true, "Failed to read first register operand for ADD instruction."),
+            }
+        } else {
+            panic!("Failed to determine first operand type for ADD instruction.");
+        }
+
+        if let Ok(operand_type) = self.operand_type() {
+            match operand_type {
+                OperandType::NUMBER => self.number("Failed to read second number operand for ADD instruction."),
+                OperandType::TEXT => self.text("Failed to read second text operand for ADD instruction."),
+                OperandType::REGISTER => self.register(true, "Failed to read second register operand for ADD instruction."),
+            }
+        } else {
+            panic!("Failed to determine second operand type for ADD instruction.");
+        }
+
+        self.register(false, "Failed to read destination register for ADD instruction.");
+
+        println!();
+    }
+
+    fn similarity(&mut self) {
+        // Consume SIM opcode.
+        self.advance();
+        print!("SIM: ");
+
+        if let Ok(operand_type) = self.operand_type() {
+            match operand_type {
+                OperandType::NUMBER => self.number("Failed to read first number operand for SIM instruction."),
+                OperandType::TEXT => self.text("Failed to read first text operand for SIM instruction."),
+                OperandType::REGISTER => self.register(true, "Failed to read first register operand for SIM instruction."),
+            }
+        } else {
+            panic!("Failed to determine first operand type for SIM instruction.");
+        }
+
+        if let Ok(operand_type) = self.operand_type() {
+            match operand_type {
+                OperandType::NUMBER => self.number("Failed to read second number operand for SIM instruction."),
+                OperandType::TEXT => self.text("Failed to read second text operand for SIM instruction."),
+                OperandType::REGISTER => self.register(true, "Failed to read second register operand for SIM instruction."),
+            }
+        } else {
+            panic!("Failed to determine second operand type for SIM instruction.");
+        }
+
+        self.register(false, "Failed to read destination register for SIM instruction.");
+
+        println!();
+    }
+
+    fn jump_less_than(&mut self) {
+        // Consume JLT opcode.
+        self.advance();
+        print!("JLT: ");
+
+        if let Ok(operand_type) = self.operand_type() {
+            match operand_type {
+                OperandType::NUMBER => self.number("Failed to read first number operand for JLT instruction."),
+                OperandType::TEXT => self.text("Failed to read first text operand for JLT instruction."),
+                OperandType::REGISTER => self.register(true, "Failed to read first register operand for JLT instruction."),
+            }
+        } else {
+            panic!("Failed to determine first operand type for JLT instruction.");
+        }
+
+        if let Ok(operand_type) = self.operand_type() {
+            match operand_type {
+                OperandType::NUMBER => self.number("Failed to read second number operand for JLT instruction."),
+                OperandType::TEXT => self.text("Failed to read second text operand for JLT instruction."),
+                OperandType::REGISTER => self.register(true, "Failed to read second register operand for JLT instruction."),
+            }
+        } else {
+            panic!("Failed to determine second operand type for JLT instruction.");
+        }
+
+        self.register(false, "Failed to read destination register for JLT instruction.");
+
+        println!();
+    }
+
     fn op_code(&mut self) {
-        if let Some(current_byte) = &self.current {
+        if let Some(current_byte) = &self.current_byte {
             match OpCode::from_byte(current_byte) {
                 Ok(op_code) => match op_code {
                     OpCode::MOV => self._move(),
-                    // OpCode::ADD => println!("ADD instruction"),
-                    // OpCode::SUB => println!("SUB instruction"),
-                    // OpCode::SIM => println!("SIM instruction"),
-                    // OpCode::JLT => println!("JLT instruction"),
+                    OpCode::ADD => self.addition(),
+                    OpCode::SUB => self.subtract(),
+                    OpCode::SIM => self.similarity(),
+                    OpCode::JLT => self.jump_less_than(),
                     _ => panic!("Opcode not implemented yet. Byte: {:02X}", current_byte),
                 },
                 Err(error) => panic!("{} Byte: {:02X}", error, current_byte),
@@ -157,10 +360,13 @@ impl ControlUnit {
         }
     }
 
-    fn decode(&mut self) {
-        self.advance();
+    fn fetch(&mut self) {
+        let current_byte = self
+            .memory
+            .read_byte(self.registers.instruction_pointer as usize);
+        self.current_byte = Some(*current_byte);
 
-        loop {
+        while !self.is_at_end() {
             self.op_code();
         }
     }
@@ -176,20 +382,7 @@ pub struct Processor {
 impl Processor {
     pub fn new() -> Self {
         Processor {
-            control: ControlUnit {
-                memory: MemoryUnit { data: None },
-                registers: Registers {
-                    register_1: 0,
-                    register_2: 0,
-                    register_3: 0,
-                    register_4: 0,
-                    register_5: 0,
-                    register_6: 0,
-                    instruction_pointer: 0,
-                },
-                previous: None,
-                current: None,
-            },
+            control: ControlUnit::new(),
             semantic_logic: SemanticLogicUnit {},
         }
     }
@@ -199,6 +392,6 @@ impl Processor {
     }
 
     pub fn execute(&mut self) {
-        self.control.decode();
+        self.control.fetch();
     }
 }

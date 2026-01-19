@@ -15,11 +15,10 @@ impl MemoryUnit {
     }
 
     fn read_byte(&self, address: usize) -> &u8 {
-        if let Some(byte) = self.data.get(address) {
-            return byte;
-        }
-
-        panic!("Address out of bounds.");
+        return match self.data.get(address) {
+            Some(byte) => byte,
+            None => panic!("Address out of bounds."),
+        };
     }
 }
 
@@ -56,7 +55,6 @@ struct ControlUnit {
     registers: Registers,
     previous_byte: Option<u8>,
     current_byte: Option<u8>,
-    previous_instruction: Option<Instruction>,
     current_instruction: Option<Instruction>,
 }
 
@@ -67,7 +65,6 @@ impl ControlUnit {
             registers: Registers::new(),
             previous_byte: None,
             current_byte: None,
-            previous_instruction: None,
             current_instruction: None,
         }
     }
@@ -88,58 +85,59 @@ impl ControlUnit {
     }
 
     fn operand_type(&mut self) -> Result<OperandType, &'static str> {
-        if let Some(operand_byte) = self.current_byte {
-            // Consume operand type byte.
-            self.advance();
+        let operand_byte = match self.current_byte {
+            Some(byte) => byte,
+            None => return Err("No current byte to determine operand type."),
+        };
 
-            return match OperandType::from_byte(&operand_byte) {
-                Ok(operand_type) => match operand_type {
-                    OperandType::NUMBER => {
-                        print!("NUM=");
-                        return Ok(OperandType::NUMBER);
-                    }
-                    OperandType::TEXT => {
-                        print!("TXT=");
-                        return Ok(OperandType::TEXT);
-                    }
-                    OperandType::REGISTER => {
-                        print!("REG=");
-                        return Ok(OperandType::REGISTER);
-                    }
-                },
-                Err(error) => Err(error),
-            };
-        }
+        // Consume operand type byte.
+        self.advance();
 
-        return Err("No current byte to determine operand type.");
+        return match OperandType::from_byte(&operand_byte) {
+            Ok(operand_type) => match operand_type {
+                OperandType::NUMBER => {
+                    print!("NUM=");
+                    return Ok(OperandType::NUMBER);
+                }
+                OperandType::TEXT => {
+                    print!("TXT=");
+                    return Ok(OperandType::TEXT);
+                }
+                OperandType::REGISTER => {
+                    print!("REG=");
+                    return Ok(OperandType::REGISTER);
+                }
+            },
+            Err(error) => Err(error),
+        };
     }
 
     fn text(&mut self, message: &str) {
+        let mut text_length: usize = 0;
+
         if let Some(length_byte) = self.current_byte {
             // Consume text length byte.
             self.advance();
 
-            let text_length = length_byte as usize;
-            let mut text_bytes: Vec<u8> = Vec::new();
+            text_length = length_byte as usize;
+        }
 
-            while text_bytes.len() < text_length {
-                if let Some(text_byte) = self.current_byte {
-                    if !self.is_at_end() {
-                        // Consume text byte.
-                        self.advance();
-                    }
+        let mut text_bytes: Vec<u8> = Vec::new();
 
-                    text_bytes.push(text_byte);
-                } else {
-                    panic!("{}", message);
-                }
+        while text_bytes.len() < text_length
+            && let Some(text_byte) = self.current_byte
+        {
+            if !self.is_at_end() {
+                // Consume text byte.
+                self.advance();
             }
 
-            if let Ok(text) = String::from_utf8(text_bytes) {
-                print!("{} ", text);
-            } else {
-                panic!("{}", message);
-            }
+            text_bytes.push(text_byte);
+        }
+
+        match String::from_utf8(text_bytes) {
+            Ok(text) => print!("{} ", text),
+            Err(_) => panic!("{}", message),
         }
     }
 
@@ -149,18 +147,17 @@ impl ControlUnit {
             self.advance();
         }
 
-        if let Some(register_byte) = self.current_byte {
-            if !self.is_at_end() {
-                // Consume register byte.
-                self.advance();
-            }
+        let register_byte = match self.current_byte {
+            Some(byte) => byte,
+            None => panic!("{}", message),
+        };
 
-            print!("r{} ", register_byte);
-
-            return;
+        if !self.is_at_end() {
+            // Consume register byte.
+            self.advance();
         }
 
-        panic!("{}", message);
+        print!("r{} ", register_byte);
     }
 
     fn number(&mut self, length_byte: bool, message: &str) {
@@ -169,16 +166,17 @@ impl ControlUnit {
             self.advance();
         }
 
-        if let Some(number_byte) = self.current_byte {
-            if !self.is_at_end() {
-                // Consume number byte.
-                self.advance();
-            }
+        let number_byte = match self.current_byte {
+            Some(byte) => byte,
+            None => panic!("{}", message),
+        };
 
-            print!("{} ", number_byte);
-        } else {
-            panic!("{}", message);
+        if !self.is_at_end() {
+            // Consume number byte.
+            self.advance();
         }
+
+        print!("{} ", number_byte);
     }
 
     fn debug(&self, message: &str) {
@@ -197,10 +195,19 @@ impl ControlUnit {
         );
     }
 
+    // fn make_instruction(&mut self, op_code: OpCode) {
+    //     self.current_instruction = match self.current_instruction {
+    //         Some(_) => panic!("Current instruction should have been consumed."),
+    //         None => Some(Instruction::new(op_code)),
+    //     };
+    // }
+
     fn _move(&mut self) {
         // Consume MOV opcode.
         self.advance();
         print!("MOV: ");
+
+        // self.make_instruction(OpCode::MOV);
 
         // Consume the destination register.
         self.register(
@@ -209,18 +216,20 @@ impl ControlUnit {
         );
 
         // Consume value operand.
-        if let Ok(operand_type) = self.operand_type() {
-            match operand_type {
-                OperandType::NUMBER => {
-                    self.number(true, "Failed to read number for MOV instruction.")
-                }
-                OperandType::TEXT => self.text("Failed to read text for MOV instruction."),
-                OperandType::REGISTER => {
-                    self.register(true, "Failed to read source register for MOV instruction.")
-                }
+        let operand_type = match self.operand_type() {
+            Ok(operand_type) => operand_type,
+            Err(error) => panic!(
+                "Failed to determine operand type for MOV instruction. {}",
+                error
+            ),
+        };
+
+        match operand_type {
+            OperandType::NUMBER => self.number(true, "Failed to read number for MOV instruction."),
+            OperandType::TEXT => self.text("Failed to read text for MOV instruction."),
+            OperandType::REGISTER => {
+                self.register(true, "Failed to read source register for MOV instruction.")
             }
-        } else {
-            panic!("Failed to determine operand type for MOV instruction.");
         }
 
         println!();
@@ -232,40 +241,49 @@ impl ControlUnit {
         print!("SUB: ");
 
         // Consume the first operand.
-        if let Ok(operand_type) = self.operand_type() {
-            match operand_type {
-                OperandType::NUMBER => self.number(
-                    true,
-                    "Failed to read first number operand for SUB instruction.",
-                ),
-                OperandType::TEXT => {
-                    self.text("Failed to read first text operand for SUB instruction.")
-                }
-                OperandType::REGISTER => self.register(
-                    true,
-                    "Failed to read first register operand for SUB instruction.",
-                ),
+        let first_operand_type = match self.operand_type() {
+            Ok(operand_type) => operand_type,
+            Err(error) => panic!(
+                "Failed to determine first operand type for SUB instruction. {}",
+                error
+            ),
+        };
+
+        match first_operand_type {
+            OperandType::NUMBER => self.number(
+                true,
+                "Failed to read first number operand for SUB instruction.",
+            ),
+            OperandType::TEXT => {
+                self.text("Failed to read first text operand for SUB instruction.")
             }
-        } else {
-            panic!("Failed to determine first operand type for SUB instruction.");
+            OperandType::REGISTER => self.register(
+                true,
+                "Failed to read first register operand for SUB instruction.",
+            ),
         }
 
-        if let Ok(operand_type) = self.operand_type() {
-            match operand_type {
-                OperandType::NUMBER => self.number(
-                    true,
-                    "Failed to read second number operand for SUB instruction.",
-                ),
-                OperandType::TEXT => {
-                    self.text("Failed to read second text operand for SUB instruction.")
-                }
-                OperandType::REGISTER => self.register(
-                    true,
-                    "Failed to read second register operand for SUB instruction.",
-                ),
+        // Consume the second operand.
+        let second_operand_type = match self.operand_type() {
+            Ok(operand_type) => operand_type,
+            Err(error) => panic!(
+                "Failed to determine second operand type for SUB instruction. {}",
+                error
+            ),
+        };
+
+        match second_operand_type {
+            OperandType::NUMBER => self.number(
+                true,
+                "Failed to read second number operand for SUB instruction.",
+            ),
+            OperandType::TEXT => {
+                self.text("Failed to read second text operand for SUB instruction.")
             }
-        } else {
-            panic!("Failed to determine second operand type for SUB instruction.");
+            OperandType::REGISTER => self.register(
+                true,
+                "Failed to read second register operand for SUB instruction.",
+            ),
         }
 
         self.register(
@@ -281,40 +299,50 @@ impl ControlUnit {
         self.advance();
         print!("ADD: ");
 
-        if let Ok(operand_type) = self.operand_type() {
-            match operand_type {
-                OperandType::NUMBER => self.number(
-                    true,
-                    "Failed to read first number operand for ADD instruction.",
-                ),
-                OperandType::TEXT => {
-                    self.text("Failed to read first text operand for ADD instruction.")
-                }
-                OperandType::REGISTER => self.register(
-                    true,
-                    "Failed to read first register operand for ADD instruction.",
-                ),
+        // Consume the first operand.
+        let first_operand_type = match self.operand_type() {
+            Ok(operand_type) => operand_type,
+            Err(error) => panic!(
+                "Failed to determine first operand type for ADD instruction. {}",
+                error
+            ),
+        };
+
+        match first_operand_type {
+            OperandType::NUMBER => self.number(
+                true,
+                "Failed to read first number operand for ADD instruction.",
+            ),
+            OperandType::TEXT => {
+                self.text("Failed to read first text operand for ADD instruction.")
             }
-        } else {
-            panic!("Failed to determine first operand type for ADD instruction.");
+            OperandType::REGISTER => self.register(
+                true,
+                "Failed to read first register operand for ADD instruction.",
+            ),
         }
 
-        if let Ok(operand_type) = self.operand_type() {
-            match operand_type {
-                OperandType::NUMBER => self.number(
-                    true,
-                    "Failed to read second number operand for ADD instruction.",
-                ),
-                OperandType::TEXT => {
-                    self.text("Failed to read second text operand for ADD instruction.")
-                }
-                OperandType::REGISTER => self.register(
-                    true,
-                    "Failed to read second register operand for ADD instruction.",
-                ),
+        // Consume the second operand.
+        let second_operand_type = match self.operand_type() {
+            Ok(operand_type) => operand_type,
+            Err(error) => panic!(
+                "Failed to determine second operand type for ADD instruction. {}",
+                error
+            ),
+        };
+
+        match second_operand_type {
+            OperandType::NUMBER => self.number(
+                true,
+                "Failed to read second number operand for ADD instruction.",
+            ),
+            OperandType::TEXT => {
+                self.text("Failed to read second text operand for ADD instruction.")
             }
-        } else {
-            panic!("Failed to determine second operand type for ADD instruction.");
+            OperandType::REGISTER => self.register(
+                true,
+                "Failed to read second register operand for ADD instruction.",
+            ),
         }
 
         self.register(
@@ -330,40 +358,50 @@ impl ControlUnit {
         self.advance();
         print!("SIM: ");
 
-        if let Ok(operand_type) = self.operand_type() {
-            match operand_type {
-                OperandType::NUMBER => self.number(
-                    true,
-                    "Failed to read first number operand for SIM instruction.",
-                ),
-                OperandType::TEXT => {
-                    self.text("Failed to read first text operand for SIM instruction.")
-                }
-                OperandType::REGISTER => self.register(
-                    true,
-                    "Failed to read first register operand for SIM instruction.",
-                ),
+        // Consume the first operand.
+        let first_operand_type = match self.operand_type() {
+            Ok(operand_type) => operand_type,
+            Err(error) => panic!(
+                "Failed to determine first operand type for SIM instruction. {}",
+                error
+            ),
+        };
+
+        match first_operand_type {
+            OperandType::NUMBER => self.number(
+                true,
+                "Failed to read first number operand for SIM instruction.",
+            ),
+            OperandType::TEXT => {
+                self.text("Failed to read first text operand for SIM instruction.")
             }
-        } else {
-            panic!("Failed to determine first operand type for SIM instruction.");
+            OperandType::REGISTER => self.register(
+                true,
+                "Failed to read first register operand for SIM instruction.",
+            ),
         }
 
-        if let Ok(operand_type) = self.operand_type() {
-            match operand_type {
-                OperandType::NUMBER => self.number(
-                    true,
-                    "Failed to read second number operand for SIM instruction.",
-                ),
-                OperandType::TEXT => {
-                    self.text("Failed to read second text operand for SIM instruction.")
-                }
-                OperandType::REGISTER => self.register(
-                    true,
-                    "Failed to read second register operand for SIM instruction.",
-                ),
+        // Consume the second operand.
+        let second_operand_type = match self.operand_type() {
+            Ok(operand_type) => operand_type,
+            Err(error) => panic!(
+                "Failed to determine second operand type for SIM instruction. {}",
+                error
+            ),
+        };
+
+        match second_operand_type {
+            OperandType::NUMBER => self.number(
+                true,
+                "Failed to read second number operand for SIM instruction.",
+            ),
+            OperandType::TEXT => {
+                self.text("Failed to read second text operand for SIM instruction.")
             }
-        } else {
-            panic!("Failed to determine second operand type for SIM instruction.");
+            OperandType::REGISTER => self.register(
+                true,
+                "Failed to read second register operand for SIM instruction.",
+            ),
         }
 
         self.register(
@@ -379,42 +417,50 @@ impl ControlUnit {
         self.advance();
         print!("JLT: ");
 
-        // self.debug("Before reading first operand for JLT instruction");
+        // Consume the first operand.
+        let first_operand_type = match self.operand_type() {
+            Ok(operand_type) => operand_type,
+            Err(error) => panic!(
+                "Failed to determine first operand type for JLT instruction. {}",
+                error
+            ),
+        };
 
-        if let Ok(operand_type) = self.operand_type() {
-            match operand_type {
-                OperandType::NUMBER => self.number(
-                    true,
-                    "Failed to read first number operand for JLT instruction.",
-                ),
-                OperandType::TEXT => {
-                    self.text("Failed to read first text operand for JLT instruction.")
-                }
-                OperandType::REGISTER => self.register(
-                    true,
-                    "Failed to read first register operand for JLT instruction.",
-                ),
+        match first_operand_type {
+            OperandType::NUMBER => self.number(
+                true,
+                "Failed to read first number operand for JLT instruction.",
+            ),
+            OperandType::TEXT => {
+                self.text("Failed to read first text operand for JLT instruction.")
             }
-        } else {
-            panic!("Failed to determine first operand type for JLT instruction.");
+            OperandType::REGISTER => self.register(
+                true,
+                "Failed to read first register operand for JLT instruction.",
+            ),
         }
 
-        if let Ok(operand_type) = self.operand_type() {
-            match operand_type {
-                OperandType::NUMBER => self.number(
-                    true,
-                    "Failed to read second number operand for JLT instruction.",
-                ),
-                OperandType::TEXT => {
-                    self.text("Failed to read second text operand for JLT instruction.")
-                }
-                OperandType::REGISTER => self.register(
-                    true,
-                    "Failed to read second register operand for JLT instruction.",
-                ),
+        // Consume the second operand.
+        let second_operand_type = match self.operand_type() {
+            Ok(operand_type) => operand_type,
+            Err(error) => panic!(
+                "Failed to determine second operand type for JLT instruction. {}",
+                error
+            ),
+        };
+
+        match second_operand_type {
+            OperandType::NUMBER => self.number(
+                true,
+                "Failed to read second number operand for JLT instruction.",
+            ),
+            OperandType::TEXT => {
+                self.text("Failed to read second text operand for JLT instruction.")
             }
-        } else {
-            panic!("Failed to determine second operand type for JLT instruction.");
+            OperandType::REGISTER => self.register(
+                true,
+                "Failed to read second register operand for JLT instruction.",
+            ),
         }
 
         self.number(
@@ -426,28 +472,35 @@ impl ControlUnit {
     }
 
     fn op_code(&mut self) {
-        if let Some(current_byte) = &self.current_byte {
-            match OpCode::from_byte(current_byte) {
-                Ok(op_code) => match op_code {
-                    OpCode::MOV => self._move(),
-                    OpCode::ADD => self.addition(),
-                    OpCode::SUB => self.subtract(),
-                    OpCode::SIM => self.similarity(),
-                    OpCode::JLT => self.jump_less_than(),
-                    _ => panic!("Opcode not implemented yet. Byte: {:02X}", current_byte),
-                },
-                Err(error) => panic!("{} Byte: {:02X}", error, current_byte),
-            }
+        let current_byte = match self.current_byte {
+            Some(byte) => byte,
+            None => panic!("No current byte to determine opcode."),
+        };
+
+        match OpCode::from_byte(&current_byte) {
+            Ok(op_code) => match op_code {
+                OpCode::MOV => self._move(),
+                OpCode::ADD => self.addition(),
+                OpCode::SUB => self.subtract(),
+                OpCode::SIM => self.similarity(),
+                OpCode::JLT => self.jump_less_than(),
+            },
+            Err(error) => panic!("{} Byte: {:02X}", error, current_byte),
         }
     }
 
     fn fetch(&mut self) {
+        // Initialise current byte.
         let current_byte = self
             .memory
             .read_byte(self.registers.instruction_pointer as usize);
         self.current_byte = Some(*current_byte);
 
-        while !self.is_at_end() {
+        loop {
+            if self.is_at_end() {
+                break;
+            }
+
             self.op_code();
         }
     }

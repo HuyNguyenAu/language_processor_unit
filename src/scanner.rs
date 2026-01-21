@@ -81,14 +81,14 @@ impl Scanner {
         );
     }
 
-    fn make_error(&self, message: &str) -> Token {
+    fn make_error(&self, message: &'static str) -> Token {
         return Token::new(
             TokenType::ERROR,
             self.start,
             self.current - self.start,
             self.line,
             self.column,
-            Some(message.to_string()),
+            Some(message),
         );
     }
 

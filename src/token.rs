@@ -29,7 +29,7 @@ pub struct Token {
     length: usize,
     line: usize,
     column: usize,
-    error: Option<String>,
+    error: Option<&'static str>,
 }
 
 impl Token {
@@ -39,7 +39,7 @@ impl Token {
         length: usize,
         line: usize,
         column: usize,
-        error: Option<String>,
+        error: Option<&'static str>,
     ) -> Token {
         Token {
             token_type,
@@ -71,7 +71,7 @@ impl Token {
         return self.column;
     }
 
-    pub fn error(&self) -> &Option<String> {
-        return &self.error;
+    pub fn error(&self) -> Option<&'static str> {
+        return self.error;
     }
 }

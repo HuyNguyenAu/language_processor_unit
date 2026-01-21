@@ -1,5 +1,5 @@
 use crate::instruction::{
-    AddInstruction, Instruction, JumpLessThanInstruction, MoveInstruction, OpCode, Operand,
+    self, AddInstruction, Instruction, JumpLessThanInstruction, MoveInstruction, OpCode, Operand,
     OperandType, SimilarityInstruction, SubInstruction,
 };
 
@@ -385,6 +385,49 @@ impl ControlUnit {
 
         return Some(self.op_code());
     }
+
+    fn decode(&mut self, instruction: &Instruction) {
+        match instruction {
+            Instruction::Move(mov_instruction) => {
+                println!(
+                    "MOV: {:?} -> r{}",
+                    mov_instruction.value, mov_instruction.destination_register
+                );
+            }
+            Instruction::Add(add_instruction) => {
+                println!(
+                    "ADD: {:?} + {:?} -> r{}",
+                    add_instruction.first_operand,
+                    add_instruction.second_operand,
+                    add_instruction.destination_register
+                );
+            }
+            Instruction::Sub(sub_instruction) => {
+                println!(
+                    "SUB: {:?} - {:?} -> r{}",
+                    sub_instruction.first_operand,
+                    sub_instruction.second_operand,
+                    sub_instruction.destination_register
+                );
+            }
+            Instruction::Similarity(sim_instruction) => {
+                println!(
+                    "SIM: {:?} ~ {:?} -> r{}",
+                    sim_instruction.first_operand,
+                    sim_instruction.second_operand,
+                    sim_instruction.destination_register
+                );
+            }
+            Instruction::JumpLessThan(jlt_instruction) => {
+                println!(
+                    "JLT: {:?} < {:?} -> {}",
+                    jlt_instruction.first_operand,
+                    jlt_instruction.second_operand,
+                    jlt_instruction.bytecode_jump_index
+                );
+            }
+        }
+    }
 }
 
 struct SemanticLogicUnit {}
@@ -408,46 +451,7 @@ impl Processor {
 
     pub fn execute(&mut self) {
         while let Some(instruction) = self.control.fetch() {
-            match instruction {
-                Instruction::Move(mov_instruction) => {
-                    println!(
-                        "MOV: {:?} -> r{}",
-                        mov_instruction.value, mov_instruction.destination_register
-                    );
-                }
-                Instruction::Add(add_instruction) => {
-                    println!(
-                        "ADD: {:?} + {:?} -> r{}",
-                        add_instruction.first_operand,
-                        add_instruction.second_operand,
-                        add_instruction.destination_register
-                    );
-                }
-                Instruction::Sub(sub_instruction) => {
-                    println!(
-                        "SUB: {:?} - {:?} -> r{}",
-                        sub_instruction.first_operand,
-                        sub_instruction.second_operand,
-                        sub_instruction.destination_register
-                    );
-                }
-                Instruction::Similarity(sim_instruction) => {
-                    println!(
-                        "SIM: {:?} ~ {:?} -> r{}",
-                        sim_instruction.first_operand,
-                        sim_instruction.second_operand,
-                        sim_instruction.destination_register
-                    );
-                }
-                Instruction::JumpLessThan(jlt_instruction) => {
-                    println!(
-                        "JLT: {:?} < {:?} -> {}",
-                        jlt_instruction.first_operand,
-                        jlt_instruction.second_operand,
-                        jlt_instruction.bytecode_jump_index
-                    );
-                }
-            }
+            self.control.decode(&instruction);
         }
     }
 }

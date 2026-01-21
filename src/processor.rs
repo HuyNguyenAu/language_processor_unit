@@ -1,4 +1,7 @@
-use crate::instruction::{Instruction, OpCode, OperandType};
+use crate::instruction::{
+    AddInstruction, Instruction, JumpLessThanInstruction, MoveInstruction, OpCode, Operand,
+    OperandType, SimilarityInstruction, SubInstruction,
+};
 
 struct MemoryUnit {
     data: Vec<u8>,
@@ -14,8 +17,8 @@ impl MemoryUnit {
         self.data = bytecode;
     }
 
-    fn read_byte(&self, address: usize) -> &u8 {
-        return match self.data.get(address) {
+    fn read_byte(&self, address: u8) -> &u8 {
+        return match self.data.get(address as usize) {
             Some(byte) => byte,
             None => panic!("Address out of bounds."),
         };
@@ -55,7 +58,6 @@ struct ControlUnit {
     registers: Registers,
     previous_byte: Option<u8>,
     current_byte: Option<u8>,
-    current_instruction: Option<Instruction>,
 }
 
 impl ControlUnit {
@@ -65,7 +67,6 @@ impl ControlUnit {
             registers: Registers::new(),
             previous_byte: None,
             current_byte: None,
-            current_instruction: None,
         }
     }
 
@@ -78,9 +79,7 @@ impl ControlUnit {
 
         self.previous_byte = self.current_byte;
 
-        let current_byte = self
-            .memory
-            .read_byte(self.registers.instruction_pointer as usize);
+        let current_byte = self.memory.read_byte(self.registers.instruction_pointer);
         self.current_byte = Some(*current_byte);
     }
 
@@ -168,6 +167,22 @@ impl ControlUnit {
         return number_byte;
     }
 
+    fn operand(
+        &mut self,
+        operand_type_message: &str,
+        operand_number: &str,
+        operand_text: &str,
+        operand_register: &str,
+    ) -> Operand {
+        let operand_type = self.operand_type(operand_type_message);
+
+        return match operand_type {
+            OperandType::NUMBER => Operand::Number(self.number(true, operand_number)),
+            OperandType::TEXT => Operand::Text(self.text(operand_text)),
+            OperandType::REGISTER => Operand::Register(self.register(true, operand_register)),
+        };
+    }
+
     fn debug(&self, message: &str) {
         println!(
             "[{}] IP: {}, Prev Byte: {:02X}, Curr Byte: {:02X}",
@@ -184,19 +199,9 @@ impl ControlUnit {
         );
     }
 
-    // fn make_instruction(&mut self, op_code: OpCode) {
-    //     self.current_instruction = match self.current_instruction {
-    //         Some(_) => panic!("Current instruction should have been consumed."),
-    //         None => Some(Instruction::new(op_code)),
-    //     };
-    // }
-
-    fn _move(&mut self) {
+    fn _move(&mut self) -> MoveInstruction {
         // Consume MOV opcode.
         self.advance();
-        print!("MOV: ");
-
-        // self.make_instruction(OpCode::MOV);
 
         // Consume the destination register.
         let destination_register = self.register(
@@ -205,252 +210,152 @@ impl ControlUnit {
         );
 
         // Consume value operand.
-        match self.operand_type("Failed to determine operand type for MOV instruction.") {
-            OperandType::NUMBER => print!(
-                "{} ",
-                self.number(false, "Failed to read number for MOV instruction.")
-            ),
-            OperandType::TEXT => {
-                print!("{} ", self.text("Failed to read text for MOV instruction."))
-            }
-            OperandType::REGISTER => print!(
-                "{} ",
-                self.register(true, "Failed to read source register for MOV instruction.")
-            ),
-        }
+        let value = self.operand(
+            "Failed to determine operand type for MOV instruction.",
+            "Failed to read number for MOV instruction.",
+            "Failed to read text for MOV instruction.",
+            "Failed to read source register for MOV instruction.",
+        );
 
-        println!("-> r{}", destination_register);
+        return MoveInstruction {
+            destination_register,
+            value,
+        };
     }
 
-    fn subtract(&mut self) {
+    fn subtract(&mut self) -> SubInstruction {
         // Consume SUB opcode.
         self.advance();
-        print!("SUB: ");
 
         // Consume the first operand.
-        match self.operand_type("Failed to determine first operand type for SUB instruction.") {
-            OperandType::NUMBER => print!(
-                "{} - ",
-                self.number(
-                    true,
-                    "Failed to read first number operand for SUB instruction.",
-                ),
-            ),
-            OperandType::TEXT => print!(
-                "{} - ",
-                self.text("Failed to read first text operand for SUB instruction.")
-            ),
-            OperandType::REGISTER => print!(
-                "r{} - ",
-                self.register(
-                    true,
-                    "Failed to read first register operand for SUB instruction.",
-                ),
-            ),
-        }
+        let first_operand = self.operand(
+            "Failed to determine first operand type for SUB instruction.",
+            "Failed to read first number operand for SUB instruction.",
+            "Failed to read first text operand for SUB instruction.",
+            "Failed to read first register operand for SUB instruction.",
+        );
 
         // Consume the second operand.
-        match self.operand_type("Failed to determine second operand type for SUB instruction.") {
-            OperandType::NUMBER => print!(
-                "{} ",
-                self.number(
-                    true,
-                    "Failed to read second number operand for SUB instruction.",
-                ),
-            ),
-            OperandType::TEXT => print!(
-                "{} ",
-                self.text("Failed to read second text operand for SUB instruction.")
-            ),
-            OperandType::REGISTER => print!(
-                "r{} ",
-                self.register(
-                    true,
-                    "Failed to read second register operand for SUB instruction.",
-                ),
-            ),
-        }
+        let second_operand = self.operand(
+            "Failed to determine second operand type for SUB instruction.",
+            "Failed to read second number operand for SUB instruction.",
+            "Failed to read second text operand for SUB instruction.",
+            "Failed to read second register operand for SUB instruction.",
+        );
 
+        // Consume the destination register.
         let destination_register = self.register(
             false,
             "Failed to read destination register for SUB instruction.",
         );
 
-        println!("-> r{}", destination_register);
+        return SubInstruction {
+            destination_register,
+            first_operand,
+            second_operand,
+        };
     }
 
-    fn addition(&mut self) {
+    fn addition(&mut self) -> AddInstruction {
         // Consume ADD opcode.
         self.advance();
-        print!("ADD: ");
 
         // Consume the first operand.
-        match self.operand_type("Failed to determine first operand type for SUB instruction.") {
-            OperandType::NUMBER => print!(
-                "{} + ",
-                self.number(
-                    true,
-                    "Failed to read first number operand for ADD instruction.",
-                ),
-            ),
-            OperandType::TEXT => print!(
-                "{} + ",
-                self.text("Failed to read first text operand for ADD instruction.")
-            ),
-            OperandType::REGISTER => print!(
-                "r{} + ",
-                self.register(
-                    true,
-                    "Failed to read first register operand for ADD instruction.",
-                ),
-            ),
-        }
+        let first_operand = self.operand(
+            "Failed to determine first operand type for ADD instruction.",
+            "Failed to read first number operand for ADD instruction.",
+            "Failed to read first text operand for ADD instruction.",
+            "Failed to read first register operand for ADD instruction.",
+        );
 
         // Consume the second operand.
-        match self.operand_type("Failed to determine second operand type for ADD instruction.") {
-            OperandType::NUMBER => print!(
-                "{} ",
-                self.number(
-                    true,
-                    "Failed to read second number operand for ADD instruction.",
-                ),
-            ),
-            OperandType::TEXT => print!(
-                "{} ",
-                self.text("Failed to read second text operand for ADD instruction.")
-            ),
-            OperandType::REGISTER => print!(
-                "r{} ",
-                self.register(
-                    true,
-                    "Failed to read second register operand for ADD instruction.",
-                ),
-            ),
-        }
+        let second_operand = self.operand(
+            "Failed to determine second operand type for ADD instruction.",
+            "Failed to read second number operand for ADD instruction.",
+            "Failed to read second text operand for ADD instruction.",
+            "Failed to read second register operand for ADD instruction.",
+        );
 
+        // Consume the destination register.
         let destination_register = self.register(
             false,
             "Failed to read destination register for ADD instruction.",
         );
 
-        println!("-> r{}", destination_register);
+        return AddInstruction {
+            destination_register,
+            first_operand,
+            second_operand,
+        };
     }
 
-    fn similarity(&mut self) {
+    fn similarity(&mut self) -> SimilarityInstruction {
         // Consume SIM opcode.
         self.advance();
-        print!("SIM: ");
 
         // Consume the first operand.
-        match self.operand_type("Failed to determine first operand type for SIM instruction.") {
-            OperandType::NUMBER => print!(
-                "{} ~ ",
-                self.number(
-                    true,
-                    "Failed to read first number operand for SIM instruction.",
-                ),
-            ),
-            OperandType::TEXT => print!(
-                "{} ~ ",
-                self.text("Failed to read first text operand for SIM instruction.")
-            ),
-            OperandType::REGISTER => print!(
-                "r{} ~ ",
-                self.register(
-                    true,
-                    "Failed to read first register operand for SIM instruction.",
-                ),
-            ),
-        }
+        let first_operand = self.operand(
+            "Failed to determine first operand type for SIM instruction.",
+            "Failed to read first number operand for SIM instruction.",
+            "Failed to read first text operand for SIM instruction.",
+            "Failed to read first register operand for SIM instruction.",
+        );
 
         // Consume the second operand.
-        match self.operand_type("Failed to determine second operand type for SIM instruction.") {
-            OperandType::NUMBER => print!(
-                "{} ",
-                self.number(
-                    true,
-                    "Failed to read second number operand for SIM instruction.",
-                ),
-            ),
-            OperandType::TEXT => print!(
-                "{} ",
-                self.text("Failed to read second text operand for SIM instruction.")
-            ),
-            OperandType::REGISTER => print!(
-                "r{} ",
-                self.register(
-                    true,
-                    "Failed to read second register operand for SIM instruction.",
-                ),
-            ),
-        }
+        let second_operand = self.operand(
+            "Failed to determine second operand type for SIM instruction.",
+            "Failed to read second number operand for SIM instruction.",
+            "Failed to read second text operand for SIM instruction.",
+            "Failed to read second register operand for SIM instruction.",
+        );
 
+        // Consume the destination register.
         let destination_register = self.register(
             false,
             "Failed to read destination register for SIM instruction.",
         );
 
-        println!("-> r{}", destination_register);
+        return SimilarityInstruction {
+            destination_register,
+            first_operand,
+            second_operand,
+        };
     }
 
-    fn jump_less_than(&mut self) {
+    fn jump_less_than(&mut self) -> JumpLessThanInstruction {
         // Consume JLT opcode.
         self.advance();
-        print!("JLT: ");
 
         // Consume the first operand.
-        match self.operand_type("Failed to determine first operand type for JLT instruction.") {
-            OperandType::NUMBER => print!(
-                "{} < ",
-                self.number(
-                    true,
-                    "Failed to read first number operand for JLT instruction.",
-                ),
-            ),
-            OperandType::TEXT => print!(
-                "{} < ",
-                self.text("Failed to read first text operand for JLT instruction.")
-            ),
-            OperandType::REGISTER => print!(
-                "r{} < ",
-                self.register(
-                    true,
-                    "Failed to read first register operand for JLT instruction.",
-                ),
-            ),
-        }
+        let first_operand = self.operand(
+            "Failed to determine first operand type for JLT instruction.",
+            "Failed to read first number operand for JLT instruction.",
+            "Failed to read first text operand for JLT instruction.",
+            "Failed to read first register operand for JLT instruction.",
+        );
 
         // Consume the second operand.
-        match self.operand_type("Failed to determine second operand type for JLT instruction.") {
-            OperandType::NUMBER => print!(
-                "{} ",
-                self.number(
-                    true,
-                    "Failed to read second number operand for JLT instruction.",
-                ),
-            ),
-            OperandType::TEXT => print!(
-                "{} ",
-                self.text("Failed to read second text operand for JLT instruction.")
-            ),
-            OperandType::REGISTER => print!(
-                "r{} ",
-                self.register(
-                    true,
-                    "Failed to read second register operand for JLT instruction.",
-                ),
-            ),
-        }
+        let second_operand = self.operand(
+            "Failed to determine second operand type for JLT instruction.",
+            "Failed to read second number operand for JLT instruction.",
+            "Failed to read second text operand for JLT instruction.",
+            "Failed to read second register operand for JLT instruction.",
+        );
 
+        // Consume the bytecode jump index.
         let bytecode_jump_index = self.number(
             false,
             "Failed to read byte code jump index for JLT instruction.",
         );
 
-        println!("-> {}", bytecode_jump_index);
+        return JumpLessThanInstruction {
+            bytecode_jump_index,
+            first_operand,
+            second_operand,
+        };
     }
 
-    fn op_code(&mut self) {
+    fn op_code(&mut self) -> Instruction {
         let current_byte = match self.current_byte {
             Some(byte) => byte,
             None => panic!("No current byte to determine opcode."),
@@ -460,29 +365,25 @@ impl ControlUnit {
             Err(error) => panic!("{} Byte: {:02X}", error, current_byte),
         };
 
-        match op_code {
-            OpCode::MOV => self._move(),
-            OpCode::ADD => self.addition(),
-            OpCode::SUB => self.subtract(),
-            OpCode::SIM => self.similarity(),
-            OpCode::JLT => self.jump_less_than(),
-        }
+        return match op_code {
+            OpCode::MOV => Instruction::Move(self._move()),
+            OpCode::ADD => Instruction::Add(self.addition()),
+            OpCode::SUB => Instruction::Sub(self.subtract()),
+            OpCode::SIM => Instruction::Similarity(self.similarity()),
+            OpCode::JLT => Instruction::JumpLessThan(self.jump_less_than()),
+        };
     }
 
-    fn fetch(&mut self) {
+    fn fetch(&mut self) -> Option<Instruction> {
         // Initialise current byte.
-        let current_byte = self
-            .memory
-            .read_byte(self.registers.instruction_pointer as usize);
+        let current_byte = self.memory.read_byte(self.registers.instruction_pointer);
         self.current_byte = Some(*current_byte);
 
-        loop {
-            if self.is_at_end() {
-                break;
-            }
-
-            self.op_code();
+        if self.is_at_end() {
+            return None;
         }
+
+        return Some(self.op_code());
     }
 }
 
@@ -506,6 +407,47 @@ impl Processor {
     }
 
     pub fn execute(&mut self) {
-        self.control.fetch();
+        while let Some(instruction) = self.control.fetch() {
+            match instruction {
+                Instruction::Move(mov_instruction) => {
+                    println!(
+                        "MOV: {:?} -> r{}",
+                        mov_instruction.value, mov_instruction.destination_register
+                    );
+                }
+                Instruction::Add(add_instruction) => {
+                    println!(
+                        "ADD: {:?} + {:?} -> r{}",
+                        add_instruction.first_operand,
+                        add_instruction.second_operand,
+                        add_instruction.destination_register
+                    );
+                }
+                Instruction::Sub(sub_instruction) => {
+                    println!(
+                        "SUB: {:?} - {:?} -> r{}",
+                        sub_instruction.first_operand,
+                        sub_instruction.second_operand,
+                        sub_instruction.destination_register
+                    );
+                }
+                Instruction::Similarity(sim_instruction) => {
+                    println!(
+                        "SIM: {:?} ~ {:?} -> r{}",
+                        sim_instruction.first_operand,
+                        sim_instruction.second_operand,
+                        sim_instruction.destination_register
+                    );
+                }
+                Instruction::JumpLessThan(jlt_instruction) => {
+                    println!(
+                        "JLT: {:?} < {:?} -> {}",
+                        jlt_instruction.first_operand,
+                        jlt_instruction.second_operand,
+                        jlt_instruction.bytecode_jump_index
+                    );
+                }
+            }
+        }
     }
 }

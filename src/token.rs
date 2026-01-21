@@ -24,10 +24,54 @@ pub enum TokenType {
 
 #[derive(Clone, Debug)]
 pub struct Token {
-    pub token_type: TokenType,
-    pub start: usize,
-    pub length: usize,
-    pub line: usize,
-    pub column: usize,
-    pub error: Option<String>,
+    token_type: TokenType,
+    start: usize,
+    length: usize,
+    line: usize,
+    column: usize,
+    error: Option<String>,
+}
+
+impl Token {
+    pub fn new(
+        token_type: TokenType,
+        start: usize,
+        length: usize,
+        line: usize,
+        column: usize,
+        error: Option<String>,
+    ) -> Token {
+        Token {
+            token_type,
+            start,
+            length,
+            line,
+            column,
+            error,
+        }
+    }
+
+    pub fn token_type(&self) -> &TokenType {
+        return &self.token_type;
+    }
+
+    pub fn start(&self) -> usize {
+        return self.start;
+    }
+
+    pub fn length(&self) -> usize {
+        return self.length;
+    }
+
+    pub fn line(&self) -> usize {
+        return self.line;
+    }
+
+    pub fn column(&self) -> usize {
+        return self.column;
+    }
+
+    pub fn error(&self) -> &Option<String> {
+        return &self.error;
+    }
 }

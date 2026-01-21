@@ -44,17 +44,17 @@ impl Assembler {
 
         self.panic_mode = true;
 
-        eprint!("[Line {}:{}] Error:", token.line, token.column);
+        eprint!("[Line {}:{}] Error:", token.line(), token.column());
 
-        if token.token_type == TokenType::ERROR
-            && let Some(error) = &token.error
+        if token.token_type() == &TokenType::ERROR
+            && let Some(error) = token.error()
         {
             eprint!(" {}", error);
         }
 
         eprintln!(
             " at '{}'.",
-            &self.source[token.start..token.start + token.length]
+            &self.source[token.start()..token.start() + token.length()]
         );
 
         eprintln!("{}", message);
@@ -94,7 +94,7 @@ impl Assembler {
 
             self.current = Some(current_token.clone());
 
-            if current_token.token_type != TokenType::ERROR {
+            if current_token.token_type() != &TokenType::ERROR {
                 return;
             }
 
@@ -104,15 +104,15 @@ impl Assembler {
 
     fn previous_lexeme(&self) -> &str {
         if let Some(token) = &self.previous {
-            return &self.source[token.start..token.start + token.length];
+            return &self.source[token.start()..token.start() + token.length()];
         }
 
         panic!("Failed to get token lexeme. Previous token is None.");
     }
 
-    fn consume(&mut self, token_type: TokenType, message: &str) {
-        if let Some(current_token) = self.current.clone()
-            && current_token.token_type == token_type
+    fn consume(&mut self, token_type: &TokenType, message: &str) {
+        if let Some(current_token) = &self.current
+            && current_token.token_type() == token_type
         {
             self.advance();
 
@@ -127,7 +127,7 @@ impl Assembler {
     }
 
     fn number(&mut self, message: &str) -> Result<u8, &'static str> {
-        self.consume(TokenType::NUMBER, message);
+        self.consume(&TokenType::NUMBER, message);
 
         return match self.previous_lexeme().parse() {
             Ok(value) => Ok(value),
@@ -136,7 +136,7 @@ impl Assembler {
     }
 
     fn register(&mut self, message: &str) -> Result<u8, &'static str> {
-        self.consume(TokenType::IDENTIFIER, message);
+        self.consume(&TokenType::IDENTIFIER, message);
 
         return match self
             .previous_lexeme()
@@ -151,7 +151,7 @@ impl Assembler {
     }
 
     fn string(&mut self, message: &str) -> Result<String, &'static str> {
-        self.consume(TokenType::STRING, message);
+        self.consume(&TokenType::STRING, message);
 
         // Remove surrounding quotes.
         let mut value = self.previous_lexeme().chars();
@@ -162,7 +162,7 @@ impl Assembler {
     }
 
     fn identifier(&mut self, message: &str) -> Result<String, &'static str> {
-        self.consume(TokenType::IDENTIFIER, message);
+        self.consume(&TokenType::IDENTIFIER, message);
 
         let value = self.previous_lexeme().to_string();
 
@@ -171,7 +171,7 @@ impl Assembler {
 
     fn operand(&mut self, message: &str) -> Result<Operand, &'static str> {
         let current_type = match self.current {
-            Some(ref token) => &token.token_type,
+            Some(ref token) => token.token_type(),
             None => return Err("Failed to parse operand. Current token is None."),
         };
 
@@ -228,14 +228,14 @@ impl Assembler {
     }
 
     fn _move(&mut self) {
-        self.consume(TokenType::MOV, "Expected 'mov' keyword.");
+        self.consume(&TokenType::MOV, "Expected 'mov' keyword.");
 
         let register = match self.register("Expected register name.") {
             Ok(name) => name,
             _ => return,
         };
 
-        self.consume(TokenType::COMMA, "Expected ',' after register name.");
+        self.consume(&TokenType::COMMA, "Expected ',' after register name.");
 
         let variable_value = match self.operand("Expected operand after ','.") {
             Ok(value) => value,
@@ -250,7 +250,7 @@ impl Assembler {
     }
 
     fn label(&mut self) {
-        self.consume(TokenType::LABEL, "Expected label name.");
+        self.consume(&TokenType::LABEL, "Expected label name.");
 
         let label_name = self.previous_lexeme().to_string();
         let value = label_name.trim_end_matches(':');
@@ -260,21 +260,21 @@ impl Assembler {
     }
 
     fn subtract(&mut self) {
-        self.consume(TokenType::SUB, "Expected 'sub' keyword.");
+        self.consume(&TokenType::SUB, "Expected 'sub' keyword.");
 
         let operand_1 = match self.operand("Expected first operand after 'sub'.") {
             Ok(op) => op,
             _ => return,
         };
 
-        self.consume(TokenType::COMMA, "Expected ',' after operand.");
+        self.consume(&TokenType::COMMA, "Expected ',' after operand.");
 
         let operand_2 = match self.operand("Expected second operand after ','.") {
             Ok(op) => op,
             _ => return,
         };
 
-        self.consume(TokenType::COMMA, "Expected ',' after second operand.");
+        self.consume(&TokenType::COMMA, "Expected ',' after second operand.");
 
         let destination = match self.register("Expected destination register after ','.") {
             Ok(name) => name,
@@ -290,21 +290,21 @@ impl Assembler {
     }
 
     fn addition(&mut self) {
-        self.consume(TokenType::ADD, "Expected 'add' keyword.");
+        self.consume(&TokenType::ADD, "Expected 'add' keyword.");
 
         let operand_1 = match self.operand("Expected first operand after 'add'.") {
             Ok(op) => op,
             _ => return,
         };
 
-        self.consume(TokenType::COMMA, "Expected ',' after operand.");
+        self.consume(&TokenType::COMMA, "Expected ',' after operand.");
 
         let operand_2 = match self.operand("Expected second operand after ','.") {
             Ok(op) => op,
             _ => return,
         };
 
-        self.consume(TokenType::COMMA, "Expected ',' after second operand.");
+        self.consume(&TokenType::COMMA, "Expected ',' after second operand.");
 
         let destination = match self.register("Expected destination register after ','.") {
             Ok(name) => name,
@@ -320,21 +320,21 @@ impl Assembler {
     }
 
     fn similarity(&mut self) {
-        self.consume(TokenType::SIM, "Expected 'sim' keyword.");
+        self.consume(&TokenType::SIM, "Expected 'sim' keyword.");
 
         let operand_1 = match self.operand("Expected first operand after 'sim'.") {
             Ok(op) => op,
             _ => return,
         };
 
-        self.consume(TokenType::COMMA, "Expected ',' after operand.");
+        self.consume(&TokenType::COMMA, "Expected ',' after operand.");
 
         let operand_2 = match self.operand("Expected second operand after ','.") {
             Ok(op) => op,
             _ => return,
         };
 
-        self.consume(TokenType::COMMA, "Expected ',' after second operand.");
+        self.consume(&TokenType::COMMA, "Expected ',' after second operand.");
 
         let destination = match self.register("Expected destination register after ','.") {
             Ok(name) => name,
@@ -350,21 +350,21 @@ impl Assembler {
     }
 
     fn jump_less_than(&mut self) {
-        self.consume(TokenType::JLT, "Expected 'jlt' keyword.");
+        self.consume(&TokenType::JLT, "Expected 'jlt' keyword.");
 
         let operand_1 = match self.operand("Expected first operand after 'jlt'.") {
             Ok(op) => op,
             _ => return,
         };
 
-        self.consume(TokenType::COMMA, "Expected ',' after operand.");
+        self.consume(&TokenType::COMMA, "Expected ',' after operand.");
 
         let operand_2 = match self.operand("Expected second operand after ','.") {
             Ok(op) => op,
             _ => return,
         };
 
-        self.consume(TokenType::COMMA, "Expected ',' after second operand.");
+        self.consume(&TokenType::COMMA, "Expected ',' after second operand.");
 
         let label = match self.identifier("Expected label name after ','.") {
             Ok(name) => name,
@@ -392,7 +392,7 @@ impl Assembler {
 
         while !self.panic_mode {
             if let Some(current_token) = &self.current {
-                match current_token.token_type {
+                match current_token.token_type() {
                     TokenType::MOV => self._move(),
                     TokenType::LABEL => self.label(),
                     TokenType::SUB => self.subtract(),

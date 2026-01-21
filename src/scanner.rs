@@ -71,25 +71,25 @@ impl Scanner {
     }
 
     fn make_token(&self, token_type: TokenType) -> Token {
-        return Token {
+        return Token::new(
             token_type,
-            start: self.start,
-            length: self.current - self.start,
-            line: self.line,
-            column: self.column,
-            error: None,
-        };
+            self.start,
+            self.current - self.start,
+            self.line,
+            self.column,
+            None,
+        );
     }
 
     fn make_error(&self, message: &str) -> Token {
-        return Token {
-            token_type: TokenType::ERROR,
-            start: self.start,
-            length: self.current - self.start,
-            line: self.line,
-            column: self.column,
-            error: Some(message.to_string()),
-        };
+        return Token::new(
+            TokenType::ERROR,
+            self.start,
+            self.current - self.start,
+            self.line,
+            self.column,
+            Some(message.to_string()),
+        );
     }
 
     fn skip_whitespace(&mut self) {

@@ -126,16 +126,16 @@ impl Assembler {
         self.current_bytecode_index = self.bytecode.len() - 1;
     }
 
-    fn number(&mut self, message: &str) -> Result<u8, &'static str> {
+    fn number(&mut self, message: &str) -> u8 {
         self.consume(&TokenType::NUMBER, message);
 
         return match self.previous_lexeme().parse() {
-            Ok(value) => Ok(value),
-            Err(_) => Err("Failed to parse number."),
+            Ok(value) => value,
+            _ => panic!("Failed to parse number."),
         };
     }
 
-    fn register(&mut self, message: &str) -> Result<u8, &'static str> {
+    fn register(&mut self, message: &str) -> u8 {
         self.consume(&TokenType::IDENTIFIER, message);
 
         return match self
@@ -145,12 +145,12 @@ impl Assembler {
             .collect::<String>()
             .parse()
         {
-            Ok(value) => Ok(value),
-            Err(_) => Err("Failed to parse register."),
+            Ok(value) => value,
+            _ => panic!("Failed to parse register."),
         };
     }
 
-    fn string(&mut self, message: &str) -> Result<String, &'static str> {
+    fn string(&mut self, message: &str) -> String {
         self.consume(&TokenType::STRING, message);
 
         // Remove surrounding quotes.
@@ -158,38 +158,27 @@ impl Assembler {
         value.next();
         value.next_back();
 
-        return Ok(value.collect());
+        return value.collect();
     }
 
-    fn identifier(&mut self, message: &str) -> Result<String, &'static str> {
+    fn identifier(&mut self, message: &str) -> String {
         self.consume(&TokenType::IDENTIFIER, message);
 
-        let value = self.previous_lexeme().to_string();
-
-        return Ok(value);
+        return self.previous_lexeme().to_string();
     }
 
-    fn operand(&mut self, message: &str) -> Result<Operand, &'static str> {
+    fn operand(&mut self, message: &str) -> Operand {
         let current_type = match self.current {
             Some(ref token) => token.token_type(),
-            None => return Err("Failed to parse operand. Current token is None."),
+            None => panic!("Failed to parse operand. Current token is None."),
         };
 
-        match current_type {
-            TokenType::NUMBER => match self.number(message) {
-                Ok(value) => return Ok(Operand::Number(value)),
-                Err(e) => return Err(e),
-            },
-            TokenType::STRING => match self.string(message) {
-                Ok(value) => return Ok(Operand::Text(value)),
-                Err(e) => return Err(e),
-            },
-            TokenType::IDENTIFIER => match self.register(message) {
-                Ok(value) => return Ok(Operand::Register(value)),
-                Err(e) => return Err(e),
-            },
-            _ => return Err("Expected number, string, or register as operand."),
-        }
+        return match current_type {
+            TokenType::NUMBER => Operand::Number(self.number(message)),
+            TokenType::STRING => Operand::Text(self.string(message)),
+            TokenType::IDENTIFIER => Operand::Register(self.register(message)),
+            _ => panic!("Expected number, string, or register as operand."),
+        };
     }
 
     fn emit_number_bytecode(&mut self, value: u8) {
@@ -230,17 +219,11 @@ impl Assembler {
     fn _move(&mut self) {
         self.consume(&TokenType::MOV, "Expected 'mov' keyword.");
 
-        let register = match self.register("Expected register name.") {
-            Ok(name) => name,
-            _ => return,
-        };
+        let register = self.register("Expected register name.");
 
         self.consume(&TokenType::COMMA, "Expected ',' after register name.");
 
-        let variable_value = match self.operand("Expected operand after ','.") {
-            Ok(value) => value,
-            _ => return,
-        };
+        let variable_value = self.operand("Expected operand after ','.");
 
         self.emit_op_code_bytecode(OpCode::MOV);
         self.emit_register_bytecode(register);
@@ -262,24 +245,15 @@ impl Assembler {
     fn subtract(&mut self) {
         self.consume(&TokenType::SUB, "Expected 'sub' keyword.");
 
-        let operand_1 = match self.operand("Expected first operand after 'sub'.") {
-            Ok(op) => op,
-            _ => return,
-        };
+        let operand_1 = self.operand("Expected first operand after 'sub'.");
 
         self.consume(&TokenType::COMMA, "Expected ',' after operand.");
 
-        let operand_2 = match self.operand("Expected second operand after ','.") {
-            Ok(op) => op,
-            _ => return,
-        };
+        let operand_2 = self.operand("Expected second operand after ','.");
 
         self.consume(&TokenType::COMMA, "Expected ',' after second operand.");
 
-        let destination = match self.register("Expected destination register after ','.") {
-            Ok(name) => name,
-            _ => return,
-        };
+        let destination = self.register("Expected destination register after ','.");
 
         self.emit_op_code_bytecode(OpCode::SUB);
         self.emit_operand_bytecode(&operand_1);
@@ -292,24 +266,15 @@ impl Assembler {
     fn addition(&mut self) {
         self.consume(&TokenType::ADD, "Expected 'add' keyword.");
 
-        let operand_1 = match self.operand("Expected first operand after 'add'.") {
-            Ok(op) => op,
-            _ => return,
-        };
+        let operand_1 = self.operand("Expected first operand after 'add'.");
 
         self.consume(&TokenType::COMMA, "Expected ',' after operand.");
 
-        let operand_2 = match self.operand("Expected second operand after ','.") {
-            Ok(op) => op,
-            _ => return,
-        };
+        let operand_2 = self.operand("Expected second operand after ','.");
 
         self.consume(&TokenType::COMMA, "Expected ',' after second operand.");
 
-        let destination = match self.register("Expected destination register after ','.") {
-            Ok(name) => name,
-            _ => return,
-        };
+        let destination = self.register("Expected destination register after ','.");
 
         self.emit_op_code_bytecode(OpCode::ADD);
         self.emit_operand_bytecode(&operand_1);
@@ -322,24 +287,15 @@ impl Assembler {
     fn similarity(&mut self) {
         self.consume(&TokenType::SIM, "Expected 'sim' keyword.");
 
-        let operand_1 = match self.operand("Expected first operand after 'sim'.") {
-            Ok(op) => op,
-            _ => return,
-        };
+        let operand_1 = self.operand("Expected first operand after 'sim'.");
 
         self.consume(&TokenType::COMMA, "Expected ',' after operand.");
 
-        let operand_2 = match self.operand("Expected second operand after ','.") {
-            Ok(op) => op,
-            _ => return,
-        };
+        let operand_2 = self.operand("Expected second operand after ','.");
 
         self.consume(&TokenType::COMMA, "Expected ',' after second operand.");
 
-        let destination = match self.register("Expected destination register after ','.") {
-            Ok(name) => name,
-            _ => return,
-        };
+        let destination = self.register("Expected destination register after ','.");
 
         self.emit_op_code_bytecode(OpCode::SIM);
         self.emit_operand_bytecode(&operand_1);
@@ -352,24 +308,15 @@ impl Assembler {
     fn jump_less_than(&mut self) {
         self.consume(&TokenType::JLT, "Expected 'jlt' keyword.");
 
-        let operand_1 = match self.operand("Expected first operand after 'jlt'.") {
-            Ok(op) => op,
-            _ => return,
-        };
+        let operand_1 = self.operand("Expected first operand after 'jlt'.");
 
         self.consume(&TokenType::COMMA, "Expected ',' after operand.");
 
-        let operand_2 = match self.operand("Expected second operand after ','.") {
-            Ok(op) => op,
-            _ => return,
-        };
+        let operand_2 = self.operand("Expected second operand after ','.");
 
         self.consume(&TokenType::COMMA, "Expected ',' after second operand.");
 
-        let label = match self.identifier("Expected label name after ','.") {
-            Ok(name) => name,
-            _ => return,
-        };
+        let label = self.identifier("Expected label name after ','.");
 
         let current_bytecode_index = match self.bytecode_indices.get(&label) {
             Some(level) => *level,
@@ -387,7 +334,7 @@ impl Assembler {
         self.advance_stack_level();
     }
 
-    pub fn assemble(&mut self) -> Option<Vec<u8>> {
+    pub fn assemble(&mut self) -> Result<Vec<u8>, &'static str> {
         self.advance();
 
         while !self.panic_mode {
@@ -408,9 +355,9 @@ impl Assembler {
         }
 
         if self.had_error {
-            return None;
+            return Err("Assembly failed due to errors.");
         }
 
-        return Some(self.bytecode.clone());
+        return Ok(self.bytecode.clone());
     }
 }

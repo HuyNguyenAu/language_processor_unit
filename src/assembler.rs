@@ -75,8 +75,8 @@ impl Assembler {
     }
 
     fn error_at_previous(&mut self, message: &str) {
-        let token = match self.previous.clone() {
-            Some(token) => token,
+        let token = match &self.previous {
+            Some(token) => token.clone(),
             None => panic!(
                 "Failed to handle error at previous token.\nError: {}",
                 message

@@ -1,0 +1,14 @@
+ ; This program compares two sentences for similarity.
+
+        ; Initialisation
+        mov r1, "I love playing soccer with my friends."
+        mov r2, "My friends and I enjoy playing soccer together."
+        mov r4, "The sentences are similar enough."
+
+        ; Execution
+        sim r1, r2, r3
+        jgt r3, 80, end
+        mov r4, "The sentences are not similar enough."
+
+        ; Output
+end:    out r4

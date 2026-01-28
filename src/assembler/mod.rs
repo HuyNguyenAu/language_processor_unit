@@ -90,7 +90,7 @@ impl Assembler {
 
         loop {
             let current_token = self.scanner.scan_token();
-
+            
             self.current = Some(current_token.clone());
 
             if current_token.token_type() != &TokenType::ERROR {

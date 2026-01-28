@@ -1,266 +1,71 @@
 use crate::{
-    instruction::{
-        AddInstruction, ComparisonType, Instruction, JumpCompareInstruction, MoveInstruction,
-        Operand, OperandType, OutputInstruction, SimilarityInstruction, SubInstruction,
-    }, microcode::Microcode, opcode::OpCode, openai::{OpenAIChatRequest, OpenAIChatRequestText, OpenAIClient, OpenAIEmbeddingsRequest}
+    assembler::opcode::OpCode,
+    assembler::operand::{Operand, OperandType},
+    processor::control_unit::{
+        instruction::{
+            AddInstruction, ComparisonType, Instruction, JumpCompareInstruction, MoveInstruction,
+            OutputInstruction, SimilarityInstruction, SubInstruction,
+        },
+        memory_unit::MemoryUnit,
+        registers::Registers,
+        semantic_logic_unit::SemanticLogicUnit,
+    },
 };
 
-struct MemoryUnit {
-    data: Vec<u8>,
-}
+mod instruction;
+mod memory_unit;
+mod registers;
+mod semantic_logic_unit;
 
-impl MemoryUnit {
-    fn new() -> Self {
-        MemoryUnit { data: Vec::new() }
-    }
-
-    fn load(&mut self, bytecode: Vec<u8>) {
-        println!("Loading bytecode of length {}", bytecode.len());
-
-        self.data = bytecode;
-    }
-
-    fn read_byte(&self, address: &u8) -> &u8 {
-        return match self.data.get(*address as usize) {
-            Some(byte) => byte,
-            None => panic!("Address out of bounds."),
-        };
-    }
-}
-
-struct Registers {
-    register_1: String,
-    register_2: String,
-    register_3: String,
-    register_4: String,
-    register_5: String,
-    register_6: String,
-    register_7: String,
-    register_8: String,
-    instruction_pointer: u8,
-}
-
-impl Registers {
-    fn new() -> Self {
-        Registers {
-            register_1: String::new(),
-            register_2: String::new(),
-            register_3: String::new(),
-            register_4: String::new(),
-            register_5: String::new(),
-            register_6: String::new(),
-            register_7: String::new(),
-            register_8: String::new(),
-            instruction_pointer: 0,
-        }
-    }
-
-    fn set_register(&mut self, register_number: &u8, value: &str) {
-        match register_number {
-            1 => self.register_1 = value.to_string(),
-            2 => self.register_2 = value.to_string(),
-            3 => self.register_3 = value.to_string(),
-            4 => self.register_4 = value.to_string(),
-            5 => self.register_5 = value.to_string(),
-            6 => self.register_6 = value.to_string(),
-            7 => self.register_7 = value.to_string(),
-            8 => self.register_8 = value.to_string(),
-            _ => panic!("Invalid register number."),
-        }
-    }
-
-    fn get_register(&self, register_number: &u8) -> &str {
-        return match register_number {
-            1 => &self.register_1,
-            2 => &self.register_2,
-            3 => &self.register_3,
-            4 => &self.register_4,
-            5 => &self.register_5,
-            6 => &self.register_6,
-            7 => &self.register_7,
-            8 => &self.register_8,
-            _ => panic!("Invalid register number."),
-        };
-    }
-
-    pub fn set_instruction_pointer(&mut self, address: &u8) {
-        self.instruction_pointer = *address;
-    }
-
-    fn advance_instruction_pointer(&mut self) {
-        self.instruction_pointer += 1;
-    }
-}
-
-struct SemanticLogicUnit {
-    micro_code: Microcode,
-    openai_client: OpenAIClient,
-    model: &'static str,
-    role: &'static str,
-    stream: bool,
-    temperature: f32,
-    encoding_format: &'static str,
-}
-
-impl SemanticLogicUnit {
-    pub fn new() -> Self {
-        return SemanticLogicUnit {
-            micro_code: Microcode::new(),
-            openai_client: OpenAIClient::new(),
-            model: "LFM2-2.6B-Q5_K_M.gguf",
-            role: "user",
-            stream: false,
-            temperature: 0.8,
-            encoding_format: "float",
-        };
-    }
-
-    fn clean_string(&self, value: &str) -> String {
-        return value.trim().replace("\n", "").to_string();
-    }
-
-    fn chat(&self, content: &str) -> Result<String, String> {
-        let request = OpenAIChatRequest {
-            model: self.model.to_string(),
-            stream: self.stream,
-            messages: vec![OpenAIChatRequestText {
-                role: self.role.to_string(),
-                content: content.to_string(),
-            }],
-            temperature: self.temperature,
-        };
-
-        let response = &self.openai_client.chat(request);
-
-        let choice = match response {
-            Ok(response) => response.choices.iter().nth(0),
-            Err(err) => {
-                return Err(format!(
-                    "Failed to get chat response from client. Error: {}",
-                    err
-                ));
-            }
-        };
-
-        return match choice {
-            Some(choice) => Ok(self.clean_string(&choice.message.content)),
-            None => Err("No choices returned from client.".to_string()),
-        };
-    }
-
-    fn embeddings(&self, content: &str) -> Result<Vec<f32>, String> {
-        let request = OpenAIEmbeddingsRequest {
-            model: self.model.to_string(),
-            input: content.to_string(),
-            encoding_format: self.encoding_format.to_string(),
-        };
-
-        let response = &self.openai_client.embeddings(request);
-
-        let embeddings = match response {
-            Ok(response) => response.data.iter().nth(0),
-            Err(err) => {
-                return Err(format!(
-                    "Failed to get embeddings response from client. Error: {}",
-                    err
-                ));
-            }
-        };
-
-        return match embeddings {
-            Some(value) => Ok(value.embedding.clone()),
-            None => Err("No embeddings returned from client.".to_string()),
-        };
-    }
-
-    pub fn addition(&self, first_operand: &str, second_operand: &str) -> String {
-        let content = self.micro_code.addition(first_operand, second_operand);
-
-        return match &self.chat(content.as_str()) {
-            Ok(choice) => choice.to_lowercase(),
-            Err(error) => panic!("Failed to perform addition. Error: {}", error),
-        };
-    }
-
-    pub fn subtract(&self, first_operand: &str, second_operand: &str) -> String {
-        let content = self.micro_code.subtract(first_operand, second_operand);
-
-        return match &self.chat(content.as_str()) {
-            Ok(choice) => choice.to_lowercase(),
-            Err(error) => panic!("Failed to perform subtraction. Error: {}", error),
-        };
-    }
-
-    pub fn similarity(&self, first_operand: &str, second_operand: &str) -> String {
-        let first_embedding_result = self.embeddings(first_operand);
-        let first_embedding = match &first_embedding_result {
-            Ok(embedding) => embedding,
-            Err(error) => panic!("Failed to get first embedding. Error: {}", error),
-        };
-
-        let second_embedding_result = self.embeddings(second_operand);
-        let second_embedding = match &second_embedding_result {
-            Ok(embedding) => embedding,
-            Err(error) => panic!("Failed to get second embedding. Error: {}", error),
-        };
-
-        // Compute cosine similarity.
-        let dot_product: f32 = first_embedding
-            .iter()
-            .zip(second_embedding.iter())
-            .map(|(a, b)| a * b)
-            .sum();
-        let x_euclidean_length: f32 = first_embedding.iter().map(|x| x * x).sum::<f32>().sqrt();
-        let y_euclidean_length: f32 = second_embedding.iter().map(|y| y * y).sum::<f32>().sqrt();
-        let similarity = dot_product / (x_euclidean_length * y_euclidean_length);
-
-        return ((similarity * 100.0).round()).to_string();
-    }
-}
-
-struct ControlUnit {
+pub struct ControlUnit {
     memory: MemoryUnit,
     registers: Registers,
     semantic_logic_unit: SemanticLogicUnit,
 
-    previous_byte: Option<u8>,
-    current_byte: Option<u8>,
+    previous_bytecode: Option<u8>,
+    current_bytecode: Option<u8>,
 }
 
 impl ControlUnit {
-    fn new() -> Self {
+    pub fn new() -> Self {
         ControlUnit {
             memory: MemoryUnit::new(),
             registers: Registers::new(),
             semantic_logic_unit: SemanticLogicUnit::new(),
-            previous_byte: None,
-            current_byte: None,
+            previous_bytecode: None,
+            current_bytecode: None,
         }
     }
 
+    pub fn load_bytecode(&mut self, bytecode: Vec<u8>) {
+        self.memory.load(bytecode);
+    }
+
     fn is_at_end(&self) -> bool {
-        return self.registers.instruction_pointer as usize >= self.memory.data.len() - 1;
+        return self.registers.get_instruction_pointer() as usize >= self.memory.data_length() - 1;
     }
 
     fn advance(&mut self) {
         self.registers.advance_instruction_pointer();
 
-        self.previous_byte = self.current_byte;
+        self.previous_bytecode = self.current_bytecode;
 
-        let current_byte = self.memory.read_byte(&self.registers.instruction_pointer);
-        self.current_byte = Some(*current_byte);
+        let current_bytecode = self
+            .memory
+            .read_byte(&self.registers.get_instruction_pointer());
+        self.current_bytecode = Some(*current_bytecode);
     }
 
     fn decode_operand_type(&mut self, message: &str) -> OperandType {
-        let operand_byte = match self.current_byte {
-            Some(byte) => byte,
-            None => panic!("No current byte to determine operand type."),
+        let operand_byte = match self.current_bytecode {
+            Some(bytecode) => bytecode,
+            None => panic!("No current bytecode to determine operand type."),
         };
 
-        // Consume operand type byte.
+        // Consume operand type bytecode.
         self.advance();
 
-        let operand_type = match OperandType::from_byte(&operand_byte) {
+        let operand_type = match OperandType::from_bytecode(&operand_byte) {
             Ok(operand_type) => operand_type,
             Err(error) => panic!("{} {} Byte: {:02X}", message, error, operand_byte),
         };
@@ -271,8 +76,8 @@ impl ControlUnit {
     fn decode_text(&mut self, message: &str) -> String {
         let mut text_length: usize = 0;
 
-        if let Some(length_byte) = self.current_byte {
-            // Consume text length byte.
+        if let Some(length_byte) = self.current_bytecode {
+            // Consume text length bytecode.
             self.advance();
 
             text_length = length_byte as usize;
@@ -281,10 +86,10 @@ impl ControlUnit {
         let mut text_bytes: Vec<u8> = Vec::new();
 
         while text_bytes.len() < text_length
-            && let Some(text_byte) = self.current_byte
+            && let Some(text_byte) = self.current_bytecode
         {
             if !self.is_at_end() {
-                // Consume text byte.
+                // Consume text bytecode.
                 self.advance();
             }
 
@@ -299,18 +104,18 @@ impl ControlUnit {
     }
 
     fn decode_register(&mut self, length_byte: bool, message: &str) -> u8 {
-        // Consume register length byte if needed.
+        // Consume register length bytecode if needed.
         if length_byte {
             self.advance();
         }
 
-        let register_byte = match self.current_byte {
-            Some(byte) => byte,
+        let register_byte = match self.current_bytecode {
+            Some(bytecode) => bytecode,
             None => panic!("{}", message),
         };
 
         if !self.is_at_end() {
-            // Consume register byte.
+            // Consume register bytecode.
             self.advance();
         }
 
@@ -318,18 +123,18 @@ impl ControlUnit {
     }
 
     fn decode_number(&mut self, length_byte: bool, message: &str) -> u8 {
-        // Consume number length byte if needed.
+        // Consume number length bytecode if needed.
         if length_byte {
             self.advance();
         }
 
-        let number_byte = match self.current_byte {
-            Some(byte) => byte,
+        let number_byte = match self.current_bytecode {
+            Some(bytecode) => bytecode,
             None => panic!("{}", message),
         };
 
         if !self.is_at_end() {
-            // Consume number byte.
+            // Consume number bytecode.
             self.advance();
         }
 
@@ -525,7 +330,7 @@ impl ControlUnit {
         let bytecode_jump_index = self.decode_number(
             false,
             format!(
-                "Failed to read byte code jump index for {:?} instruction.",
+                "Failed to read bytecode code jump index for {:?} instruction.",
                 op_code
             )
             .as_str(),
@@ -563,13 +368,13 @@ impl ControlUnit {
     }
 
     fn decode_op_code(&mut self) -> Instruction {
-        let current_byte = match self.current_byte {
-            Some(byte) => byte,
-            None => panic!("No current byte to determine opcode."),
+        let current_bytecode = match self.current_bytecode {
+            Some(bytecode) => bytecode,
+            None => panic!("No current bytecode to determine opcode."),
         };
-        let op_code = match OpCode::from_byte(&current_byte) {
+        let op_code = match OpCode::from_byte(&current_bytecode) {
             Ok(op_code) => op_code,
-            Err(error) => panic!("{} Byte: {:02X}", error, current_byte),
+            Err(error) => panic!("{} Byte: {:02X}", error, current_bytecode),
         };
 
         return match op_code {
@@ -586,10 +391,12 @@ impl ControlUnit {
         };
     }
 
-    fn fetch_and_decode(&mut self) -> Option<Instruction> {
-        // Initialise current byte.
-        let current_byte = self.memory.read_byte(&self.registers.instruction_pointer);
-        self.current_byte = Some(*current_byte);
+    pub fn fetch_and_decode(&mut self) -> Option<Instruction> {
+        // Initialise current bytecode.
+        let current_bytecode = self
+            .memory
+            .read_byte(&self.registers.get_instruction_pointer());
+        self.current_bytecode = Some(*current_bytecode);
 
         if self.is_at_end() {
             return None;
@@ -762,7 +569,7 @@ impl ControlUnit {
         println!("Executed OUT: {}", source_operand_value);
     }
 
-    fn execute(&mut self, instruction: &Instruction) {
+    pub fn execute(&mut self, instruction: &Instruction) {
         match instruction {
             Instruction::Move(instruction) => self.execute_move(instruction),
             Instruction::Add(instruction) => self.execute_add(instruction),
@@ -770,28 +577,6 @@ impl ControlUnit {
             Instruction::Similarity(instruction) => self.execute_similarity(instruction),
             Instruction::JumpCompare(instruction) => self.execute_jump_compare(instruction),
             Instruction::Output(instruction) => self.execute_output(instruction),
-        }
-    }
-}
-
-pub struct Processor {
-    control: ControlUnit,
-}
-
-impl Processor {
-    pub fn new() -> Self {
-        Processor {
-            control: ControlUnit::new(),
-        }
-    }
-
-    pub fn load_bytecode(&mut self, bytecode: Vec<u8>) {
-        self.control.memory.load(bytecode);
-    }
-
-    pub fn run(&mut self) {
-        while let Some(instruction) = self.control.fetch_and_decode() {
-            self.control.execute(&instruction);
         }
     }
 }

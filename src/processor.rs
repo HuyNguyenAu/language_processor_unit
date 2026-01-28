@@ -169,6 +169,10 @@ impl SemanticLogicUnit {
         };
     }
 
+    fn clean_choice(&self, choice: &str) -> String {
+        return choice.trim().to_string();
+    }
+
     pub fn addition(&self, first_operand: &str, second_operand: &str) -> String {
         let content = format!(
             "Synthesize the attributes of the {} with the attributes of the {}. Locate the specific noun that represents the intersection of these two identities within the latent space. Output exactly one word.",
@@ -177,7 +181,7 @@ impl SemanticLogicUnit {
         );
 
         return match &self.chat(content.as_str()) {
-            Ok(choice) => choice.to_lowercase(),
+            Ok(choice) => self.clean_choice(choice).to_lowercase(),
             Err(error) => panic!("Failed to perform additionString. Error: {}", error),
         };
     }
@@ -190,12 +194,12 @@ impl SemanticLogicUnit {
         );
 
         return match &self.chat(content.as_str()) {
-            Ok(choice) => choice.to_lowercase(),
+            Ok(choice) => self.clean_choice(choice).to_lowercase(),
             Err(error) => panic!("Failed to perform subtraction. Error: {}", error),
         };
     }
 
-    pub fn similarity(&self, first_operand: &str, second_operand: &str) -> f32 {
+    pub fn similarity(&self, first_operand: &str, second_operand: &str) -> String {
         let first_embedding_result = self.embeddings(first_operand);
         let first_embedding = match &first_embedding_result {
             Ok(embedding) => embedding,
@@ -216,8 +220,9 @@ impl SemanticLogicUnit {
             .sum();
         let x_euclidean_length: f32 = first_embedding.iter().map(|x| x * x).sum::<f32>().sqrt();
         let y_euclidean_length: f32 = second_embedding.iter().map(|y| y * y).sum::<f32>().sqrt();
+        let similarity = dot_product / (x_euclidean_length * y_euclidean_length);
 
-        return dot_product / (x_euclidean_length * y_euclidean_length);
+        return ((similarity * 100.0).round()).to_string();
     }
 }
 
@@ -573,6 +578,13 @@ impl ControlUnit {
 
         self.registers
             .set_register(instruction.destination_register, &value);
+
+        println!(
+            "Executed MOV: r{} = '{}'",
+            instruction.destination_register,
+            self.registers
+                .get_register(instruction.destination_register)
+        );
     }
 
     fn execute_add(&mut self, instruction: &AddInstruction) {
@@ -587,7 +599,7 @@ impl ControlUnit {
             .set_register(instruction.destination_register, &result);
 
         println!(
-            "Executing ADD: {:?} + {:?} -> r{} = '{}'",
+            "Executed ADD: {:?} + {:?} -> r{} = '{}'",
             first_operand_value,
             second_operand_value,
             instruction.destination_register,
@@ -608,7 +620,7 @@ impl ControlUnit {
             .set_register(instruction.destination_register, &result);
 
         println!(
-            "Executing SUB: {:?} - {:?} -> r{} = '{}'",
+            "Executed SUB: {:?} - {:?} -> r{} = '{}'",
             first_operand_value,
             second_operand_value,
             instruction.destination_register,
@@ -626,10 +638,10 @@ impl ControlUnit {
             .similarity(&first_operand_value, &second_operand_value);
 
         self.registers
-            .set_register(instruction.destination_register, &result.to_string());
+            .set_register(instruction.destination_register, &result);
 
         println!(
-            "Executing SIM: {:?} ~ {:?} -> r{} = '{}'",
+            "Executed SIM: {:?} ~ {:?} -> r{} = '{}'",
             first_operand_value,
             second_operand_value,
             instruction.destination_register,
@@ -639,9 +651,14 @@ impl ControlUnit {
     }
 
     fn execute_jump_less_than(&mut self, instruction: &JumpLessThanInstruction) {
-        let first_operand_value = self.value(&instruction.first_operand);
-        let second_operand_value = self.value(&instruction.second_operand);
-
+        let first_operand_value = match self.value(&instruction.first_operand).parse::<u8>() {
+            Ok(value) => value,
+            _ => panic!("JLT instruction requires numeric operands."),
+        };
+        let second_operand_value = match self.value(&instruction.second_operand).parse::<u8>() {
+            Ok(value) => value,
+            _ => panic!("JLT instruction requires numeric operands."),
+        };
         let address = instruction.bytecode_jump_index.clone();
 
         if first_operand_value < second_operand_value {
@@ -649,7 +666,7 @@ impl ControlUnit {
         }
 
         println!(
-            "Executing JLT: {:?} < {:?} -> {}",
+            "Executed JLT: {:?} < {:?} -> {}",
             first_operand_value, second_operand_value, instruction.bytecode_jump_index
         );
     }

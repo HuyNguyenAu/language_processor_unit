@@ -17,6 +17,8 @@ pub struct SemanticLogicUnit {
     role: &'static str,
     stream: bool,
     temperature: f32,
+    min_probability: f32,
+    repetition_penalty: f32,
     encoding_format: &'static str,
 }
 
@@ -28,7 +30,9 @@ impl SemanticLogicUnit {
             model: "LFM2-2.6B-Q5_K_M.gguf",
             role: "user",
             stream: false,
-            temperature: 0.8,
+            temperature: 0.3,
+            min_probability: 0.15,
+            repetition_penalty: 1.05,
             encoding_format: "float",
         };
     }
@@ -46,6 +50,8 @@ impl SemanticLogicUnit {
                 content: content.to_string(),
             }],
             temperature: self.temperature,
+            top_p: self.min_probability,
+            presence_penalty: self.repetition_penalty,
         };
 
         let response = &self.openai_client.chat(request);

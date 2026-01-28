@@ -1,6 +1,10 @@
 use crate::processor::control_unit::semantic_logic_unit::{
     microcode::Microcode,
-    openai::{OpenAIChatRequest, OpenAIChatRequestText, OpenAIClient, OpenAIEmbeddingsRequest},
+    openai::{
+        OpenAIClient,
+        chat_models::{OpenAIChatRequest, OpenAIChatRequestText},
+        embeddings_models::OpenAIEmbeddingsRequest,
+    },
 };
 
 mod microcode;

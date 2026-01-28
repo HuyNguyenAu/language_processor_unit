@@ -45,7 +45,17 @@ pub struct SimilarityInstruction {
     pub second_operand: Operand,
 }
 
-pub struct JumpLessThanInstruction {
+#[derive(Debug)]
+pub enum ComparisonType {
+    LessThan,
+    LessThanOrEqual,
+    GreaterThan,
+    GreaterThanOrEqual,
+    Equal,
+}
+
+pub struct JumpCompareInstruction {
+    pub comparison_type: ComparisonType,
     pub bytecode_jump_index: u8,
     pub first_operand: Operand,
     pub second_operand: Operand,
@@ -60,6 +70,6 @@ pub enum Instruction {
     Add(AddInstruction),
     Sub(SubInstruction),
     Similarity(SimilarityInstruction),
-    JumpLessThan(JumpLessThanInstruction),
+    JumpCompare(JumpCompareInstruction),
     Output(OutputInstruction),
 }

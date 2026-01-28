@@ -142,7 +142,11 @@ impl Scanner {
             "add" => self.make_token(TokenType::ADD),
             "sub" => self.make_token(TokenType::SUB),
             "sim" => self.make_token(TokenType::SIM),
+            "jeq" => self.make_token(TokenType::JEQ),
+            "jle" => self.make_token(TokenType::JLE),
             "jlt" => self.make_token(TokenType::JLT),
+            "jge" => self.make_token(TokenType::JGE),
+            "jgt" => self.make_token(TokenType::JGT),
             "out" => self.make_token(TokenType::OUT),
             _ => self.make_token(TokenType::IDENTIFIER),
         };

@@ -14,7 +14,11 @@ pub enum TokenType {
     SUB,
     SIM,
     LABEL,
+    JEQ,
     JLT,
+    JLE,
+    JGT,
+    JGE,
     OUT,
 
     // Misc.

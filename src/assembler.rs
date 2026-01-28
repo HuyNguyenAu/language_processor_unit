@@ -306,10 +306,14 @@ impl Assembler {
         self.advance_stack_level();
     }
 
-    fn jump_less_than(&mut self) {
-        self.consume(&TokenType::JLT, "Expected 'jlt' keyword.");
+    fn jump_compare(&mut self, token_type: &TokenType) {
+        self.consume(
+            token_type,
+            format!("Expected '{:?}' keyword.", token_type).as_str(),
+        );
 
-        let operand_1 = self.operand("Expected first operand after 'jlt'.");
+        let operand_1 =
+            self.operand(format!("Expected first operand after '{:?}'.", token_type).as_str());
 
         self.consume(&TokenType::COMMA, "Expected ',' after operand.");
 
@@ -328,7 +332,16 @@ impl Assembler {
             }
         };
 
-        self.emit_op_code_bytecode(OpCode::JLT);
+        let opcode = match token_type {
+            TokenType::JEQ => OpCode::JEQ,
+            TokenType::JLT => OpCode::JLT,
+            TokenType::JLE => OpCode::JLE,
+            TokenType::JGT => OpCode::JGT,
+            TokenType::JGE => OpCode::JGE,
+            _ => panic!("Unexpected token type for jump compare."),
+        };
+
+        self.emit_op_code_bytecode(opcode);
         self.emit_operand_bytecode(&operand_1);
         self.emit_operand_bytecode(&operand_2);
         self.emit_number_bytecode(current_bytecode_index as u8);
@@ -358,7 +371,11 @@ impl Assembler {
                     TokenType::SUB => self.subtract(),
                     TokenType::ADD => self.addition(),
                     TokenType::SIM => self.similarity(),
-                    TokenType::JLT => self.jump_less_than(),
+                    TokenType::JEQ => self.jump_compare(&TokenType::JEQ),
+                    TokenType::JLT => self.jump_compare(&TokenType::JLT),
+                    TokenType::JLE => self.jump_compare(&TokenType::JLE),
+                    TokenType::JGT => self.jump_compare(&TokenType::JGT),
+                    TokenType::JGE => self.jump_compare(&TokenType::JGE),
                     TokenType::OUT => self.output(),
                     TokenType::EOF => break,
                     _ => self.error_at_current("Unexpected keyword."),

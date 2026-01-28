@@ -1,7 +1,7 @@
 use crate::{
     instruction::{
-        AddInstruction, Instruction, JumpLessThanInstruction, MoveInstruction, Operand,
-        OperandType, OutputInstruction, SimilarityInstruction, SubInstruction,
+        AddInstruction, ComparisonType, Instruction, JumpCompareInstruction, MoveInstruction,
+        Operand, OperandType, OutputInstruction, SimilarityInstruction, SubInstruction,
     },
     opcode::OpCode,
     openai::{OpenAIChatRequest, OpenAIChatRequestText, OpenAIClient, OpenAIEmbeddingsRequest},
@@ -499,33 +499,70 @@ impl ControlUnit {
         };
     }
 
-    fn decode_jump_less_than(&mut self) -> JumpLessThanInstruction {
-        // Consume JLT opcode.
+    fn decode_jump_compare(&mut self, op_code: OpCode) -> JumpCompareInstruction {
+        // Consume jump comparison opcode.
         self.advance();
 
         // Consume the first operand.
         let first_operand = self.decode_operand(
-            "Failed to determine first operand type for JLT instruction.",
-            "Failed to read first number operand for JLT instruction.",
-            "Failed to read first text operand for JLT instruction.",
-            "Failed to read first register operand for JLT instruction.",
+            &format!(
+                "Failed to determine first operand type for {:?} instruction.",
+                op_code
+            ),
+            &format!(
+                "Failed to read first number operand for {:?} instruction.",
+                op_code
+            ),
+            &format!(
+                "Failed to read first text operand for {:?} instruction.",
+                op_code
+            ),
+            &format!(
+                "Failed to read first register operand for {:?} instruction.",
+                op_code
+            ),
         );
 
         // Consume the second operand.
         let second_operand = self.decode_operand(
-            "Failed to determine second operand type for JLT instruction.",
-            "Failed to read second number operand for JLT instruction.",
-            "Failed to read second text operand for JLT instruction.",
-            "Failed to read second register operand for JLT instruction.",
+            &format!(
+                "Failed to determine second operand type for {:?} instruction.",
+                op_code
+            ),
+            &format!(
+                "Failed to read second number operand for {:?} instruction.",
+                op_code
+            ),
+            &format!(
+                "Failed to read second text operand for {:?} instruction.",
+                op_code
+            ),
+            &format!(
+                "Failed to read second register operand for {:?} instruction.",
+                op_code
+            ),
         );
 
         // Consume the bytecode jump index.
         let bytecode_jump_index = self.decode_number(
             false,
-            "Failed to read byte code jump index for JLT instruction.",
+            format!(
+                "Failed to read byte code jump index for {:?} instruction.",
+                op_code
+            )
+            .as_str(),
         );
+        let comparison_type = match op_code {
+            OpCode::JEQ => ComparisonType::Equal,
+            OpCode::JLT => ComparisonType::LessThan,
+            OpCode::JLE => ComparisonType::LessThanOrEqual,
+            OpCode::JGT => ComparisonType::GreaterThan,
+            OpCode::JGE => ComparisonType::GreaterThanOrEqual,
+            _ => panic!("Invalid opcode for jump compare instruction."),
+        };
 
-        return JumpLessThanInstruction {
+        return JumpCompareInstruction {
+            comparison_type,
             bytecode_jump_index,
             first_operand,
             second_operand,
@@ -562,7 +599,11 @@ impl ControlUnit {
             OpCode::ADD => Instruction::Add(self.decode_addition()),
             OpCode::SUB => Instruction::Sub(self.decode_subtract()),
             OpCode::SIM => Instruction::Similarity(self.decode_similarity()),
-            OpCode::JLT => Instruction::JumpLessThan(self.decode_jump_less_than()),
+            OpCode::JEQ => Instruction::JumpCompare(self.decode_jump_compare(op_code)),
+            OpCode::JLT => Instruction::JumpCompare(self.decode_jump_compare(op_code)),
+            OpCode::JLE => Instruction::JumpCompare(self.decode_jump_compare(op_code)),
+            OpCode::JGT => Instruction::JumpCompare(self.decode_jump_compare(op_code)),
+            OpCode::JGE => Instruction::JumpCompare(self.decode_jump_compare(op_code)),
             OpCode::OUT => Instruction::Output(self.decode_output()),
         };
     }
@@ -666,25 +707,75 @@ impl ControlUnit {
         );
     }
 
-    fn execute_jump_less_than(&mut self, instruction: &JumpLessThanInstruction) {
+    fn execute_jump_compare(&mut self, instruction: &JumpCompareInstruction) {
         let first_operand_value = match self.get_value(&instruction.first_operand).parse::<u8>() {
             Ok(value) => value,
-            _ => panic!("JLT instruction requires numeric operands."),
+            _ => panic!(
+                "{:?} instruction requires numeric operands.",
+                instruction.comparison_type
+            ),
         };
         let second_operand_value = match self.get_value(&instruction.second_operand).parse::<u8>() {
             Ok(value) => value,
-            _ => panic!("JLT instruction requires numeric operands."),
+            _ => panic!(
+                "{:?} instruction requires numeric operands.",
+                instruction.comparison_type
+            ),
         };
         let address = instruction.bytecode_jump_index.clone();
 
-        if first_operand_value < second_operand_value {
-            self.registers.set_instruction_pointer(address);
-        }
+        match instruction.comparison_type {
+            ComparisonType::Equal => {
+                if first_operand_value == second_operand_value {
+                    self.registers.set_instruction_pointer(address);
+                }
 
-        println!(
-            "Executed JLT: {:?} < {:?} -> {}",
-            first_operand_value, second_operand_value, instruction.bytecode_jump_index
-        );
+                println!(
+                    "Executed JEQ: {:?} == {:?} -> {}",
+                    first_operand_value, second_operand_value, instruction.bytecode_jump_index
+                );
+            }
+            ComparisonType::LessThan => {
+                if first_operand_value < second_operand_value {
+                    self.registers.set_instruction_pointer(address);
+                }
+
+                println!(
+                    "Executed JLT: {:?} < {:?} -> {}",
+                    first_operand_value, second_operand_value, instruction.bytecode_jump_index
+                );
+            }
+            ComparisonType::LessThanOrEqual => {
+                if first_operand_value <= second_operand_value {
+                    self.registers.set_instruction_pointer(address);
+                }
+
+                println!(
+                    "Executed JLE: {:?} <= {:?} -> {}",
+                    first_operand_value, second_operand_value, instruction.bytecode_jump_index
+                );
+            }
+            ComparisonType::GreaterThan => {
+                if first_operand_value > second_operand_value {
+                    self.registers.set_instruction_pointer(address);
+                }
+
+                println!(
+                    "Executed JGT: {:?} > {:?} -> {}",
+                    first_operand_value, second_operand_value, instruction.bytecode_jump_index
+                );
+            }
+            ComparisonType::GreaterThanOrEqual => {
+                if first_operand_value >= second_operand_value {
+                    self.registers.set_instruction_pointer(address);
+                }
+
+                println!(
+                    "Executed JGE: {:?} >= {:?} -> {}",
+                    first_operand_value, second_operand_value, instruction.bytecode_jump_index
+                );
+            }
+        }
     }
 
     fn execute_output(&mut self, instruction: &OutputInstruction) {
@@ -699,7 +790,7 @@ impl ControlUnit {
             Instruction::Add(instruction) => self.execute_add(instruction),
             Instruction::Sub(instruction) => self.execute_subtract(instruction),
             Instruction::Similarity(instruction) => self.execute_similarity(instruction),
-            Instruction::JumpLessThan(instruction) => self.execute_jump_less_than(instruction),
+            Instruction::JumpCompare(instruction) => self.execute_jump_compare(instruction),
             Instruction::Output(instruction) => self.execute_output(instruction),
         }
     }

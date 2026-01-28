@@ -32,5 +32,13 @@ START:  MOV R1, "cat.jpg"   ; Load the input image of a cat into register R1.
 ```
 
 # Requirements
-- [Rust v1.93.0](https://rust-lang.org/)
-- [LLama.cpp b7843](https://github.com/ggml-org/llama.cpp)
+
+- [Rust](https://rust-lang.org/) minimum version 1.93.0
+- [LLama.cpp](https://github.com/ggml-org/llama.cpp) server with minimum release tag b7843
+
+# Acknowledgements
+
+This project was inspired by the following works:
+
+- [Crafting Interpreters](https://craftinginterpreters.com/) by Bob Nystrom
+- [Andrej Karpathy](https://karpathy.ai/) LLM OS and Software 2.0 ideas

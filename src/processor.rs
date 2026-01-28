@@ -22,8 +22,8 @@ impl MemoryUnit {
         self.data = bytecode;
     }
 
-    fn read_byte(&self, address: u8) -> &u8 {
-        return match self.data.get(address as usize) {
+    fn read_byte(&self, address: &u8) -> &u8 {
+        return match self.data.get(*address as usize) {
             Some(byte) => byte,
             None => panic!("Address out of bounds."),
         };
@@ -57,7 +57,7 @@ impl Registers {
         }
     }
 
-    fn set_register(&mut self, register_number: u8, value: &str) {
+    fn set_register(&mut self, register_number: &u8, value: &str) {
         match register_number {
             1 => self.register_1 = value.to_string(),
             2 => self.register_2 = value.to_string(),
@@ -71,7 +71,7 @@ impl Registers {
         }
     }
 
-    fn get_register(&self, register_number: u8) -> &str {
+    fn get_register(&self, register_number: &u8) -> &str {
         return match register_number {
             1 => &self.register_1,
             2 => &self.register_2,
@@ -85,8 +85,8 @@ impl Registers {
         };
     }
 
-    pub fn set_instruction_pointer(&mut self, address: u8) {
-        self.instruction_pointer = address;
+    pub fn set_instruction_pointer(&mut self, address: &u8) {
+        self.instruction_pointer = *address;
     }
 
     fn advance_instruction_pointer(&mut self) {
@@ -253,7 +253,7 @@ impl ControlUnit {
 
         self.previous_byte = self.current_byte;
 
-        let current_byte = self.memory.read_byte(self.registers.instruction_pointer);
+        let current_byte = self.memory.read_byte(&self.registers.instruction_pointer);
         self.current_byte = Some(*current_byte);
     }
 
@@ -610,7 +610,7 @@ impl ControlUnit {
 
     fn fetch_and_decode(&mut self) -> Option<Instruction> {
         // Initialise current byte.
-        let current_byte = self.memory.read_byte(self.registers.instruction_pointer);
+        let current_byte = self.memory.read_byte(&self.registers.instruction_pointer);
         self.current_byte = Some(*current_byte);
 
         if self.is_at_end() {
@@ -625,7 +625,7 @@ impl ControlUnit {
             Operand::Number(number) => number.to_string(),
             Operand::Text(text) => text.clone(),
             Operand::Register(register_number) => {
-                self.registers.get_register(*register_number).to_string()
+                self.registers.get_register(register_number).to_string()
             }
         };
     }
@@ -634,13 +634,13 @@ impl ControlUnit {
         let value = self.get_value(&instruction.value);
 
         self.registers
-            .set_register(instruction.destination_register, &value);
+            .set_register(&instruction.destination_register, &value);
 
         println!(
             "Executed MOV: r{} = \"{}\"",
             instruction.destination_register,
             self.registers
-                .get_register(instruction.destination_register)
+                .get_register(&instruction.destination_register)
         );
     }
 
@@ -653,7 +653,7 @@ impl ControlUnit {
             .addition(&first_operand_value, &second_operand_value);
 
         self.registers
-            .set_register(instruction.destination_register, &result);
+            .set_register(&instruction.destination_register, &result);
 
         println!(
             "Executed ADD: {:?} + {:?} -> r{} = \"{}\"",
@@ -661,7 +661,7 @@ impl ControlUnit {
             second_operand_value,
             instruction.destination_register,
             self.registers
-                .get_register(instruction.destination_register)
+                .get_register(&instruction.destination_register)
         );
     }
 
@@ -674,7 +674,7 @@ impl ControlUnit {
             .subtract(&first_operand_value, &second_operand_value);
 
         self.registers
-            .set_register(instruction.destination_register, &result);
+            .set_register(&instruction.destination_register, &result);
 
         println!(
             "Executed SUB: {:?} - {:?} -> r{} = \"{}\"",
@@ -682,7 +682,7 @@ impl ControlUnit {
             second_operand_value,
             instruction.destination_register,
             self.registers
-                .get_register(instruction.destination_register)
+                .get_register(&instruction.destination_register)
         );
     }
 
@@ -695,7 +695,7 @@ impl ControlUnit {
             .similarity(&first_operand_value, &second_operand_value);
 
         self.registers
-            .set_register(instruction.destination_register, &result);
+            .set_register(&instruction.destination_register, &result);
 
         println!(
             "Executed SIM: {:?} ~ {:?} -> r{} = \"{}\"",
@@ -703,7 +703,7 @@ impl ControlUnit {
             second_operand_value,
             instruction.destination_register,
             self.registers
-                .get_register(instruction.destination_register)
+                .get_register(&instruction.destination_register)
         );
     }
 
@@ -727,7 +727,7 @@ impl ControlUnit {
         match instruction.comparison_type {
             ComparisonType::Equal => {
                 if first_operand_value == second_operand_value {
-                    self.registers.set_instruction_pointer(address);
+                    self.registers.set_instruction_pointer(&address);
                 }
 
                 println!(
@@ -737,7 +737,7 @@ impl ControlUnit {
             }
             ComparisonType::LessThan => {
                 if first_operand_value < second_operand_value {
-                    self.registers.set_instruction_pointer(address);
+                    self.registers.set_instruction_pointer(&address);
                 }
 
                 println!(
@@ -747,7 +747,7 @@ impl ControlUnit {
             }
             ComparisonType::LessThanOrEqual => {
                 if first_operand_value <= second_operand_value {
-                    self.registers.set_instruction_pointer(address);
+                    self.registers.set_instruction_pointer(&address);
                 }
 
                 println!(
@@ -757,7 +757,7 @@ impl ControlUnit {
             }
             ComparisonType::GreaterThan => {
                 if first_operand_value > second_operand_value {
-                    self.registers.set_instruction_pointer(address);
+                    self.registers.set_instruction_pointer(&address);
                 }
 
                 println!(
@@ -767,7 +767,7 @@ impl ControlUnit {
             }
             ComparisonType::GreaterThanOrEqual => {
                 if first_operand_value >= second_operand_value {
-                    self.registers.set_instruction_pointer(address);
+                    self.registers.set_instruction_pointer(&address);
                 }
 
                 println!(

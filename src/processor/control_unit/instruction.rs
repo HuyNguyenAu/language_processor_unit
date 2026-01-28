@@ -43,6 +43,11 @@ pub struct OutputInstruction {
     pub source_operand: Operand,
 }
 
+pub struct LoadInstruction {
+    pub destination_register: u8,
+    pub file_path: String,
+}
+
 pub enum Instruction {
     Move(MoveInstruction),
     Add(AddInstruction),
@@ -50,4 +55,5 @@ pub enum Instruction {
     Similarity(SimilarityInstruction),
     JumpCompare(JumpCompareInstruction),
     Output(OutputInstruction),
+    Load(LoadInstruction),
 }

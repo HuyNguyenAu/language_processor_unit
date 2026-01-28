@@ -9,6 +9,7 @@ pub enum TokenType {
     NUMBER,
 
     // Keywords.
+    LOAD,
     MOV,
     ADD,
     SUB,

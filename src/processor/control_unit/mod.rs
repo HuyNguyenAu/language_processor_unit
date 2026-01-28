@@ -1,10 +1,14 @@
+use std::fs::read_to_string;
+
 use crate::{
-    assembler::opcode::OpCode,
-    assembler::operand::{Operand, OperandType},
+    assembler::{
+        opcode::OpCode,
+        operand::{Operand, OperandType},
+    },
     processor::control_unit::{
         instruction::{
-            AddInstruction, ComparisonType, Instruction, JumpCompareInstruction, MoveInstruction,
-            OutputInstruction, SimilarityInstruction, SubInstruction,
+            AddInstruction, ComparisonType, Instruction, JumpCompareInstruction, LoadInstruction,
+            MoveInstruction, OutputInstruction, SimilarityInstruction, SubInstruction,
         },
         memory_unit::MemoryUnit,
         registers::Registers,
@@ -367,6 +371,33 @@ impl ControlUnit {
         return OutputInstruction { source_operand };
     }
 
+    fn decode_load(&mut self) -> LoadInstruction {
+        // Consume LOAD opcode.
+        self.advance();
+
+        // Consume the destination register.
+        let destination_register = self.decode_register(
+            false,
+            "Failed to read destination register for LOAD instruction.",
+        );
+
+        // Consume file path operand.
+        let file_path = match self.decode_operand(
+            "Failed to determine operand type for LOAD instruction.",
+            "Failed to read number for LOAD instruction.",
+            "Failed to read text for LOAD instruction.",
+            "Failed to read source register for LOAD instruction.",
+        ) {
+            Operand::Text(text) => text,
+            _ => panic!("LOAD instruction requires a text operand for the file path."),
+        };
+
+        return LoadInstruction {
+            destination_register,
+            file_path,
+        };
+    }
+
     fn decode_op_code(&mut self) -> Instruction {
         let current_bytecode = match self.current_bytecode {
             Some(bytecode) => bytecode,
@@ -388,6 +419,7 @@ impl ControlUnit {
             OpCode::JGT => Instruction::JumpCompare(self.decode_jump_compare(op_code)),
             OpCode::JGE => Instruction::JumpCompare(self.decode_jump_compare(op_code)),
             OpCode::OUT => Instruction::Output(self.decode_output()),
+            OpCode::LOAD => Instruction::Load(self.decode_load()),
         };
     }
 
@@ -569,6 +601,23 @@ impl ControlUnit {
         println!("Executed OUT: {}", source_operand_value);
     }
 
+    fn execute_load(&mut self, instruction: &LoadInstruction) {
+        let file_contents = match read_to_string(&instruction.file_path) {
+            Ok(value) => value,
+            Err(error) => panic!("Run failed. Error: {}", error),
+        };
+
+        self.registers
+            .set_register(&instruction.destination_register, &file_contents);
+
+        println!(
+            "Executed LOAD: r{} = \"{}\"",
+            instruction.destination_register,
+            self.registers
+                .get_register(&instruction.destination_register)
+        );
+    }
+
     pub fn execute(&mut self, instruction: &Instruction) {
         match instruction {
             Instruction::Move(instruction) => self.execute_move(instruction),
@@ -577,6 +626,7 @@ impl ControlUnit {
             Instruction::Similarity(instruction) => self.execute_similarity(instruction),
             Instruction::JumpCompare(instruction) => self.execute_jump_compare(instruction),
             Instruction::Output(instruction) => self.execute_output(instruction),
+            Instruction::Load(instruction) => self.execute_load(instruction),
         }
     }
 }

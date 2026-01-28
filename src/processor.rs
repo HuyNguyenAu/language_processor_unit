@@ -115,8 +115,8 @@ impl SemanticLogicUnit {
         };
     }
 
-    fn clean_choice(&self, choice: &str) -> String {
-        return choice.trim().to_string();
+    fn clean_string(&self, value: &str) -> String {
+        return value.trim().replace("\n", "").to_string();
     }
 
     fn chat(&self, content: &str) -> Result<String, String> {
@@ -143,7 +143,7 @@ impl SemanticLogicUnit {
         };
 
         return match choice {
-            Some(choice) => Ok(self.clean_choice(&choice.message.content)),
+            Some(choice) => Ok(self.clean_string(&choice.message.content)),
             None => Err("No choices returned from client.".to_string()),
         };
     }

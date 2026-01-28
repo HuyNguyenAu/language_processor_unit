@@ -2,9 +2,7 @@ use crate::{
     instruction::{
         AddInstruction, ComparisonType, Instruction, JumpCompareInstruction, MoveInstruction,
         Operand, OperandType, OutputInstruction, SimilarityInstruction, SubInstruction,
-    },
-    opcode::OpCode,
-    openai::{OpenAIChatRequest, OpenAIChatRequestText, OpenAIClient, OpenAIEmbeddingsRequest},
+    }, microcode::Microcode, opcode::OpCode, openai::{OpenAIChatRequest, OpenAIChatRequestText, OpenAIClient, OpenAIEmbeddingsRequest}
 };
 
 struct MemoryUnit {
@@ -95,6 +93,7 @@ impl Registers {
 }
 
 struct SemanticLogicUnit {
+    micro_code: Microcode,
     openai_client: OpenAIClient,
     model: &'static str,
     role: &'static str,
@@ -106,6 +105,7 @@ struct SemanticLogicUnit {
 impl SemanticLogicUnit {
     pub fn new() -> Self {
         return SemanticLogicUnit {
+            micro_code: Microcode::new(),
             openai_client: OpenAIClient::new(),
             model: "LFM2-2.6B-Q5_K_M.gguf",
             role: "user",
@@ -174,22 +174,16 @@ impl SemanticLogicUnit {
     }
 
     pub fn addition(&self, first_operand: &str, second_operand: &str) -> String {
-        let content = format!(
-            "Synthesize the attributes of the {} with the attributes of the {}. Locate the specific word that represents the intersection of these two words within the latent space. Output exactly one word.",
-            first_operand, second_operand
-        );
+        let content = self.micro_code.addition(first_operand, second_operand);
 
         return match &self.chat(content.as_str()) {
             Ok(choice) => choice.to_lowercase(),
-            Err(error) => panic!("Failed to perform additionString. Error: {}", error),
+            Err(error) => panic!("Failed to perform addition. Error: {}", error),
         };
     }
 
     pub fn subtract(&self, first_operand: &str, second_operand: &str) -> String {
-        let content = format!(
-            "Synthesize the attributes of the {} without the attributes of the {}. Locate the specific word that represents the intersection of these two words within the latent space. Output exactly one word.",
-            first_operand, second_operand,
-        );
+        let content = self.micro_code.subtract(first_operand, second_operand);
 
         return match &self.chat(content.as_str()) {
             Ok(choice) => choice.to_lowercase(),
@@ -359,22 +353,6 @@ impl ControlUnit {
             }
         };
     }
-
-    // fn debug(&self, message: &str) {
-    //     println!(
-    //         "[{}] IP: {}, Prev Byte: {:02X}, Curr Byte: {:02X}",
-    //         message,
-    //         self.registers.instruction_pointer,
-    //         match self.previous_byte {
-    //             Some(value) => value as i32,
-    //             None => -1,
-    //         },
-    //         match self.current_byte {
-    //             Some(value) => value as i32,
-    //             None => -1,
-    //         }
-    //     );
-    // }
 
     fn decode_move(&mut self) -> MoveInstruction {
         // Consume MOV opcode.

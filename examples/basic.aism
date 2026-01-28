@@ -1,3 +1,6 @@
+ ; This programs finds the word that is similar to "queen" but is derived
+ ; from a "king" that is not "man" and taking that essence and combining it with "woman".
+
         ; Initialisation
         mov r1, "king"
         mov r2, "man"

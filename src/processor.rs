@@ -115,6 +115,10 @@ impl SemanticLogicUnit {
         };
     }
 
+    fn clean_choice(&self, choice: &str) -> String {
+        return choice.trim().to_string();
+    }
+
     fn chat(&self, content: &str) -> Result<String, String> {
         let request = OpenAIChatRequest {
             model: self.model.to_string(),
@@ -139,7 +143,7 @@ impl SemanticLogicUnit {
         };
 
         return match choice {
-            Some(choice) => Ok(choice.message.content.clone()),
+            Some(choice) => Ok(self.clean_choice(&choice.message.content)),
             None => Err("No choices returned from client.".to_string()),
         };
     }
@@ -169,19 +173,14 @@ impl SemanticLogicUnit {
         };
     }
 
-    fn clean_choice(&self, choice: &str) -> String {
-        return choice.trim().to_string();
-    }
-
     pub fn addition(&self, first_operand: &str, second_operand: &str) -> String {
         let content = format!(
             "Synthesize the attributes of the {} with the attributes of the {}. Locate the specific noun that represents the intersection of these two identities within the latent space. Output exactly one word.",
-            first_operand.to_lowercase(),
-            second_operand.to_lowercase()
+            first_operand, second_operand
         );
 
         return match &self.chat(content.as_str()) {
-            Ok(choice) => self.clean_choice(choice).to_lowercase(),
+            Ok(choice) => choice.to_lowercase(),
             Err(error) => panic!("Failed to perform additionString. Error: {}", error),
         };
     }
@@ -189,12 +188,11 @@ impl SemanticLogicUnit {
     pub fn subtract(&self, first_operand: &str, second_operand: &str) -> String {
         let content = format!(
             "Synthesize the attributes of the {} without the attributes of the {}. Locate the specific noun that represents the intersection of these two identities within the latent space. Output exactly one word.",
-            first_operand.to_lowercase(),
-            second_operand.to_lowercase()
+            first_operand, second_operand,
         );
 
         return match &self.chat(content.as_str()) {
-            Ok(choice) => self.clean_choice(choice).to_lowercase(),
+            Ok(choice) => choice.to_lowercase(),
             Err(error) => panic!("Failed to perform subtraction. Error: {}", error),
         };
     }
@@ -259,7 +257,7 @@ impl ControlUnit {
         self.current_byte = Some(*current_byte);
     }
 
-    fn operand_type(&mut self, message: &str) -> OperandType {
+    fn decode_operand_type(&mut self, message: &str) -> OperandType {
         let operand_byte = match self.current_byte {
             Some(byte) => byte,
             None => panic!("No current byte to determine operand type."),
@@ -276,7 +274,7 @@ impl ControlUnit {
         return operand_type;
     }
 
-    fn text(&mut self, message: &str) -> String {
+    fn decode_text(&mut self, message: &str) -> String {
         let mut text_length: usize = 0;
 
         if let Some(length_byte) = self.current_byte {
@@ -306,7 +304,7 @@ impl ControlUnit {
         panic!("{}", message);
     }
 
-    fn register(&mut self, length_byte: bool, message: &str) -> u8 {
+    fn decode_register(&mut self, length_byte: bool, message: &str) -> u8 {
         // Consume register length byte if needed.
         if length_byte {
             self.advance();
@@ -325,7 +323,7 @@ impl ControlUnit {
         return register_byte;
     }
 
-    fn number(&mut self, length_byte: bool, message: &str) -> u8 {
+    fn decode_number(&mut self, length_byte: bool, message: &str) -> u8 {
         // Consume number length byte if needed.
         if length_byte {
             self.advance();
@@ -344,19 +342,21 @@ impl ControlUnit {
         return number_byte;
     }
 
-    fn operand(
+    fn decode_operand(
         &mut self,
         operand_type_message: &str,
         operand_number: &str,
         operand_text: &str,
         operand_register: &str,
     ) -> Operand {
-        let operand_type = self.operand_type(operand_type_message);
+        let operand_type = self.decode_operand_type(operand_type_message);
 
         return match operand_type {
-            OperandType::NUMBER => Operand::Number(self.number(true, operand_number)),
-            OperandType::TEXT => Operand::Text(self.text(operand_text)),
-            OperandType::REGISTER => Operand::Register(self.register(true, operand_register)),
+            OperandType::NUMBER => Operand::Number(self.decode_number(true, operand_number)),
+            OperandType::TEXT => Operand::Text(self.decode_text(operand_text)),
+            OperandType::REGISTER => {
+                Operand::Register(self.decode_register(true, operand_register))
+            }
         };
     }
 
@@ -376,18 +376,18 @@ impl ControlUnit {
     //     );
     // }
 
-    fn _move(&mut self) -> MoveInstruction {
+    fn decode_move(&mut self) -> MoveInstruction {
         // Consume MOV opcode.
         self.advance();
 
         // Consume the destination register.
-        let destination_register = self.register(
+        let destination_register = self.decode_register(
             false,
             "Failed to read destination register for MOV instruction.",
         );
 
         // Consume value operand.
-        let value = self.operand(
+        let value = self.decode_operand(
             "Failed to determine operand type for MOV instruction.",
             "Failed to read number for MOV instruction.",
             "Failed to read text for MOV instruction.",
@@ -400,12 +400,12 @@ impl ControlUnit {
         };
     }
 
-    fn subtract(&mut self) -> SubInstruction {
+    fn decode_subtract(&mut self) -> SubInstruction {
         // Consume SUB opcode.
         self.advance();
 
         // Consume the first operand.
-        let first_operand = self.operand(
+        let first_operand = self.decode_operand(
             "Failed to determine first operand type for SUB instruction.",
             "Failed to read first number operand for SUB instruction.",
             "Failed to read first text operand for SUB instruction.",
@@ -413,7 +413,7 @@ impl ControlUnit {
         );
 
         // Consume the second operand.
-        let second_operand = self.operand(
+        let second_operand = self.decode_operand(
             "Failed to determine second operand type for SUB instruction.",
             "Failed to read second number operand for SUB instruction.",
             "Failed to read second text operand for SUB instruction.",
@@ -421,7 +421,7 @@ impl ControlUnit {
         );
 
         // Consume the destination register.
-        let destination_register = self.register(
+        let destination_register = self.decode_register(
             false,
             "Failed to read destination register for SUB instruction.",
         );
@@ -433,12 +433,12 @@ impl ControlUnit {
         };
     }
 
-    fn addition(&mut self) -> AddInstruction {
+    fn decode_addition(&mut self) -> AddInstruction {
         // Consume ADD opcode.
         self.advance();
 
         // Consume the first operand.
-        let first_operand = self.operand(
+        let first_operand = self.decode_operand(
             "Failed to determine first operand type for ADD instruction.",
             "Failed to read first number operand for ADD instruction.",
             "Failed to read first text operand for ADD instruction.",
@@ -446,7 +446,7 @@ impl ControlUnit {
         );
 
         // Consume the second operand.
-        let second_operand = self.operand(
+        let second_operand = self.decode_operand(
             "Failed to determine second operand type for ADD instruction.",
             "Failed to read second number operand for ADD instruction.",
             "Failed to read second text operand for ADD instruction.",
@@ -454,7 +454,7 @@ impl ControlUnit {
         );
 
         // Consume the destination register.
-        let destination_register = self.register(
+        let destination_register = self.decode_register(
             false,
             "Failed to read destination register for ADD instruction.",
         );
@@ -466,12 +466,12 @@ impl ControlUnit {
         };
     }
 
-    fn similarity(&mut self) -> SimilarityInstruction {
+    fn decode_similarity(&mut self) -> SimilarityInstruction {
         // Consume SIM opcode.
         self.advance();
 
         // Consume the first operand.
-        let first_operand = self.operand(
+        let first_operand = self.decode_operand(
             "Failed to determine first operand type for SIM instruction.",
             "Failed to read first number operand for SIM instruction.",
             "Failed to read first text operand for SIM instruction.",
@@ -479,7 +479,7 @@ impl ControlUnit {
         );
 
         // Consume the second operand.
-        let second_operand = self.operand(
+        let second_operand = self.decode_operand(
             "Failed to determine second operand type for SIM instruction.",
             "Failed to read second number operand for SIM instruction.",
             "Failed to read second text operand for SIM instruction.",
@@ -487,7 +487,7 @@ impl ControlUnit {
         );
 
         // Consume the destination register.
-        let destination_register = self.register(
+        let destination_register = self.decode_register(
             false,
             "Failed to read destination register for SIM instruction.",
         );
@@ -499,12 +499,12 @@ impl ControlUnit {
         };
     }
 
-    fn jump_less_than(&mut self) -> JumpLessThanInstruction {
+    fn decode_jump_less_than(&mut self) -> JumpLessThanInstruction {
         // Consume JLT opcode.
         self.advance();
 
         // Consume the first operand.
-        let first_operand = self.operand(
+        let first_operand = self.decode_operand(
             "Failed to determine first operand type for JLT instruction.",
             "Failed to read first number operand for JLT instruction.",
             "Failed to read first text operand for JLT instruction.",
@@ -512,7 +512,7 @@ impl ControlUnit {
         );
 
         // Consume the second operand.
-        let second_operand = self.operand(
+        let second_operand = self.decode_operand(
             "Failed to determine second operand type for JLT instruction.",
             "Failed to read second number operand for JLT instruction.",
             "Failed to read second text operand for JLT instruction.",
@@ -520,7 +520,7 @@ impl ControlUnit {
         );
 
         // Consume the bytecode jump index.
-        let bytecode_jump_index = self.number(
+        let bytecode_jump_index = self.decode_number(
             false,
             "Failed to read byte code jump index for JLT instruction.",
         );
@@ -532,7 +532,7 @@ impl ControlUnit {
         };
     }
 
-    fn op_code(&mut self) -> Instruction {
+    fn decode_op_code(&mut self) -> Instruction {
         let current_byte = match self.current_byte {
             Some(byte) => byte,
             None => panic!("No current byte to determine opcode."),
@@ -543,11 +543,11 @@ impl ControlUnit {
         };
 
         return match op_code {
-            OpCode::MOV => Instruction::Move(self._move()),
-            OpCode::ADD => Instruction::Add(self.addition()),
-            OpCode::SUB => Instruction::Sub(self.subtract()),
-            OpCode::SIM => Instruction::Similarity(self.similarity()),
-            OpCode::JLT => Instruction::JumpLessThan(self.jump_less_than()),
+            OpCode::MOV => Instruction::Move(self.decode_move()),
+            OpCode::ADD => Instruction::Add(self.decode_addition()),
+            OpCode::SUB => Instruction::Sub(self.decode_subtract()),
+            OpCode::SIM => Instruction::Similarity(self.decode_similarity()),
+            OpCode::JLT => Instruction::JumpLessThan(self.decode_jump_less_than()),
         };
     }
 
@@ -560,10 +560,10 @@ impl ControlUnit {
             return None;
         }
 
-        return Some(self.op_code());
+        return Some(self.decode_op_code());
     }
 
-    fn value(&self, operand: &Operand) -> String {
+    fn get_value(&self, operand: &Operand) -> String {
         return match operand {
             Operand::Number(number) => number.to_string(),
             Operand::Text(text) => text.clone(),
@@ -574,7 +574,7 @@ impl ControlUnit {
     }
 
     fn execute_move(&mut self, instruction: &MoveInstruction) {
-        let value = self.value(&instruction.value);
+        let value = self.get_value(&instruction.value);
 
         self.registers
             .set_register(instruction.destination_register, &value);
@@ -588,8 +588,8 @@ impl ControlUnit {
     }
 
     fn execute_add(&mut self, instruction: &AddInstruction) {
-        let first_operand_value = self.value(&instruction.first_operand);
-        let second_operand_value = self.value(&instruction.second_operand);
+        let first_operand_value = self.get_value(&instruction.first_operand);
+        let second_operand_value = self.get_value(&instruction.second_operand);
 
         let result = self
             .semantic_logic_unit
@@ -609,8 +609,8 @@ impl ControlUnit {
     }
 
     fn execute_subtract(&mut self, instruction: &SubInstruction) {
-        let first_operand_value = self.value(&instruction.first_operand);
-        let second_operand_value = self.value(&instruction.second_operand);
+        let first_operand_value = self.get_value(&instruction.first_operand);
+        let second_operand_value = self.get_value(&instruction.second_operand);
 
         let result = self
             .semantic_logic_unit
@@ -630,8 +630,8 @@ impl ControlUnit {
     }
 
     fn execute_similarity(&mut self, instruction: &SimilarityInstruction) {
-        let first_operand_value = self.value(&instruction.first_operand);
-        let second_operand_value = self.value(&instruction.second_operand);
+        let first_operand_value = self.get_value(&instruction.first_operand);
+        let second_operand_value = self.get_value(&instruction.second_operand);
 
         let result = self
             .semantic_logic_unit
@@ -651,11 +651,11 @@ impl ControlUnit {
     }
 
     fn execute_jump_less_than(&mut self, instruction: &JumpLessThanInstruction) {
-        let first_operand_value = match self.value(&instruction.first_operand).parse::<u8>() {
+        let first_operand_value = match self.get_value(&instruction.first_operand).parse::<u8>() {
             Ok(value) => value,
             _ => panic!("JLT instruction requires numeric operands."),
         };
-        let second_operand_value = match self.value(&instruction.second_operand).parse::<u8>() {
+        let second_operand_value = match self.get_value(&instruction.second_operand).parse::<u8>() {
             Ok(value) => value,
             _ => panic!("JLT instruction requires numeric operands."),
         };
@@ -697,7 +697,7 @@ impl Processor {
         self.control.memory.load(bytecode);
     }
 
-    pub fn execute(&mut self) {
+    pub fn run(&mut self) {
         while let Some(instruction) = self.control.fetch_and_decode() {
             self.control.execute(&instruction);
         }

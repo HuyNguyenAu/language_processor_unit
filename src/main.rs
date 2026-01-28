@@ -1,10 +1,10 @@
 mod assembler;
 mod instruction;
+mod opcode;
 mod openai;
 mod processor;
 mod scanner;
 mod token;
-mod opcode;
 
 // use crate::{scanner::Scanner, token::TokenType};
 
@@ -40,15 +40,15 @@ fn main() {
 
     let mut compiler = assembler::Assembler::new(instructions);
 
-    if let Ok(byte_code) = compiler.assemble() {
-        println!("Compilation succeeded.");
-        println!("Bytecode: {:02X?}", byte_code);
+    let byte_code = match compiler.assemble() {
+        Ok(byte_code) => byte_code,
+        Err(e) => panic!("Assembly error: {}", e),
+    };
 
-        let mut processor = processor::Processor::new();
+    println!("Assembled bytecode: {:02X?}", byte_code);
 
-        processor.load_bytecode(byte_code);
-        processor.execute();
-    } else {
-        println!("Compilation failed.");
-    }
+    let mut processor = processor::Processor::new();
+
+    processor.load_bytecode(byte_code);
+    processor.run();
 }

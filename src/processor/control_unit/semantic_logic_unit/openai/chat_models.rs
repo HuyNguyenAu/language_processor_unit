@@ -18,6 +18,10 @@ pub struct OpenAIChatRequest {
     pub messages: Vec<OpenAIChatRequestText>,
     #[serde(rename = "temperature")]
     pub temperature: f32,
+    #[serde(rename = "top_p")]
+    pub top_p: f32,
+    #[serde(rename = "frequency_penalty")]
+    pub presence_penalty: f32,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

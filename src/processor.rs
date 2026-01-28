@@ -107,7 +107,7 @@ impl SemanticLogicUnit {
     pub fn new() -> Self {
         return SemanticLogicUnit {
             openai_client: OpenAIClient::new(),
-            model: "granite-4.0-h-350m-Q8_0.gguf",
+            model: "LFM2-2.6B-Q5_K_M.gguf",
             role: "user",
             stream: false,
             temperature: 0.8,

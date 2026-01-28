@@ -1,10 +1,14 @@
 use std::collections::HashMap;
 use std::hash::{DefaultHasher, Hash, Hasher};
 
-use crate::instruction::{Operand, OperandType};
-use crate::opcode::OpCode;
-use crate::scanner::Scanner;
-use crate::token::{Token, TokenType};
+use crate::assembler::opcode::OpCode;
+use crate::assembler::operand::{Operand, OperandType};
+use crate::assembler::scanner::Scanner;
+use crate::assembler::scanner::token::{Token, TokenType};
+
+pub mod opcode;
+pub mod operand;
+mod scanner;
 
 pub struct Assembler {
     bytecode: Vec<u8>,

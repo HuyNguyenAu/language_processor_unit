@@ -1,11 +1,5 @@
 mod assembler;
-mod instruction;
-mod microcode;
-mod opcode;
-mod openai;
 mod processor;
-mod scanner;
-mod token;
 
 use std::{env, fs::read_to_string};
 
@@ -33,6 +27,6 @@ fn main() {
 
     let mut processor = processor::Processor::new();
 
-    processor.load_bytecode(byte_code);
+    processor.load(byte_code);
     processor.run();
 }

@@ -1,4 +1,6 @@
-use crate::token::{Token, TokenType};
+use crate::assembler::scanner::token::{Token, TokenType};
+
+pub mod token;
 
 pub struct Scanner {
     source: &'static str,

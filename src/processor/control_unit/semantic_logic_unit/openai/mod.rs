@@ -1,77 +1,9 @@
 use reqwest::blocking::Client;
-use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct OpenAIChatRequestText {
-    #[serde(rename = "role")]
-    pub role: String,
-    #[serde(rename = "content")]
-    pub content: String,
-}
+use crate::processor::control_unit::semantic_logic_unit::openai::{chat_models::{OpenAIChatRequest, OpenAIChatResponse}, embeddings_models::{OpenAIEmbeddingsRequest, OpenAIEmbeddingsResponse}};
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct OpenAIChatRequest {
-    #[serde(rename = "model")]
-    pub model: String,
-    #[serde(rename = "stream")]
-    pub stream: bool,
-    #[serde(rename = "messages")]
-    pub messages: Vec<OpenAIChatRequestText>,
-    #[serde(rename = "temperature")]
-    pub temperature: f32,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct OpenAIChatResponseMessage {
-    #[serde(rename = "role")]
-    pub role: String,
-    #[serde(rename = "content")]
-    pub content: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct OpenAIChatResponseChoice {
-    #[serde(rename = "index")]
-    pub index: u8,
-    #[serde(rename = "message")]
-    pub message: OpenAIChatResponseMessage,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct OpenAIChatResponse {
-    #[serde(rename = "model")]
-    pub model: String,
-    #[serde(rename = "choices")]
-    pub choices: Vec<OpenAIChatResponseChoice>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct OpenAIEmbeddingsRequest {
-    #[serde(rename = "model")]
-    pub model: String,
-    #[serde(rename = "input")]
-    pub input: String,
-    #[serde(rename = "encoding_format")]
-    pub encoding_format: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct OpenAIEmbeddingsResponseEmbedding {
-    #[serde(rename = "object")]
-    pub object: String,
-    #[serde(rename = "embedding")]
-    pub embedding: Vec<f32>,
-    #[serde(rename = "index")]
-    pub index: u8,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct OpenAIEmbeddingsResponse {
-    #[serde(rename = "object")]
-    pub object: String,
-    #[serde(rename = "data")]
-    pub data: Vec<OpenAIEmbeddingsResponseEmbedding>,
-}
+pub mod chat_models;
+pub mod embeddings_models;
 
 pub struct OpenAIClient {
     base_url: &'static str,

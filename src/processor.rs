@@ -580,7 +580,7 @@ impl ControlUnit {
             .set_register(instruction.destination_register, &value);
 
         println!(
-            "Executed MOV: r{} = '{}'",
+            "Executed MOV: r{} = \"{}\"",
             instruction.destination_register,
             self.registers
                 .get_register(instruction.destination_register)
@@ -599,7 +599,7 @@ impl ControlUnit {
             .set_register(instruction.destination_register, &result);
 
         println!(
-            "Executed ADD: {:?} + {:?} -> r{} = '{}'",
+            "Executed ADD: {:?} + {:?} -> r{} = \"{}\"",
             first_operand_value,
             second_operand_value,
             instruction.destination_register,
@@ -620,7 +620,7 @@ impl ControlUnit {
             .set_register(instruction.destination_register, &result);
 
         println!(
-            "Executed SUB: {:?} - {:?} -> r{} = '{}'",
+            "Executed SUB: {:?} - {:?} -> r{} = \"{}\"",
             first_operand_value,
             second_operand_value,
             instruction.destination_register,
@@ -641,7 +641,7 @@ impl ControlUnit {
             .set_register(instruction.destination_register, &result);
 
         println!(
-            "Executed SIM: {:?} ~ {:?} -> r{} = '{}'",
+            "Executed SIM: {:?} ~ {:?} -> r{} = \"{}\"",
             first_operand_value,
             second_operand_value,
             instruction.destination_register,

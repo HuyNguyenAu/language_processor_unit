@@ -92,15 +92,36 @@ impl OpenAIClient {
         let client = Client::new();
         let url = format!("{}/{}", self.base_url, self.chat_endpoint);
 
-        let result = client.post(url).json(&request).send();
+        let body = match serde_json::to_string(&request) {
+            Ok(body) => body,
+            Err(error) => {
+                return Err(format!(
+                    "Failed to serialise chat request to JSON. Error: {}",
+                    error
+                ));
+            }
+        };
+        let result = client.post(url).body(body).send();
         let response = match result {
             Ok(response) => response,
             Err(error) => return Err(format!("Failed to send chat request. Error: {}", error)),
         };
+        let text = match response.text() {
+            Ok(text) => text,
+            Err(error) => {
+                return Err(format!(
+                    "Failed to read chat response text. Error: {}",
+                    error
+                ));
+            }
+        };
 
-        return match response.json::<OpenAIChatResponse>() {
+        return match serde_json::from_str::<OpenAIChatResponse>(&text) {
             Ok(parsed_response) => Ok(parsed_response),
-            Err(error) => Err(format!("Failed to parse chat response JSON. Error: {}", error)),
+            Err(error) => Err(format!(
+                "Failed to deserialise chat response JSON. Error: {}. Response Text: {}",
+                error, text
+            )),
         };
     }
 
@@ -111,15 +132,43 @@ impl OpenAIClient {
         let client = Client::new();
         let url = format!("{}/{}", self.base_url, self.embeddings_endpoint);
 
-        let result = client.post(url).json(&request).send();
+        let body = match serde_json::to_string(&request) {
+            Ok(body) => body,
+            Err(error) => {
+                return Err(format!(
+                    "Failed to serialise embedding request to JSON. Error: {}",
+                    error
+                ));
+            }
+        };
+        let result = client.post(url).body(body).send();
         let response = match result {
             Ok(response) => response,
-            Err(error) => return Err(format!("Failed to send embedding request. Error: {}", error)),
+            Err(error) => {
+                return Err(format!(
+                    "Failed to send embedding request. Error: {}",
+                    error
+                ));
+            }
+        };
+        let text: String = match response.text() {
+            Ok(text) => text,
+            Err(error) => {
+                return Err(format!(
+                    "Failed to read embedding response text. Error: {}",
+                    error
+                ));
+            }
         };
 
-        return match response.json::<OpenAIEmbeddingsResponse>() {
+        return match serde_json::from_str::<OpenAIEmbeddingsResponse>(&text) {
             Ok(parsed_response) => Ok(parsed_response),
-            Err(error) => Err(format!("Failed to parse embedding response JSON. Error: {}", error)),
+            Err(error) => {
+                return Err(format!(
+                    "Failed to deserialise embedding response JSON. Error: {}. Response Text: {}",
+                    error, text
+                ));
+            }
         };
     }
 }

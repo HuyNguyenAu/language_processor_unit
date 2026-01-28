@@ -95,12 +95,12 @@ impl OpenAIClient {
         let result = client.post(url).json(&request).send();
         let response = match result {
             Ok(response) => response,
-            Err(error) => return Err(format!("Failed to send chat request: {}", error)),
+            Err(error) => return Err(format!("Failed to send chat request. Error: {}", error)),
         };
 
         return match response.json::<OpenAIChatResponse>() {
             Ok(parsed_response) => Ok(parsed_response),
-            Err(error) => Err(format!("Failed to parse chat response JSON: {}", error)),
+            Err(error) => Err(format!("Failed to parse chat response JSON. Error: {}", error)),
         };
     }
 
@@ -114,17 +114,12 @@ impl OpenAIClient {
         let result = client.post(url).json(&request).send();
         let response = match result {
             Ok(response) => response,
-            Err(error) => return Err(format!("Failed to send embedding request: {}", error)),
+            Err(error) => return Err(format!("Failed to send embedding request. Error: {}", error)),
         };
 
         return match response.json::<OpenAIEmbeddingsResponse>() {
             Ok(parsed_response) => Ok(parsed_response),
-            Err(error) => {
-                return Err(format!(
-                    "Failed to parse embedding response JSON: {}",
-                    error
-                ));
-            }
+            Err(error) => Err(format!("Failed to parse embedding response JSON. Error: {}", error)),
         };
     }
 }

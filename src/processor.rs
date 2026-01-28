@@ -1,6 +1,10 @@
-use crate::instruction::{
-    self, AddInstruction, Instruction, JumpLessThanInstruction, MoveInstruction, OpCode, Operand,
-    OperandType, SimilarityInstruction, SubInstruction,
+use crate::{
+    instruction::{
+        AddInstruction, Instruction, JumpLessThanInstruction, MoveInstruction, Operand,
+        OperandType, SimilarityInstruction, SubInstruction,
+    },
+    opcode::OpCode,
+    openai::{OpenAIChatRequest, OpenAIChatRequestText, OpenAIClient, OpenAIEmbeddingsRequest},
 };
 
 struct MemoryUnit {
@@ -14,6 +18,7 @@ impl MemoryUnit {
 
     fn load(&mut self, bytecode: Vec<u8>) {
         println!("Loading bytecode of length {}", bytecode.len());
+
         self.data = bytecode;
     }
 
@@ -26,26 +31,62 @@ impl MemoryUnit {
 }
 
 struct Registers {
-    register_1: u8,
-    register_2: u8,
-    register_3: u8,
-    register_4: u8,
-    register_5: u8,
-    register_6: u8,
+    register_1: String,
+    register_2: String,
+    register_3: String,
+    register_4: String,
+    register_5: String,
+    register_6: String,
+    register_7: String,
+    register_8: String,
     instruction_pointer: u8,
 }
 
 impl Registers {
     fn new() -> Self {
         Registers {
-            register_1: 0,
-            register_2: 0,
-            register_3: 0,
-            register_4: 0,
-            register_5: 0,
-            register_6: 0,
+            register_1: String::new(),
+            register_2: String::new(),
+            register_3: String::new(),
+            register_4: String::new(),
+            register_5: String::new(),
+            register_6: String::new(),
+            register_7: String::new(),
+            register_8: String::new(),
             instruction_pointer: 0,
         }
+    }
+
+    fn set_register(&mut self, register_number: u8, value: &str) {
+        match register_number {
+            1 => self.register_1 = value.to_string(),
+            2 => self.register_2 = value.to_string(),
+            3 => self.register_3 = value.to_string(),
+            4 => self.register_4 = value.to_string(),
+            5 => self.register_5 = value.to_string(),
+            6 => self.register_6 = value.to_string(),
+            7 => self.register_7 = value.to_string(),
+            8 => self.register_8 = value.to_string(),
+            _ => panic!("Invalid register number."),
+        }
+    }
+
+    fn get_register(&self, register_number: u8) -> &str {
+        return match register_number {
+            1 => &self.register_1,
+            2 => &self.register_2,
+            3 => &self.register_3,
+            4 => &self.register_4,
+            5 => &self.register_5,
+            6 => &self.register_6,
+            7 => &self.register_7,
+            8 => &self.register_8,
+            _ => panic!("Invalid register number."),
+        };
+    }
+
+    pub fn set_instruction_pointer(&mut self, address: u8) {
+        self.instruction_pointer = address;
     }
 
     fn advance_instruction_pointer(&mut self) {
@@ -53,9 +94,138 @@ impl Registers {
     }
 }
 
+struct SemanticLogicUnit {
+    openai_client: OpenAIClient,
+    model: &'static str,
+    role: &'static str,
+    stream: bool,
+    temperature: f32,
+    encoding_format: &'static str,
+}
+
+impl SemanticLogicUnit {
+    pub fn new() -> Self {
+        return SemanticLogicUnit {
+            openai_client: OpenAIClient::new(),
+            model: "granite-4.0-h-350m-Q8_0.gguf",
+            role: "user",
+            stream: false,
+            temperature: 0.8,
+            encoding_format: "float",
+        };
+    }
+
+    fn chat(&self, content: &str) -> Result<String, String> {
+        let request = OpenAIChatRequest {
+            model: self.model.to_string(),
+            stream: self.stream,
+            messages: vec![OpenAIChatRequestText {
+                role: self.role.to_string(),
+                content: content.to_string(),
+            }],
+            temperature: self.temperature,
+        };
+
+        let response = &self.openai_client.chat(request);
+
+        let choice = match response {
+            Ok(response) => response.choices.iter().nth(0),
+            Err(err) => {
+                return Err(format!(
+                    "Failed to get chat response from client. Error: {}",
+                    err
+                ));
+            }
+        };
+
+        return match choice {
+            Some(choice) => Ok(choice.message.content.clone()),
+            None => Err("No choices returned from client.".to_string()),
+        };
+    }
+
+    fn embeddings(&self, content: &str) -> Result<Vec<f32>, String> {
+        let request = OpenAIEmbeddingsRequest {
+            model: self.model.to_string(),
+            input: content.to_string(),
+            encoding_format: self.encoding_format.to_string(),
+        };
+
+        let response = &self.openai_client.embeddings(request);
+
+        let embeddings = match response {
+            Ok(response) => response.data.iter().nth(0),
+            Err(err) => {
+                return Err(format!(
+                    "Failed to get embeddings response from client. Error: {}",
+                    err
+                ));
+            }
+        };
+
+        return match embeddings {
+            Some(value) => Ok(value.embedding.clone()),
+            None => Err("No embeddings returned from client.".to_string()),
+        };
+    }
+
+    pub fn addition(&self, first_operand: &str, second_operand: &str) -> String {
+        let content = format!(
+            "Synthesize the attributes of the {} with the attributes of the {}. Locate the specific noun that represents the intersection of these two identities within the latent space. Output exactly one word.",
+            first_operand.to_lowercase(),
+            second_operand.to_lowercase()
+        );
+
+        return match &self.chat(content.as_str()) {
+            Ok(choice) => choice.to_lowercase(),
+            Err(error) => panic!("Failed to perform additionString. Error: {}", error),
+        };
+    }
+
+    pub fn subtract(&self, first_operand: &str, second_operand: &str) -> String {
+        let content = format!(
+            "Synthesize the attributes of the {} without the attributes of the {}. Locate the specific noun that represents the intersection of these two identities within the latent space. Output exactly one word.",
+            first_operand.to_lowercase(),
+            second_operand.to_lowercase()
+        );
+
+        return match &self.chat(content.as_str()) {
+            Ok(choice) => choice.to_lowercase(),
+            Err(error) => panic!("Failed to perform subtraction. Error: {}", error),
+        };
+    }
+
+    pub fn similarity(&self, first_operand: &str, second_operand: &str) -> f32 {
+        let first_embedding_result = self.embeddings(first_operand);
+        let first_embedding = match &first_embedding_result {
+            Ok(embedding) => embedding,
+            Err(error) => panic!("Failed to get first embedding. Error: {}", error),
+        };
+
+        let second_embedding_result = self.embeddings(second_operand);
+        let second_embedding = match &second_embedding_result {
+            Ok(embedding) => embedding,
+            Err(error) => panic!("Failed to get second embedding. Error: {}", error),
+        };
+
+        // Compute cosine similarity.
+        let dot_product: f32 = first_embedding
+            .iter()
+            .zip(second_embedding.iter())
+            .map(|(a, b)| a * b)
+            .sum();
+        let x_euclidean_length: f32 = first_embedding.iter().map(|x| x * x).sum::<f32>().sqrt();
+        let y_euclidean_length: f32 = second_embedding.iter().map(|y| y * y).sum::<f32>().sqrt();
+
+        return dot_product / (x_euclidean_length * y_euclidean_length);
+    }
+}
+
 struct ControlUnit {
     memory: MemoryUnit,
     registers: Registers,
+    semantic_logic_unit: SemanticLogicUnit,
+
     previous_byte: Option<u8>,
     current_byte: Option<u8>,
 }
@@ -65,6 +235,7 @@ impl ControlUnit {
         ControlUnit {
             memory: MemoryUnit::new(),
             registers: Registers::new(),
+            semantic_logic_unit: SemanticLogicUnit::new(),
             previous_byte: None,
             current_byte: None,
         }
@@ -123,10 +294,11 @@ impl ControlUnit {
             text_bytes.push(text_byte);
         }
 
-        match String::from_utf8(text_bytes) {
-            Ok(text) => return text,
-            Err(_) => panic!("{}", message),
+        if let Ok(text) = String::from_utf8(text_bytes) {
+            return text;
         }
+
+        panic!("{}", message);
     }
 
     fn register(&mut self, length_byte: bool, message: &str) -> u8 {
@@ -183,21 +355,21 @@ impl ControlUnit {
         };
     }
 
-    fn debug(&self, message: &str) {
-        println!(
-            "[{}] IP: {}, Prev Byte: {:02X}, Curr Byte: {:02X}",
-            message,
-            self.registers.instruction_pointer,
-            match self.previous_byte {
-                Some(value) => value as i32,
-                None => -1,
-            },
-            match self.current_byte {
-                Some(value) => value as i32,
-                None => -1,
-            }
-        );
-    }
+    // fn debug(&self, message: &str) {
+    //     println!(
+    //         "[{}] IP: {}, Prev Byte: {:02X}, Curr Byte: {:02X}",
+    //         message,
+    //         self.registers.instruction_pointer,
+    //         match self.previous_byte {
+    //             Some(value) => value as i32,
+    //             None => -1,
+    //         },
+    //         match self.current_byte {
+    //             Some(value) => value as i32,
+    //             None => -1,
+    //         }
+    //     );
+    // }
 
     fn _move(&mut self) -> MoveInstruction {
         // Consume MOV opcode.
@@ -374,7 +546,7 @@ impl ControlUnit {
         };
     }
 
-    fn fetch(&mut self) -> Option<Instruction> {
+    fn fetch_and_decode(&mut self) -> Option<Instruction> {
         // Initialise current byte.
         let current_byte = self.memory.read_byte(self.registers.instruction_pointer);
         self.current_byte = Some(*current_byte);
@@ -386,62 +558,121 @@ impl ControlUnit {
         return Some(self.op_code());
     }
 
-    fn decode(&mut self, instruction: &Instruction) {
+    fn value(&self, operand: &Operand) -> String {
+        return match operand {
+            Operand::Number(number) => number.to_string(),
+            Operand::Text(text) => text.clone(),
+            Operand::Register(register_number) => {
+                self.registers.get_register(*register_number).to_string()
+            }
+        };
+    }
+
+    fn execute_move(&mut self, instruction: &MoveInstruction) {
+        let value = self.value(&instruction.value);
+
+        self.registers
+            .set_register(instruction.destination_register, &value);
+    }
+
+    fn execute_add(&mut self, instruction: &AddInstruction) {
+        let first_operand_value = self.value(&instruction.first_operand);
+        let second_operand_value = self.value(&instruction.second_operand);
+
+        let result = self
+            .semantic_logic_unit
+            .addition(&first_operand_value, &second_operand_value);
+
+        self.registers
+            .set_register(instruction.destination_register, &result);
+
+        println!(
+            "Executing ADD: {:?} + {:?} -> r{} = '{}'",
+            first_operand_value,
+            second_operand_value,
+            instruction.destination_register,
+            self.registers
+                .get_register(instruction.destination_register)
+        );
+    }
+
+    fn execute_subtract(&mut self, instruction: &SubInstruction) {
+        let first_operand_value = self.value(&instruction.first_operand);
+        let second_operand_value = self.value(&instruction.second_operand);
+
+        let result = self
+            .semantic_logic_unit
+            .subtract(&first_operand_value, &second_operand_value);
+
+        self.registers
+            .set_register(instruction.destination_register, &result);
+
+        println!(
+            "Executing SUB: {:?} - {:?} -> r{} = '{}'",
+            first_operand_value,
+            second_operand_value,
+            instruction.destination_register,
+            self.registers
+                .get_register(instruction.destination_register)
+        );
+    }
+
+    fn execute_similarity(&mut self, instruction: &SimilarityInstruction) {
+        let first_operand_value = self.value(&instruction.first_operand);
+        let second_operand_value = self.value(&instruction.second_operand);
+
+        let result = self
+            .semantic_logic_unit
+            .similarity(&first_operand_value, &second_operand_value);
+
+        self.registers
+            .set_register(instruction.destination_register, &result.to_string());
+
+        println!(
+            "Executing SIM: {:?} ~ {:?} -> r{} = '{}'",
+            first_operand_value,
+            second_operand_value,
+            instruction.destination_register,
+            self.registers
+                .get_register(instruction.destination_register)
+        );
+    }
+
+    fn execute_jump_less_than(&mut self, instruction: &JumpLessThanInstruction) {
+        let first_operand_value = self.value(&instruction.first_operand);
+        let second_operand_value = self.value(&instruction.second_operand);
+
+        let address = instruction.bytecode_jump_index.clone();
+
+        if first_operand_value < second_operand_value {
+            self.registers.set_instruction_pointer(address);
+        }
+
+        println!(
+            "Executing JLT: {:?} < {:?} -> {}",
+            first_operand_value, second_operand_value, instruction.bytecode_jump_index
+        );
+    }
+
+    fn execute(&mut self, instruction: &Instruction) {
         match instruction {
-            Instruction::Move(mov_instruction) => {
-                println!(
-                    "MOV: {:?} -> r{}",
-                    mov_instruction.value, mov_instruction.destination_register
-                );
-            }
-            Instruction::Add(add_instruction) => {
-                println!(
-                    "ADD: {:?} + {:?} -> r{}",
-                    add_instruction.first_operand,
-                    add_instruction.second_operand,
-                    add_instruction.destination_register
-                );
-            }
-            Instruction::Sub(sub_instruction) => {
-                println!(
-                    "SUB: {:?} - {:?} -> r{}",
-                    sub_instruction.first_operand,
-                    sub_instruction.second_operand,
-                    sub_instruction.destination_register
-                );
-            }
-            Instruction::Similarity(sim_instruction) => {
-                println!(
-                    "SIM: {:?} ~ {:?} -> r{}",
-                    sim_instruction.first_operand,
-                    sim_instruction.second_operand,
-                    sim_instruction.destination_register
-                );
-            }
-            Instruction::JumpLessThan(jlt_instruction) => {
-                println!(
-                    "JLT: {:?} < {:?} -> {}",
-                    jlt_instruction.first_operand,
-                    jlt_instruction.second_operand,
-                    jlt_instruction.bytecode_jump_index
-                );
-            }
+            Instruction::Move(instruction) => self.execute_move(instruction),
+            Instruction::Add(instruction) => self.execute_add(instruction),
+            Instruction::Sub(instruction) => self.execute_subtract(instruction),
+            Instruction::Similarity(instruction) => self.execute_similarity(instruction),
+            Instruction::JumpLessThan(instruction) => self.execute_jump_less_than(instruction),
         }
     }
 }
 
-struct SemanticLogicUnit {}
-
 pub struct Processor {
     control: ControlUnit,
-    semantic_logic: SemanticLogicUnit,
 }
 
 impl Processor {
     pub fn new() -> Self {
         Processor {
             control: ControlUnit::new(),
-            semantic_logic: SemanticLogicUnit {},
         }
     }
 
@@ -450,8 +681,8 @@ impl Processor {
     }
 
     pub fn execute(&mut self) {
-        while let Some(instruction) = self.control.fetch() {
-            self.control.decode(&instruction);
+        while let Some(instruction) = self.control.fetch_and_decode() {
+            self.control.execute(&instruction);
         }
     }
 }

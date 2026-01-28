@@ -1,8 +1,8 @@
 use std::collections::HashMap;
+use std::hash::{DefaultHasher, Hash, Hasher};
 
-use crate::instruction::OpCode;
-use crate::instruction::Operand;
-use crate::instruction::OperandType;
+use crate::instruction::{Operand, OperandType};
+use crate::opcode::OpCode;
 use crate::scanner::Scanner;
 use crate::token::{Token, TokenType};
 
@@ -16,7 +16,7 @@ pub struct Assembler {
     current: Option<Token>,
 
     current_bytecode_index: usize,
-    bytecode_indices: HashMap<String, usize>,
+    bytecode_indices: HashMap<u64, usize>,
 
     had_error: bool,
     panic_mode: bool,
@@ -138,33 +138,27 @@ impl Assembler {
     fn register(&mut self, message: &str) -> u8 {
         self.consume(&TokenType::IDENTIFIER, message);
 
-        return match self
-            .previous_lexeme()
-            .chars()
-            .skip(1)
-            .collect::<String>()
-            .parse()
-        {
+        let lexeme = self.previous_lexeme();
+
+        return match lexeme[1..].parse() {
             Ok(value) => value,
             _ => panic!("Failed to parse register."),
         };
     }
 
-    fn string(&mut self, message: &str) -> String {
+    fn string(&mut self, message: &str) -> &str {
         self.consume(&TokenType::STRING, message);
 
-        // Remove surrounding quotes.
-        let mut value = self.previous_lexeme().chars();
-        value.next();
-        value.next_back();
+        let lexeme = self.previous_lexeme();
 
-        return value.collect();
+        // Remove surrounding quotes.
+        return &lexeme[1..lexeme.len() - 1];
     }
 
-    fn identifier(&mut self, message: &str) -> String {
+    fn identifier(&mut self, message: &str) -> &str {
         self.consume(&TokenType::IDENTIFIER, message);
 
-        return self.previous_lexeme().to_string();
+        return self.previous_lexeme();
     }
 
     fn operand(&mut self, message: &str) -> Operand {
@@ -175,7 +169,7 @@ impl Assembler {
 
         return match current_type {
             TokenType::NUMBER => Operand::Number(self.number(message)),
-            TokenType::STRING => Operand::Text(self.string(message)),
+            TokenType::STRING => Operand::Text(self.string(message).to_string()),
             TokenType::IDENTIFIER => Operand::Register(self.register(message)),
             _ => panic!("Expected number, string, or register as operand."),
         };
@@ -232,14 +226,21 @@ impl Assembler {
         self.advance_stack_level();
     }
 
+    fn hash(value: &str) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        value.hash(&mut hasher);
+
+        return hasher.finish();
+    }
+
     fn label(&mut self) {
         self.consume(&TokenType::LABEL, "Expected label name.");
 
-        let label_name = self.previous_lexeme().to_string();
+        let label_name = self.previous_lexeme();
         let value = label_name.trim_end_matches(':');
 
         self.bytecode_indices
-            .insert(value.to_string(), self.current_bytecode_index + 1);
+            .insert(Self::hash(value), self.current_bytecode_index + 1);
     }
 
     fn subtract(&mut self) {
@@ -317,8 +318,9 @@ impl Assembler {
         self.consume(&TokenType::COMMA, "Expected ',' after second operand.");
 
         let label = self.identifier("Expected label name after ','.");
+        let key = Self::hash(label);
 
-        let current_bytecode_index = match self.bytecode_indices.get(&label) {
+        let current_bytecode_index = match self.bytecode_indices.get(&key) {
             Some(level) => *level,
             None => {
                 self.error_at_previous("Undefined label.");

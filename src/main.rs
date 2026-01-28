@@ -1,8 +1,10 @@
 mod assembler;
 mod instruction;
+mod openai;
+mod processor;
 mod scanner;
 mod token;
-mod processor;
+mod opcode;
 
 // use crate::{scanner::Scanner, token::TokenType};
 

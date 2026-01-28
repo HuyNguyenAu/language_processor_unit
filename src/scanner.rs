@@ -19,14 +19,14 @@ impl Scanner {
         }
     }
 
-    fn is_alpha(&self, char: char) -> bool {
+    fn is_alpha(char: char) -> bool {
         return (char >= 'a' && char <= 'z')
             || (char >= 'A' && char <= 'Z')
             || char == '_'
             || char == ':';
     }
 
-    fn is_digit(&self, char: char) -> bool {
+    fn is_digit(char: char) -> bool {
         return char >= '0' && char <= '9';
     }
 
@@ -126,7 +126,7 @@ impl Scanner {
     fn identifier(&mut self) -> Token {
         while !self.is_at_end()
             && let char = self.peek()
-            && (self.is_alpha(char) || self.is_digit(char))
+            && (Self::is_alpha(char) || Self::is_digit(char))
         {
             self.advance();
         }
@@ -150,7 +150,7 @@ impl Scanner {
     fn number(&mut self) -> Token {
         while !self.is_at_end()
             && let char = self.peek()
-            && self.is_digit(char)
+            && Self::is_digit(char)
         {
             self.advance();
         }
@@ -158,14 +158,14 @@ impl Scanner {
         // Look for a fractional part.
         if self.peek() == '.'
             && let next_char = self.peek_next()
-            && self.is_digit(next_char)
+            && Self::is_digit(next_char)
         {
             // Consume the decimal point.
             self.advance();
 
             while !self.is_at_end()
                 && let char = self.peek()
-                && self.is_digit(char)
+                && Self::is_digit(char)
             {
                 self.advance();
             }
@@ -205,11 +205,11 @@ impl Scanner {
 
         let char = self.advance();
 
-        if self.is_alpha(char) {
+        if Self::is_alpha(char) {
             return self.identifier();
         }
 
-        if self.is_digit(char) {
+        if Self::is_digit(char) {
             return self.number();
         }
 

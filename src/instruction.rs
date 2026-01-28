@@ -51,10 +51,15 @@ pub struct JumpLessThanInstruction {
     pub second_operand: Operand,
 }
 
+pub struct OutputInstruction {
+    pub source_operand: Operand,
+}
+
 pub enum Instruction {
     Move(MoveInstruction),
     Add(AddInstruction),
     Sub(SubInstruction),
     Similarity(SimilarityInstruction),
     JumpLessThan(JumpLessThanInstruction),
+    Output(OutputInstruction),
 }

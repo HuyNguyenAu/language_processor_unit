@@ -143,6 +143,7 @@ impl Scanner {
             "sub" => self.make_token(TokenType::SUB),
             "sim" => self.make_token(TokenType::SIM),
             "jlt" => self.make_token(TokenType::JLT),
+            "out" => self.make_token(TokenType::OUT),
             _ => self.make_token(TokenType::IDENTIFIER),
         };
     }

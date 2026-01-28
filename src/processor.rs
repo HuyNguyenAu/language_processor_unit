@@ -1,7 +1,7 @@
 use crate::{
     instruction::{
         AddInstruction, Instruction, JumpLessThanInstruction, MoveInstruction, Operand,
-        OperandType, SimilarityInstruction, SubInstruction,
+        OperandType, OutputInstruction, SimilarityInstruction, SubInstruction,
     },
     opcode::OpCode,
     openai::{OpenAIChatRequest, OpenAIChatRequestText, OpenAIClient, OpenAIEmbeddingsRequest},
@@ -532,6 +532,21 @@ impl ControlUnit {
         };
     }
 
+    fn decode_output(&mut self) -> OutputInstruction {
+        // Consume OUT opcode.
+        self.advance();
+
+        // Consume the source operand.
+        let source_operand = self.decode_operand(
+            "Failed to determine source operand type for OUT instruction.",
+            "Failed to read source number operand for OUT instruction.",
+            "Failed to read source text operand for OUT instruction.",
+            "Failed to read source register operand for OUT instruction.",
+        );
+
+        return OutputInstruction { source_operand };
+    }
+
     fn decode_op_code(&mut self) -> Instruction {
         let current_byte = match self.current_byte {
             Some(byte) => byte,
@@ -548,6 +563,7 @@ impl ControlUnit {
             OpCode::SUB => Instruction::Sub(self.decode_subtract()),
             OpCode::SIM => Instruction::Similarity(self.decode_similarity()),
             OpCode::JLT => Instruction::JumpLessThan(self.decode_jump_less_than()),
+            OpCode::OUT => Instruction::Output(self.decode_output()),
         };
     }
 
@@ -671,6 +687,12 @@ impl ControlUnit {
         );
     }
 
+    fn execute_output(&mut self, instruction: &OutputInstruction) {
+        let source_operand_value = self.get_value(&instruction.source_operand);
+
+        println!("Executed OUT: {}", source_operand_value);
+    }
+
     fn execute(&mut self, instruction: &Instruction) {
         match instruction {
             Instruction::Move(instruction) => self.execute_move(instruction),
@@ -678,6 +700,7 @@ impl ControlUnit {
             Instruction::Sub(instruction) => self.execute_subtract(instruction),
             Instruction::Similarity(instruction) => self.execute_similarity(instruction),
             Instruction::JumpLessThan(instruction) => self.execute_jump_less_than(instruction),
+            Instruction::Output(instruction) => self.execute_output(instruction),
         }
     }
 }

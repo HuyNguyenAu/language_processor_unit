@@ -52,12 +52,12 @@ impl Assembler {
             eprint!(" {}", error);
         }
 
-        eprintln!(
+        eprint!(
             " at '{}'.",
             &self.source[token.start()..token.start() + token.length()]
         );
 
-        eprintln!("{}", message);
+        eprintln!(" {}", message);
 
         self.had_error = true;
     }
@@ -336,6 +336,17 @@ impl Assembler {
         self.advance_stack_level();
     }
 
+    fn output(&mut self) {
+        self.consume(&TokenType::OUT, "Expected 'out' keyword.");
+
+        let operand = self.operand("Expected operand after 'out'.");
+
+        self.emit_op_code_bytecode(OpCode::OUT);
+        self.emit_operand_bytecode(&operand);
+
+        self.advance_stack_level();
+    }
+
     pub fn assemble(&mut self) -> Result<Vec<u8>, &'static str> {
         self.advance();
 
@@ -348,6 +359,7 @@ impl Assembler {
                     TokenType::ADD => self.addition(),
                     TokenType::SIM => self.similarity(),
                     TokenType::JLT => self.jump_less_than(),
+                    TokenType::OUT => self.output(),
                     TokenType::EOF => break,
                     _ => self.error_at_current("Unexpected keyword."),
                 }

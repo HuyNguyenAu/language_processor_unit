@@ -15,7 +15,7 @@ pub enum TokenType {
     SIM,
     LABEL,
     JLT,
-    // OUT,
+    OUT,
 
     // Misc.
     EOF,

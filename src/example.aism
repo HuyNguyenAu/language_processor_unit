@@ -9,7 +9,7 @@ start:  sub r1, r2, r4
 
         ; Validation
         sim r5, "queen", r6
-        jlt r6, 85, start
+        jlt r6, 95, start
 
         ; Output
         out r5

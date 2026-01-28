@@ -175,7 +175,7 @@ impl SemanticLogicUnit {
 
     pub fn addition(&self, first_operand: &str, second_operand: &str) -> String {
         let content = format!(
-            "Synthesize the attributes of the {} with the attributes of the {}. Locate the specific noun that represents the intersection of these two identities within the latent space. Output exactly one word.",
+            "Synthesize the attributes of the {} with the attributes of the {}. Locate the specific word that represents the intersection of these two words within the latent space. Output exactly one word.",
             first_operand, second_operand
         );
 
@@ -187,7 +187,7 @@ impl SemanticLogicUnit {
 
     pub fn subtract(&self, first_operand: &str, second_operand: &str) -> String {
         let content = format!(
-            "Synthesize the attributes of the {} without the attributes of the {}. Locate the specific noun that represents the intersection of these two identities within the latent space. Output exactly one word.",
+            "Synthesize the attributes of the {} without the attributes of the {}. Locate the specific word that represents the intersection of these two words within the latent space. Output exactly one word.",
             first_operand, second_operand,
         );
 

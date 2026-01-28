@@ -33,7 +33,7 @@ impl Scanner {
     }
 
     fn is_at_end(&self) -> bool {
-        return self.current >= self.source.len() - 1;
+        return self.current >= self.source.len();
     }
 
     fn advance(&mut self) -> char {

@@ -443,8 +443,6 @@ impl Assembler {
             return Err("Assembly failed due to errors.");
         }
 
-        println!("Bytecode: {:?}", self.bytecode);
-
         return Ok(self.bytecode.clone());
     }
 }

@@ -1,7 +1,7 @@
 pub enum OperandType {
-    NUMBER,
-    TEXT,
-    REGISTER,
+    NUMBER = 0x00,
+    TEXT = 0x01,
+    REGISTER = 0x02,
 }
 
 impl OperandType {

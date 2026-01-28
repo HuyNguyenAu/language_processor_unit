@@ -137,7 +137,8 @@ impl SemanticLogicUnit {
         let x_euclidean_length: f32 = first_embedding.iter().map(|x| x * x).sum::<f32>().sqrt();
         let y_euclidean_length: f32 = second_embedding.iter().map(|y| y * y).sum::<f32>().sqrt();
         let similarity = dot_product / (x_euclidean_length * y_euclidean_length);
+        let percentage_similarity = similarity.clamp(0.0, 1.0) * 100.0;
 
-        return ((similarity * 100.0).round()).to_string();
+        return (percentage_similarity.round()).to_string();
     }
 }

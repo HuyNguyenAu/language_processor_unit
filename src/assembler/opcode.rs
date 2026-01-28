@@ -1,15 +1,15 @@
 #[derive(Debug)]
 pub enum OpCode {
-    MOV,
-    ADD,
-    SUB,
-    SIM,
-    JEQ,
-    JLT,
-    JLE,
-    JGT,
-    JGE,
-    OUT,
+    MOV = 0x00,
+    ADD = 0x01,
+    SUB = 0x02,
+    SIM = 0x03,
+    JEQ = 0x04,
+    JLT = 0x05,
+    JLE = 0x06,
+    JGT = 0x07,
+    JGE = 0x08,
+    OUT = 0x09,
 }
 
 impl OpCode {

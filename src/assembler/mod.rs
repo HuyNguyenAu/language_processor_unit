@@ -10,6 +10,11 @@ pub mod opcode;
 pub mod operand;
 mod scanner;
 
+struct UnitialisedLabel {
+    current_bytecode_indices: Vec<usize>,
+    token: Token,
+}
+
 pub struct Assembler {
     bytecode: Vec<u8>,
 
@@ -21,6 +26,7 @@ pub struct Assembler {
 
     current_bytecode_index: usize,
     bytecode_indices: HashMap<u64, usize>,
+    uninitialised_labels: HashMap<u64, UnitialisedLabel>,
 
     had_error: bool,
     panic_mode: bool,
@@ -36,6 +42,7 @@ impl Assembler {
             current: None,
             current_bytecode_index: 0,
             bytecode_indices: HashMap::new(),
+            uninitialised_labels: HashMap::new(),
             had_error: false,
             panic_mode: false,
         };
@@ -78,24 +85,12 @@ impl Assembler {
         self.error_at(&token, message);
     }
 
-    fn error_at_previous(&mut self, message: &str) {
-        let token = match &self.previous {
-            Some(token) => token.clone(),
-            None => panic!(
-                "Failed to handle error at previous token.\nError: {}",
-                message
-            ),
-        };
-
-        self.error_at(&token, message);
-    }
-
     fn advance(&mut self) {
         self.previous = self.current.clone();
 
         loop {
             let current_token = self.scanner.scan_token();
-            
+
             self.current = Some(current_token.clone());
 
             if current_token.token_type() != &TokenType::ERROR {
@@ -135,7 +130,13 @@ impl Assembler {
 
         return match self.previous_lexeme().parse() {
             Ok(value) => value,
-            _ => panic!("{}", format!("Failed to parse number from lexeme '{}'.", self.previous_lexeme())),
+            _ => panic!(
+                "{}",
+                format!(
+                    "Failed to parse number from lexeme '{}'.",
+                    self.previous_lexeme()
+                )
+            ),
         };
     }
 
@@ -147,7 +148,10 @@ impl Assembler {
 
         return match register.parse() {
             Ok(value) => value,
-            _ => panic!("{}", format!("Failed to parse register from lexeme '{}'.", lexeme)),
+            _ => panic!(
+                "{}",
+                format!("Failed to parse register from lexeme '{}'.", lexeme)
+            ),
         };
     }
 
@@ -243,9 +247,18 @@ impl Assembler {
 
         let label_name = self.previous_lexeme();
         let value = label_name.trim_end_matches(':');
+        let key = Self::hash(value);
 
-        self.bytecode_indices
-            .insert(Self::hash(value), self.current_bytecode_index + 1);
+        let index = self.current_bytecode_index + 1;
+
+        // Backpatch any uninitialised labels.
+        if let Some(uninitialised_labels) = self.uninitialised_labels.remove(&key) {
+            for bytecode_index in uninitialised_labels.current_bytecode_indices {
+                self.bytecode[bytecode_index] = index as u8;
+            }
+        }
+
+        self.bytecode_indices.insert(key, index);
     }
 
     fn subtract(&mut self) {
@@ -311,6 +324,29 @@ impl Assembler {
         self.advance_stack_level();
     }
 
+    fn upsert_uninitialised_label(&mut self, key: u64) {
+        let bytecode_index = self.bytecode.len() - 1;
+
+        if let Some(uninitialised_label) = self.uninitialised_labels.get_mut(&key) {
+            uninitialised_label
+                .current_bytecode_indices
+                .push(bytecode_index);
+        } else {
+            let previous_token = match self.previous.clone() {
+                Some(token) => token,
+                None => panic!("Failed to get current token for uninitialised label."),
+            };
+
+            self.uninitialised_labels.insert(
+                key,
+                UnitialisedLabel {
+                    current_bytecode_indices: vec![bytecode_index],
+                    token: previous_token,
+                },
+            );
+        }
+    }
+
     fn jump_compare(&mut self, token_type: &TokenType) {
         self.consume(
             token_type,
@@ -330,11 +366,8 @@ impl Assembler {
         let key = Self::hash(label);
 
         let current_bytecode_index = match self.bytecode_indices.get(&key) {
-            Some(level) => *level,
-            None => {
-                self.error_at_previous("Undefined label.");
-                return;
-            }
+            Some(index) => Some(index.clone()),
+            None => None,
         };
 
         let opcode = match token_type {
@@ -349,7 +382,15 @@ impl Assembler {
         self.emit_op_code_bytecode(opcode);
         self.emit_operand_bytecode(&operand_1);
         self.emit_operand_bytecode(&operand_2);
-        self.emit_number_bytecode(current_bytecode_index as u8);
+
+        if let Some(index) = current_bytecode_index {
+            self.emit_number_bytecode(index as u8);
+        } else {
+            // Placeholder for backpatching.
+            self.emit_number_bytecode(0);
+            // Record the current bytecode index for backpatching later.
+            self.upsert_uninitialised_label(key);
+        }
 
         self.advance_stack_level();
     }
@@ -393,6 +434,16 @@ impl Assembler {
         if self.had_error {
             return Err("Assembly failed due to errors.");
         }
+
+        if let Some((_, uninitialised_label)) = self.uninitialised_labels.iter().nth(0) {
+            let token = uninitialised_label.token.clone();
+
+            self.error_at(&token, "Undefined label referenced here.");
+
+            return Err("Assembly failed due to errors.");
+        }
+
+        println!("Bytecode: {:?}", self.bytecode);
 
         return Ok(self.bytecode.clone());
     }

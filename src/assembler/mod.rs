@@ -95,7 +95,7 @@ impl Assembler {
 
         loop {
             let current_token = self.scanner.scan_token();
-
+            
             self.current = Some(current_token.clone());
 
             if current_token.token_type() != &TokenType::ERROR {
@@ -135,7 +135,7 @@ impl Assembler {
 
         return match self.previous_lexeme().parse() {
             Ok(value) => value,
-            _ => panic!("Failed to parse number."),
+            _ => panic!("{}", format!("Failed to parse number from lexeme '{}'.", self.previous_lexeme())),
         };
     }
 
@@ -143,10 +143,11 @@ impl Assembler {
         self.consume(&TokenType::IDENTIFIER, message);
 
         let lexeme = self.previous_lexeme();
+        let register = lexeme[1..].to_string(); // Remove the 'r' prefix.
 
-        return match lexeme[1..].parse() {
+        return match register.parse() {
             Ok(value) => value,
-            _ => panic!("Failed to parse register."),
+            _ => panic!("{}", format!("Failed to parse register from lexeme '{}'.", lexeme)),
         };
     }
 

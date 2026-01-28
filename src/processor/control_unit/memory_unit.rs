@@ -8,8 +8,6 @@ impl MemoryUnit {
     }
 
     pub fn load(&mut self, bytecode: Vec<u8>) {
-        println!("Loading bytecode of length {}", bytecode.len());
-
         self.data = bytecode;
     }
 

@@ -48,6 +48,11 @@ pub struct LoadInstruction {
     pub file_path: String,
 }
 
+pub struct TextToSpeechInstruction {
+    pub source_operand: Operand,
+    pub destination_register: u8,
+}
+
 pub enum Instruction {
     Move(MoveInstruction),
     Add(AddInstruction),
@@ -56,4 +61,5 @@ pub enum Instruction {
     JumpCompare(JumpCompareInstruction),
     Output(OutputInstruction),
     Load(LoadInstruction),
+    TextToSpeech(TextToSpeechInstruction),
 }

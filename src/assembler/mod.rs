@@ -424,13 +424,28 @@ impl Assembler {
         self.advance_stack_level();
     }
 
+    fn tts(&mut self) {
+        self.consume(&TokenType::TTS, "Expected 'tts' keyword.");
+
+        let source_operand = self.operand("Expected source operand after 'tts'.");
+
+        self.consume(&TokenType::COMMA, "Expected ',' after source operand.");
+
+        let destination_operand = self.register("Expected destination register after ','.");
+
+        self.emit_op_code_bytecode(OpCode::TTS);
+        self.emit_operand_bytecode(&source_operand);
+        self.emit_register_bytecode(destination_operand);
+
+        self.advance_stack_level();
+    }
+
     pub fn assemble(&mut self) -> Result<Vec<u8>, &'static str> {
         self.advance();
 
         while !self.panic_mode {
             if let Some(current_token) = &self.current {
                 match current_token.token_type() {
-                    TokenType::LOAD => self.load(),
                     TokenType::MOV => self._move(),
                     TokenType::LABEL => self.label(),
                     TokenType::SUB => self.subtract(),
@@ -442,6 +457,8 @@ impl Assembler {
                     TokenType::JGT => self.jump_compare(&TokenType::JGT),
                     TokenType::JGE => self.jump_compare(&TokenType::JGE),
                     TokenType::OUT => self.output(),
+                    TokenType::LOAD => self.load(),
+                    TokenType::TTS => self.tts(),
                     TokenType::EOF => break,
                     _ => self.error_at_current("Unexpected keyword."),
                 }

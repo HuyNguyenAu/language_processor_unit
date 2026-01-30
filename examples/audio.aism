@@ -1,0 +1,15 @@
+ ; This program generates text to speech audio. The audio is then
+ ; checked for similarity against a reference text to ensure quality.
+
+        ; Initialisation
+        mov r1, "My friends and I enjoy playing soccer together."
+
+        ; Execution
+start:  tts r1, r2
+
+        ; Quality Check
+        sim r1, r2, r3
+        jlt r3, 80, start
+
+        ; Output
+        out "Audio generation complete and verified."

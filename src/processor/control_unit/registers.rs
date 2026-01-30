@@ -1,31 +1,33 @@
+use crate::processor::control_unit::semantic_logic_unit::value::Value;
+
 pub struct Registers {
-    register_1: String,
-    register_2: String,
-    register_3: String,
-    register_4: String,
-    register_5: String,
-    register_6: String,
-    register_7: String,
-    register_8: String,
+    register_1: Value,
+    register_2: Value,
+    register_3: Value,
+    register_4: Value,
+    register_5: Value,
+    register_6: Value,
+    register_7: Value,
+    register_8: Value,
     instruction_pointer: u8,
 }
 
 impl Registers {
     pub fn new() -> Self {
         Registers {
-            register_1: String::new(),
-            register_2: String::new(),
-            register_3: String::new(),
-            register_4: String::new(),
-            register_5: String::new(),
-            register_6: String::new(),
-            register_7: String::new(),
-            register_8: String::new(),
+            register_1: Value::None,
+            register_2: Value::None,
+            register_3: Value::None,
+            register_4: Value::None,
+            register_5: Value::None,
+            register_6: Value::None,
+            register_7: Value::None,
+            register_8: Value::None,
             instruction_pointer: 0,
         }
     }
 
-    pub fn get_register(&self, register_number: &u8) -> &str {
+    pub fn get_register(&self, register_number: &u8) -> &Value {
         return match register_number {
             1 => &self.register_1,
             2 => &self.register_2,
@@ -39,16 +41,16 @@ impl Registers {
         };
     }
 
-    pub fn set_register(&mut self, register_number: &u8, value: &str) {
+    pub fn set_register(&mut self, register_number: &u8, value: Value) {
         match register_number {
-            1 => self.register_1 = value.to_string(),
-            2 => self.register_2 = value.to_string(),
-            3 => self.register_3 = value.to_string(),
-            4 => self.register_4 = value.to_string(),
-            5 => self.register_5 = value.to_string(),
-            6 => self.register_6 = value.to_string(),
-            7 => self.register_7 = value.to_string(),
-            8 => self.register_8 = value.to_string(),
+            1 => self.register_1 = value,
+            2 => self.register_2 = value,
+            3 => self.register_3 = value,
+            4 => self.register_4 = value,
+            5 => self.register_5 = value,
+            6 => self.register_6 = value,
+            7 => self.register_7 = value,
+            8 => self.register_8 = value,
             _ => panic!("Invalid register number."),
         }
     }

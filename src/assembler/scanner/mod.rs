@@ -151,6 +151,7 @@ impl Scanner {
             "jgt" => self.make_token(TokenType::JGT),
             "out" => self.make_token(TokenType::OUT),
             "load" => self.make_token(TokenType::LOAD),
+            "tts" => self.make_token(TokenType::TTS),
             _ => self.make_token(TokenType::IDENTIFIER),
         };
     }

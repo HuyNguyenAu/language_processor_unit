@@ -1,4 +1,5 @@
 mod assembler;
+mod constants;
 mod processor;
 
 use std::{
@@ -26,7 +27,7 @@ fn build(file_path: &str) {
         None => panic!("Build failed. Error: Could not determine file stem"),
     };
     let output_file_name = match file_stem.to_str() {
-        Some(value) => format!("{}.caism", value),
+        Some(value) => format!("{}/{}.caism", constants::BUILD_DIR, value),
         None => panic!("Build failed. Error: Could not convert file stem to string"),
     };
 
@@ -48,7 +49,23 @@ fn run(file_path: &str) {
     processor.run();
 }
 
+fn startup() {
+    if !Path::new(constants::BUILD_DIR).exists()
+        && let Err(error) = std::fs::create_dir_all(constants::BUILD_DIR)
+    {
+        panic!("Failed to create build directory. Error: {}", error);
+    }
+
+    if !Path::new(constants::TEMP_DIR).exists()
+        && let Err(error) = std::fs::create_dir_all(constants::TEMP_DIR)
+    {
+        panic!("Failed to create temp directory. Error: {}", error);
+    }
+}
+
 fn main() {
+    startup();
+
     let args: Vec<String> = env::args().collect();
     let command = match args.get(1) {
         Some(value) => value,

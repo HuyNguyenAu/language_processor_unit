@@ -1,8 +1,11 @@
+use base64::{Engine, prelude::BASE64_STANDARD};
+
 use crate::processor::control_unit::semantic_logic_unit::{
     microcode::Microcode,
     openai::{
         OpenAIClient,
-        chat_models::{OpenAIChatRequest, OpenAIChatRequestText},
+        audio_speech::OpenAIAudioSpeechRequest,
+        chat_completion_models::{OpenAIChatCompletionRequest, OpenAIChatCompletionRequestText},
         embeddings_models::OpenAIEmbeddingsRequest,
     },
     value::Value,
@@ -44,10 +47,10 @@ impl SemanticLogicUnit {
     }
 
     fn chat(&self, content: &str) -> Result<String, String> {
-        let request = OpenAIChatRequest {
+        let request = OpenAIChatCompletionRequest {
             model: self.model.to_string(),
             stream: self.stream,
-            messages: vec![OpenAIChatRequestText {
+            messages: vec![OpenAIChatCompletionRequestText {
                 role: self.role.to_string(),
                 content: content.to_string(),
             }],
@@ -56,14 +59,14 @@ impl SemanticLogicUnit {
             presence_penalty: self.repetition_penalty,
         };
 
-        let response = &self.openai_client.chat(request);
+        let response = &self.openai_client.create_chat_completion(request);
 
         let choice = match response {
             Ok(response) => response.choices.iter().nth(0),
-            Err(err) => {
+            Err(error) => {
                 return Err(format!(
                     "Failed to get chat response from client. Error: {}",
-                    err
+                    error
                 ));
             }
         };
@@ -81,14 +84,14 @@ impl SemanticLogicUnit {
             encoding_format: self.encoding_format.to_string(),
         };
 
-        let response = &self.openai_client.embeddings(request);
+        let response = &self.openai_client.create_embeddings(request);
 
         let embeddings = match response {
             Ok(response) => response.data.iter().nth(0),
-            Err(err) => {
+            Err(error) => {
                 return Err(format!(
                     "Failed to get embeddings response from client. Error: {}",
-                    err
+                    error
                 ));
             }
         };
@@ -99,14 +102,45 @@ impl SemanticLogicUnit {
         };
     }
 
+    fn speech(&self, content: &str) -> Result<Vec<u8>, String> {
+        let request = OpenAIAudioSpeechRequest {
+            input: content.to_string(),
+            model: self.model.to_string(),
+            voice: "alba".to_string(),
+        };
+
+        let response = &self.openai_client.create_speech(request);
+
+        let speech_response = match &response {
+            Ok(response) => response,
+            Err(error) => {
+                return Err(format!(
+                    "Failed to get speech response from client. Error: {}",
+                    error
+                ));
+            }
+        };
+        let audio_bytes = match Engine::decode(&BASE64_STANDARD, &speech_response.audio) {
+            Ok(bytes) => bytes,
+            Err(error) => {
+                return Err(format!(
+                    "Failed to decode audio data from client. Error: {}",
+                    error
+                ));
+            }
+        };
+
+        return Ok(audio_bytes);
+    }
+
     pub fn addition(&self, value_a: &Value, value_b: &Value) -> String {
         let value_a = match value_a {
             Value::Text(text) => text,
-            _ => panic!("Addition requires text values."),
+            _ => panic!("Addition requires text value."),
         };
         let value_b = match value_b {
             Value::Text(text) => text,
-            _ => panic!("Addition requires text values."),
+            _ => panic!("Addition requires text value."),
         };
 
         let content = self.micro_code.addition(value_a, value_b);
@@ -120,11 +154,11 @@ impl SemanticLogicUnit {
     pub fn subtract(&self, value_a: &Value, value_b: &Value) -> String {
         let value_a = match value_a {
             Value::Text(text) => text,
-            _ => panic!("Subtraction requires text values."),
+            _ => panic!("Subtraction requires text value."),
         };
         let value_b = match value_b {
             Value::Text(text) => text,
-            _ => panic!("Subtraction requires text values."),
+            _ => panic!("Subtraction requires text value."),
         };
 
         let content = self.micro_code.subtract(value_a, value_b);
@@ -138,11 +172,11 @@ impl SemanticLogicUnit {
     pub fn similarity(&self, value_a: &Value, value_b: &Value) -> u8 {
         let value_a = match value_a {
             Value::Text(text) => text,
-            _ => panic!("Similarity requires text values."),
+            _ => panic!("Similarity requires text value."),
         };
         let value_b = match value_b {
             Value::Text(text) => text,
-            _ => panic!("Similarity requires text values."),
+            _ => panic!("Similarity requires text value."),
         };
 
         let first_embedding_result = self.embeddings(value_a);
@@ -169,5 +203,19 @@ impl SemanticLogicUnit {
         let percentage_similarity = similarity.clamp(0.0, 1.0) * 100.0;
 
         return (percentage_similarity.round()) as u8;
+    }
+
+    pub fn text_to_speech(&self, value_a: &Value) -> Vec<u8> {
+        let text = match value_a {
+            Value::Text(text) => text,
+            _ => panic!("Text to speech requires a text value."),
+        };
+
+        let speech_result = self.speech(text);
+
+        return match &speech_result {
+            Ok(audio_bytes) => audio_bytes.clone(),
+            Err(error) => panic!("Failed to perform text to speech. Error: {}", error),
+        };
     }
 }

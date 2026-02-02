@@ -641,25 +641,24 @@ impl ControlUnit {
     }
 
     fn execute_text_to_speech(&mut self, instruction: &TextToSpeechInstruction) {
-        let source_operand_value = match self.get_value(&instruction.source_operand) {
-            Value::Text(text) => text,
-            _ => panic!("TTS instruction requires a text operand."),
-        };
+        let value_a = self.get_value(&instruction.source_operand);
 
-        // Here we would normally generate the audio.
-        let generated_audio = format!("AudioData({})", source_operand_value);
+        let speech = self.semantic_logic_unit.text_to_speech(&value_a);
 
-        self.registers.set_register(
-            &instruction.destination_register,
-            Value::Text(generated_audio),
-        );
+        self.registers
+            .set_register(&instruction.destination_register, Value::Audio(speech));
 
         println!(
             "Executed TTS: {:?} -> r{} = \"{:?}\"",
-            source_operand_value,
+            value_a,
             instruction.destination_register,
-            self.registers
+            match self
+                .registers
                 .get_register(&instruction.destination_register)
+            {
+                Value::Audio(data) => data[..10].to_vec(),
+                _ => panic!("Expected audio data in register."),
+            }
         );
     }
 

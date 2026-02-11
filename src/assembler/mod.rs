@@ -90,7 +90,7 @@ impl Assembler {
 
         loop {
             let current_token = self.scanner.scan_token();
-            
+
             self.current = Some(current_token.clone());
 
             if current_token.token_type() != &TokenType::ERROR {
@@ -217,6 +217,24 @@ impl Assembler {
                 self.bytecode.push(*value);
             }
         }
+    }
+
+    fn load(&mut self) {
+        self.consume(&TokenType::LOAD, "Expected 'load' keyword.");
+
+        let register = self.register("Expected register name.");
+
+        self.consume(&TokenType::COMMA, "Expected ',' after register name.");
+
+        let file_path = self
+            .string("Expected file path string after ','.")
+            .to_string();
+
+        self.emit_op_code_bytecode(OpCode::LOAD);
+        self.emit_register_bytecode(register);
+        self.emit_operand_bytecode(&Operand::Text(file_path));
+
+        self.advance_stack_level();
     }
 
     fn _move(&mut self) {
@@ -423,6 +441,7 @@ impl Assembler {
                     TokenType::JGT => self.jump_compare(&TokenType::JGT),
                     TokenType::JGE => self.jump_compare(&TokenType::JGE),
                     TokenType::OUT => self.output(),
+                    TokenType::LOAD => self.load(),
                     TokenType::EOF => break,
                     _ => self.error_at_current("Unexpected keyword."),
                 }

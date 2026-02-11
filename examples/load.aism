@@ -1,7 +1,7 @@
- ; This program compares two sentences for similarity.
+ ; This program loads an external file and compares the two sentences for similarity.
 
         ; Initialisation
-        mov r1, "I love playing soccer with my friends."
+        load r1, "examples/data/load.txt"
         mov r2, "My friends and I enjoy playing soccer together."
         mov r4, "The sentences are similar enough."
 

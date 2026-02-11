@@ -150,6 +150,7 @@ impl Scanner {
             "jge" => self.make_token(TokenType::JGE),
             "jgt" => self.make_token(TokenType::JGT),
             "out" => self.make_token(TokenType::OUT),
+            "load" => self.make_token(TokenType::LOAD),
             _ => self.make_token(TokenType::IDENTIFIER),
         };
     }

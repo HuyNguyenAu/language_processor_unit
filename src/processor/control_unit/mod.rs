@@ -1,14 +1,18 @@
+use std::fs::read_to_string;
+
 use crate::{
-    assembler::opcode::OpCode,
-    assembler::operand::{Operand, OperandType},
+    assembler::{
+        opcode::OpCode,
+        operand::{Operand, OperandType},
+    },
     processor::control_unit::{
         instruction::{
-            AddInstruction, ComparisonType, Instruction, JumpCompareInstruction, MoveInstruction,
-            OutputInstruction, SimilarityInstruction, SubInstruction,
+            AddInstruction, ComparisonType, Instruction, JumpCompareInstruction, LoadInstruction,
+            MoveInstruction, OutputInstruction, SimilarityInstruction, SubInstruction,
         },
         memory_unit::MemoryUnit,
         registers::Registers,
-        semantic_logic_unit::SemanticLogicUnit,
+        semantic_logic_unit::{SemanticLogicUnit, value::Value},
     },
 };
 
@@ -367,6 +371,33 @@ impl ControlUnit {
         return OutputInstruction { source_operand };
     }
 
+    fn decode_load(&mut self) -> LoadInstruction {
+        // Consume LOAD opcode.
+        self.advance();
+
+        // Consume the destination register.
+        let destination_register = self.decode_register(
+            false,
+            "Failed to read destination register for LOAD instruction.",
+        );
+
+        // Consume file path operand.
+        let file_path = match self.decode_operand(
+            "Failed to determine operand type for LOAD instruction.",
+            "Failed to read number for LOAD instruction.",
+            "Failed to read text for LOAD instruction.",
+            "Failed to read source register for LOAD instruction.",
+        ) {
+            Operand::Text(text) => text,
+            _ => panic!("LOAD instruction requires a text operand for the file path."),
+        };
+
+        return LoadInstruction {
+            destination_register,
+            file_path,
+        };
+    }
+
     fn decode_op_code(&mut self) -> Instruction {
         let current_bytecode = match self.current_bytecode {
             Some(bytecode) => bytecode,
@@ -388,6 +419,7 @@ impl ControlUnit {
             OpCode::JGT => Instruction::JumpCompare(self.decode_jump_compare(op_code)),
             OpCode::JGE => Instruction::JumpCompare(self.decode_jump_compare(op_code)),
             OpCode::OUT => Instruction::Output(self.decode_output()),
+            OpCode::LOAD => Instruction::Load(self.decode_load()),
         };
     }
 
@@ -405,24 +437,32 @@ impl ControlUnit {
         return Some(self.decode_op_code());
     }
 
-    fn get_value(&self, operand: &Operand) -> String {
+    fn get_value(&self, operand: &Operand) -> Value {
         return match operand {
-            Operand::Number(number) => number.to_string(),
-            Operand::Text(text) => text.clone(),
+            Operand::Number(number) => Value::Number(*number),
+            Operand::Text(text) => Value::Text(text.clone()),
             Operand::Register(register_number) => {
-                self.registers.get_register(register_number).to_string()
+                let value = self.registers.get_register(register_number).clone();
+
+                if value == Value::None {
+                    panic!(
+                        "Failed to get value from uninitialised register r{}.",
+                        register_number
+                    );
+                }
+
+                return value;
             }
         };
     }
 
     fn execute_move(&mut self, instruction: &MoveInstruction) {
         let value = self.get_value(&instruction.value);
-
         self.registers
-            .set_register(&instruction.destination_register, &value);
+            .set_register(&instruction.destination_register, value);
 
         println!(
-            "Executed MOV: r{} = \"{}\"",
+            "Executed MOV: r{} = \"{:?}\"",
             instruction.destination_register,
             self.registers
                 .get_register(&instruction.destination_register)
@@ -430,20 +470,18 @@ impl ControlUnit {
     }
 
     fn execute_add(&mut self, instruction: &AddInstruction) {
-        let first_operand_value = self.get_value(&instruction.first_operand);
-        let second_operand_value = self.get_value(&instruction.second_operand);
+        let value_a = self.get_value(&instruction.first_operand);
+        let value_b = self.get_value(&instruction.second_operand);
 
-        let result = self
-            .semantic_logic_unit
-            .addition(&first_operand_value, &second_operand_value);
+        let result = self.semantic_logic_unit.addition(&value_a, &value_b);
 
         self.registers
-            .set_register(&instruction.destination_register, &result);
+            .set_register(&instruction.destination_register, Value::Text(result));
 
         println!(
-            "Executed ADD: {:?} + {:?} -> r{} = \"{}\"",
-            first_operand_value,
-            second_operand_value,
+            "Executed ADD: {:?} + {:?} -> r{} = \"{:?}\"",
+            value_a,
+            value_b,
             instruction.destination_register,
             self.registers
                 .get_register(&instruction.destination_register)
@@ -451,20 +489,17 @@ impl ControlUnit {
     }
 
     fn execute_subtract(&mut self, instruction: &SubInstruction) {
-        let first_operand_value = self.get_value(&instruction.first_operand);
-        let second_operand_value = self.get_value(&instruction.second_operand);
+        let value_a = self.get_value(&instruction.first_operand);
+        let value_b = self.get_value(&instruction.second_operand);
 
-        let result = self
-            .semantic_logic_unit
-            .subtract(&first_operand_value, &second_operand_value);
+        let result = self.semantic_logic_unit.subtract(&value_a, &value_b);
 
         self.registers
-            .set_register(&instruction.destination_register, &result);
-
+            .set_register(&instruction.destination_register, Value::Text(result));
         println!(
-            "Executed SUB: {:?} - {:?} -> r{} = \"{}\"",
-            first_operand_value,
-            second_operand_value,
+            "Executed SUB: {:?} - {:?} -> r{} = \"{:?}\"",
+            value_a,
+            value_b,
             instruction.destination_register,
             self.registers
                 .get_register(&instruction.destination_register)
@@ -472,20 +507,18 @@ impl ControlUnit {
     }
 
     fn execute_similarity(&mut self, instruction: &SimilarityInstruction) {
-        let first_operand_value = self.get_value(&instruction.first_operand);
-        let second_operand_value = self.get_value(&instruction.second_operand);
+        let value_a = self.get_value(&instruction.first_operand);
+        let value_b = self.get_value(&instruction.second_operand);
 
-        let result = self
-            .semantic_logic_unit
-            .similarity(&first_operand_value, &second_operand_value);
+        let score = self.semantic_logic_unit.similarity(&value_a, &value_b);
 
         self.registers
-            .set_register(&instruction.destination_register, &result);
+            .set_register(&instruction.destination_register, Value::Number(score));
 
         println!(
-            "Executed SIM: {:?} ~ {:?} -> r{} = \"{}\"",
-            first_operand_value,
-            second_operand_value,
+            "Executed SIM: {:?} ~ {:?} -> r{} = \"{:?}\"",
+            value_a,
+            value_b,
             instruction.destination_register,
             self.registers
                 .get_register(&instruction.destination_register)
@@ -493,80 +526,92 @@ impl ControlUnit {
     }
 
     fn execute_jump_compare(&mut self, instruction: &JumpCompareInstruction) {
-        let first_operand_value = match self.get_value(&instruction.first_operand).parse::<u8>() {
-            Ok(value) => value,
+        let value_a = match self.get_value(&instruction.first_operand) {
+            Value::Number(num) => num,
             _ => panic!(
                 "{:?} instruction requires numeric operands.",
                 instruction.comparison_type
             ),
         };
-        let second_operand_value = match self.get_value(&instruction.second_operand).parse::<u8>() {
-            Ok(value) => value,
+        let value_b = match self.get_value(&instruction.second_operand) {
+            Value::Number(num) => num,
             _ => panic!(
                 "{:?} instruction requires numeric operands.",
                 instruction.comparison_type
             ),
         };
         let address = instruction.bytecode_jump_index.clone();
+        let is_true = match instruction.comparison_type {
+            ComparisonType::Equal => value_a == value_b,
+            ComparisonType::LessThan => value_a < value_b,
+            ComparisonType::LessThanOrEqual => value_a <= value_b,
+            ComparisonType::GreaterThan => value_a > value_b,
+            ComparisonType::GreaterThanOrEqual => value_a >= value_b,
+        };
+
+        if is_true {
+            self.registers.set_instruction_pointer(&address);
+        }
 
         match instruction.comparison_type {
             ComparisonType::Equal => {
-                if first_operand_value == second_operand_value {
-                    self.registers.set_instruction_pointer(&address);
-                }
-
                 println!(
-                    "Executed JEQ: {:?} == {:?} -> {}",
-                    first_operand_value, second_operand_value, instruction.bytecode_jump_index
+                    "Executed JEQ: {:?} == {:?} -> {}, {}",
+                    value_a, value_b, is_true, instruction.bytecode_jump_index
                 );
             }
             ComparisonType::LessThan => {
-                if first_operand_value < second_operand_value {
-                    self.registers.set_instruction_pointer(&address);
-                }
-
                 println!(
-                    "Executed JLT: {:?} < {:?} -> {}",
-                    first_operand_value, second_operand_value, instruction.bytecode_jump_index
+                    "Executed JLT: {:?} < {:?} -> {}, {}",
+                    value_a, value_b, is_true, instruction.bytecode_jump_index
                 );
             }
             ComparisonType::LessThanOrEqual => {
-                if first_operand_value <= second_operand_value {
-                    self.registers.set_instruction_pointer(&address);
-                }
-
                 println!(
-                    "Executed JLE: {:?} <= {:?} -> {}",
-                    first_operand_value, second_operand_value, instruction.bytecode_jump_index
+                    "Executed JLE: {:?} <= {:?} -> {}, {}",
+                    value_a, value_b, is_true, instruction.bytecode_jump_index
                 );
             }
             ComparisonType::GreaterThan => {
-                if first_operand_value > second_operand_value {
-                    self.registers.set_instruction_pointer(&address);
-                }
-
                 println!(
-                    "Executed JGT: {:?} > {:?} -> {}",
-                    first_operand_value, second_operand_value, instruction.bytecode_jump_index
+                    "Executed JGT: {:?} > {:?} -> {}, {}",
+                    value_a, value_b, is_true, instruction.bytecode_jump_index
                 );
             }
-            ComparisonType::GreaterThanOrEqual => {
-                if first_operand_value >= second_operand_value {
-                    self.registers.set_instruction_pointer(&address);
-                }
-
-                println!(
-                    "Executed JGE: {:?} >= {:?} -> {}",
-                    first_operand_value, second_operand_value, instruction.bytecode_jump_index
-                );
-            }
+            ComparisonType::GreaterThanOrEqual => println!(
+                "Executed JGE: {:?} >= {:?} -> {}, {}",
+                value_a, value_b, is_true, instruction.bytecode_jump_index
+            ),
         }
     }
 
     fn execute_output(&mut self, instruction: &OutputInstruction) {
-        let source_operand_value = self.get_value(&instruction.source_operand);
+        let value_a = match self.get_value(&instruction.source_operand) {
+            Value::Number(num) => num.to_string(),
+            Value::Text(text) => text,
+            _ => panic!("OUT instruction requires text or number operands."),
+        };
 
-        println!("Executed OUT: {}", source_operand_value);
+        println!("Executed OUT: {}", value_a);
+    }
+
+    fn execute_load(&mut self, instruction: &LoadInstruction) {
+        let file_contents = match read_to_string(&instruction.file_path) {
+            Ok(value) => value,
+            Err(error) => panic!("Run failed. Error: {}", error),
+        };
+
+        self.registers.set_register(
+            &instruction.destination_register,
+            Value::Text(file_contents),
+        );
+
+        println!(
+            "Executed LOAD: r{} = \"{:?}\"",
+            instruction.destination_register,
+            self.registers
+                .get_register(&instruction.destination_register)
+        );
     }
 
     pub fn execute(&mut self, instruction: &Instruction) {
@@ -577,6 +622,7 @@ impl ControlUnit {
             Instruction::Similarity(instruction) => self.execute_similarity(instruction),
             Instruction::JumpCompare(instruction) => self.execute_jump_compare(instruction),
             Instruction::Output(instruction) => self.execute_output(instruction),
+            Instruction::Load(instruction) => self.execute_load(instruction),
         }
     }
 }

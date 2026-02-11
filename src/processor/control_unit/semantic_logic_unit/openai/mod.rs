@@ -1,13 +1,16 @@
 use reqwest::blocking::Client;
 
-use crate::processor::control_unit::semantic_logic_unit::openai::{chat_models::{OpenAIChatRequest, OpenAIChatResponse}, embeddings_models::{OpenAIEmbeddingsRequest, OpenAIEmbeddingsResponse}};
+use crate::processor::control_unit::semantic_logic_unit::openai::{
+    chat_completion_models::{OpenAIChatCompletionRequest, OpenAIChatCompletionResponse},
+    embeddings_models::{OpenAIEmbeddingsRequest, OpenAIEmbeddingsResponse},
+};
 
-pub mod chat_models;
+pub mod chat_completion_models;
 pub mod embeddings_models;
 
 pub struct OpenAIClient {
     base_url: &'static str,
-    chat_endpoint: &'static str,
+    chat_completion_endpoint: &'static str,
     embeddings_endpoint: &'static str,
 }
 
@@ -15,14 +18,17 @@ impl OpenAIClient {
     pub fn new() -> Self {
         return OpenAIClient {
             base_url: "http://127.0.0.1:8080",
-            chat_endpoint: "v1/chat/completions",
+            chat_completion_endpoint: "v1/chat/completions",
             embeddings_endpoint: "v1/embeddings",
         };
     }
 
-    pub fn chat(&self, request: OpenAIChatRequest) -> Result<OpenAIChatResponse, String> {
+    pub fn create_chat_completion(
+        &self,
+        request: OpenAIChatCompletionRequest,
+    ) -> Result<OpenAIChatCompletionResponse, String> {
         let client = Client::new();
-        let url = format!("{}/{}", self.base_url, self.chat_endpoint);
+        let url = format!("{}/{}", self.base_url, self.chat_completion_endpoint);
 
         let body = match serde_json::to_string(&request) {
             Ok(body) => body,
@@ -48,7 +54,7 @@ impl OpenAIClient {
             }
         };
 
-        return match serde_json::from_str::<OpenAIChatResponse>(&text) {
+        return match serde_json::from_str::<OpenAIChatCompletionResponse>(&text) {
             Ok(parsed_response) => Ok(parsed_response),
             Err(error) => Err(format!(
                 "Failed to deserialise chat response JSON. Error: {}. Response Text: {}",
@@ -57,7 +63,7 @@ impl OpenAIClient {
         };
     }
 
-    pub fn embeddings(
+    pub fn create_embeddings(
         &self,
         request: OpenAIEmbeddingsRequest,
     ) -> Result<OpenAIEmbeddingsResponse, String> {

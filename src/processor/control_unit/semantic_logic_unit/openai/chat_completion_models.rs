@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct OpenAIChatRequestText {
+pub struct OpenAIChatCompletionRequestText {
     #[serde(rename = "role")]
     pub role: String,
     #[serde(rename = "content")]
@@ -9,13 +9,13 @@ pub struct OpenAIChatRequestText {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct OpenAIChatRequest {
+pub struct OpenAIChatCompletionRequest {
     #[serde(rename = "model")]
     pub model: String,
     #[serde(rename = "stream")]
     pub stream: bool,
     #[serde(rename = "messages")]
-    pub messages: Vec<OpenAIChatRequestText>,
+    pub messages: Vec<OpenAIChatCompletionRequestText>,
     #[serde(rename = "temperature")]
     pub temperature: f32,
     #[serde(rename = "top_p")]
@@ -25,7 +25,7 @@ pub struct OpenAIChatRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct OpenAIChatResponseMessage {
+pub struct OpenAIChatCompletionResponseMessage {
     #[serde(rename = "role")]
     pub role: String,
     #[serde(rename = "content")]
@@ -33,17 +33,17 @@ pub struct OpenAIChatResponseMessage {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct OpenAIChatResponseChoice {
+pub struct OpenAIChatCompletionResponseChoice {
     #[serde(rename = "index")]
     pub index: u8,
     #[serde(rename = "message")]
-    pub message: OpenAIChatResponseMessage,
+    pub message: OpenAIChatCompletionResponseMessage,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct OpenAIChatResponse {
+pub struct OpenAIChatCompletionResponse {
     #[serde(rename = "model")]
     pub model: String,
     #[serde(rename = "choices")]
-    pub choices: Vec<OpenAIChatResponseChoice>,
+    pub choices: Vec<OpenAIChatCompletionResponseChoice>,
 }

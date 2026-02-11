@@ -2,13 +2,15 @@ use crate::processor::control_unit::semantic_logic_unit::{
     microcode::Microcode,
     openai::{
         OpenAIClient,
-        chat_models::{OpenAIChatRequest, OpenAIChatRequestText},
+        chat_completion_models::{OpenAIChatCompletionRequest, OpenAIChatCompletionRequestText},
         embeddings_models::OpenAIEmbeddingsRequest,
     },
+    value::Value,
 };
 
 mod microcode;
 mod openai;
+pub mod value;
 
 pub struct SemanticLogicUnit {
     micro_code: Microcode,
@@ -42,10 +44,10 @@ impl SemanticLogicUnit {
     }
 
     fn chat(&self, content: &str) -> Result<String, String> {
-        let request = OpenAIChatRequest {
+        let request = OpenAIChatCompletionRequest {
             model: self.model.to_string(),
             stream: self.stream,
-            messages: vec![OpenAIChatRequestText {
+            messages: vec![OpenAIChatCompletionRequestText {
                 role: self.role.to_string(),
                 content: content.to_string(),
             }],
@@ -54,14 +56,14 @@ impl SemanticLogicUnit {
             presence_penalty: self.repetition_penalty,
         };
 
-        let response = &self.openai_client.chat(request);
+        let response = &self.openai_client.create_chat_completion(request);
 
         let choice = match response {
             Ok(response) => response.choices.iter().nth(0),
-            Err(err) => {
+            Err(error) => {
                 return Err(format!(
                     "Failed to get chat response from client. Error: {}",
-                    err
+                    error
                 ));
             }
         };
@@ -79,14 +81,14 @@ impl SemanticLogicUnit {
             encoding_format: self.encoding_format.to_string(),
         };
 
-        let response = &self.openai_client.embeddings(request);
+        let response = &self.openai_client.create_embeddings(request);
 
         let embeddings = match response {
             Ok(response) => response.data.iter().nth(0),
-            Err(err) => {
+            Err(error) => {
                 return Err(format!(
                     "Failed to get embeddings response from client. Error: {}",
-                    err
+                    error
                 ));
             }
         };
@@ -97,8 +99,17 @@ impl SemanticLogicUnit {
         };
     }
 
-    pub fn addition(&self, first_operand: &str, second_operand: &str) -> String {
-        let content = self.micro_code.addition(first_operand, second_operand);
+    pub fn addition(&self, value_a: &Value, value_b: &Value) -> String {
+        let value_a = match value_a {
+            Value::Text(text) => text,
+            _ => panic!("Addition requires text value."),
+        };
+        let value_b = match value_b {
+            Value::Text(text) => text,
+            _ => panic!("Addition requires text value."),
+        };
+
+        let content = self.micro_code.addition(value_a, value_b);
 
         return match &self.chat(content.as_str()) {
             Ok(choice) => choice.to_lowercase(),
@@ -106,8 +117,17 @@ impl SemanticLogicUnit {
         };
     }
 
-    pub fn subtract(&self, first_operand: &str, second_operand: &str) -> String {
-        let content = self.micro_code.subtract(first_operand, second_operand);
+    pub fn subtract(&self, value_a: &Value, value_b: &Value) -> String {
+        let value_a = match value_a {
+            Value::Text(text) => text,
+            _ => panic!("Subtraction requires text value."),
+        };
+        let value_b = match value_b {
+            Value::Text(text) => text,
+            _ => panic!("Subtraction requires text value."),
+        };
+
+        let content = self.micro_code.subtract(value_a, value_b);
 
         return match &self.chat(content.as_str()) {
             Ok(choice) => choice.to_lowercase(),
@@ -115,14 +135,23 @@ impl SemanticLogicUnit {
         };
     }
 
-    pub fn similarity(&self, first_operand: &str, second_operand: &str) -> String {
-        let first_embedding_result = self.embeddings(first_operand);
+    pub fn similarity(&self, value_a: &Value, value_b: &Value) -> u8 {
+        let value_a = match value_a {
+            Value::Text(text) => text,
+            _ => panic!("Similarity requires text value."),
+        };
+        let value_b = match value_b {
+            Value::Text(text) => text,
+            _ => panic!("Similarity requires text value."),
+        };
+
+        let first_embedding_result = self.embeddings(value_a);
         let first_embedding = match &first_embedding_result {
             Ok(embedding) => embedding,
             Err(error) => panic!("Failed to get first embedding. Error: {}", error),
         };
 
-        let second_embedding_result = self.embeddings(second_operand);
+        let second_embedding_result = self.embeddings(value_b);
         let second_embedding = match &second_embedding_result {
             Ok(embedding) => embedding,
             Err(error) => panic!("Failed to get second embedding. Error: {}", error),
@@ -139,6 +168,6 @@ impl SemanticLogicUnit {
         let similarity = dot_product / (x_euclidean_length * y_euclidean_length);
         let percentage_similarity = similarity.clamp(0.0, 1.0) * 100.0;
 
-        return (percentage_similarity.round()).to_string();
+        return (percentage_similarity.round()) as u8;
     }
 }

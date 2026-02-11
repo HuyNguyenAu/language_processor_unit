@@ -135,6 +135,42 @@ impl SemanticLogicUnit {
         };
     }
 
+    pub fn multiply(&self, value_a: &Value, value_b: &Value) -> String {
+        let value_a = match value_a {
+            Value::Text(text) => text,
+            _ => panic!("Multiplication requires text value."),
+        };
+        let value_b = match value_b {
+            Value::Text(text) => text,
+            _ => panic!("Multiplication requires text value."),
+        };
+
+        let content = self.micro_code.multiply(value_a, value_b);
+
+        return match &self.chat(content.as_str()) {
+            Ok(choice) => choice.to_lowercase(),
+            Err(error) => panic!("Failed to perform multiplication. Error: {}", error),
+        };
+    }
+
+    pub fn divide(&self, value_a: &Value, value_b: &Value) -> String {
+        let value_a = match value_a {
+            Value::Text(text) => text,
+            _ => panic!("Division requires text value."),
+        };
+        let value_b = match value_b {
+            Value::Text(text) => text,
+            _ => panic!("Division requires text value."),
+        };
+
+        let content = self.micro_code.divide(value_a, value_b);
+
+        return match &self.chat(content.as_str()) {
+            Ok(choice) => choice.to_lowercase(),
+            Err(error) => panic!("Failed to perform division. Error: {}", error),
+        };
+    }
+
     pub fn similarity(&self, value_a: &Value, value_b: &Value) -> u8 {
         let value_a = match value_a {
             Value::Text(text) => text,

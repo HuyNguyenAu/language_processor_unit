@@ -13,6 +13,8 @@ pub enum TokenType {
     MOV,
     ADD,
     SUB,
+    MUL,
+    DIV,
     SIM,
     LABEL,
     JEQ,

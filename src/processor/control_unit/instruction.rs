@@ -26,6 +26,18 @@ pub struct SubInstruction {
     pub second_operand: Operand,
 }
 
+pub struct MulInstruction {
+    pub destination_register: u8,
+    pub first_operand: Operand,
+    pub second_operand: Operand,
+}
+
+pub struct DivInstruction {
+    pub destination_register: u8,
+    pub first_operand: Operand,
+    pub second_operand: Operand,
+}
+
 pub struct SimilarityInstruction {
     pub destination_register: u8,
     pub first_operand: Operand,
@@ -52,6 +64,8 @@ pub enum Instruction {
     Move(MoveInstruction),
     Add(AddInstruction),
     Sub(SubInstruction),
+    Mul(MulInstruction),
+    Div(DivInstruction),
     Similarity(SimilarityInstruction),
     JumpCompare(JumpCompareInstruction),
     Output(OutputInstruction),

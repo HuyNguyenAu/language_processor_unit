@@ -18,4 +18,18 @@ impl Microcode {
             value_b, value_a
         );
     }
+
+    pub fn multiply(&self, value_a: &str, value_b: &str) -> String {
+        return format!(
+            "Use {} as a lens or a recursive multiplier. For every concept identified in {}, expand it into a full paragraph of detail based on the themes in {}. Increase the complexity, descriptive depth, and 'volume' of the text. The output must be significantly longer and more detailed than the input. Answer with a single word if appropriate, otherwise a single sentence.",
+            value_b, value_b, value_a
+        );
+    }
+
+    pub fn divide(&self, value_a: &str, value_b: &str) -> String {
+        return format!(
+            "Treat {} as the 'unit' of measurement. Distill the entirety of {} down into a single concise statement or list that captures only the essence related to {}. Remove all auxiliary detail, leaving only the fundamental 'quotient' of information. Answer with a single word if appropriate, otherwise a single sentence.",
+            value_b, value_a, value_b
+        );
+    }
 }

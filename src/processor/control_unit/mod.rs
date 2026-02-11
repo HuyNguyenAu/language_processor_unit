@@ -7,8 +7,7 @@ use crate::{
     },
     processor::control_unit::{
         instruction::{
-            AddInstruction, ComparisonType, Instruction, JumpCompareInstruction, LoadInstruction,
-            MoveInstruction, OutputInstruction, SimilarityInstruction, SubInstruction,
+            AddInstruction, ComparisonType, DivInstruction, Instruction, JumpCompareInstruction, LoadInstruction, MoveInstruction, MulInstruction, OutputInstruction, SimilarityInstruction, SubInstruction
         },
         memory_unit::MemoryUnit,
         registers::Registers,
@@ -220,6 +219,72 @@ impl ControlUnit {
         };
     }
 
+    fn decode_multiply(&mut self) -> MulInstruction {
+        // Consume MUL opcode.
+        self.advance();
+
+        // Consume the first operand.
+        let first_operand = self.decode_operand(
+            "Failed to determine first operand type for MUL instruction.",
+            "Failed to read first number operand for MUL instruction.",
+            "Failed to read first text operand for MUL instruction.",
+            "Failed to read first register operand for MUL instruction.",
+        );
+
+        // Consume the second operand.
+        let second_operand = self.decode_operand(
+            "Failed to determine second operand type for MUL instruction.",
+            "Failed to read second number operand for MUL instruction.",
+            "Failed to read second text operand for MUL instruction.",
+            "Failed to read second register operand for MUL instruction.",
+        );
+
+        // Consume the destination register.
+        let destination_register = self.decode_register(
+            false,
+            "Failed to read destination register for MUL instruction.",
+        );
+
+        return MulInstruction {
+            destination_register,
+            first_operand,
+            second_operand,
+        };
+    }
+
+    fn decode_divide(&mut self) -> DivInstruction {
+        // Consume DIV opcode.
+        self.advance();
+
+        // Consume the first operand.
+        let first_operand = self.decode_operand(
+            "Failed to determine first operand type for DIV instruction.",
+            "Failed to read first number operand for DIV instruction.",
+            "Failed to read first text operand for DIV instruction.",
+            "Failed to read first register operand for DIV instruction.",
+        );
+
+        // Consume the second operand.
+        let second_operand = self.decode_operand(
+            "Failed to determine second operand type for DIV instruction.",
+            "Failed to read second number operand for DIV instruction.",
+            "Failed to read second text operand for DIV instruction.",
+            "Failed to read second register operand for DIV instruction.",
+        );
+
+        // Consume the destination register.
+        let destination_register = self.decode_register(
+            false,
+            "Failed to read destination register for DIV instruction.",
+        );
+
+        return DivInstruction {
+            destination_register,
+            first_operand,
+            second_operand,
+        };
+    }
+
     fn decode_addition(&mut self) -> AddInstruction {
         // Consume ADD opcode.
         self.advance();
@@ -412,6 +477,8 @@ impl ControlUnit {
             OpCode::MOV => Instruction::Move(self.decode_move()),
             OpCode::ADD => Instruction::Add(self.decode_addition()),
             OpCode::SUB => Instruction::Sub(self.decode_subtract()),
+            OpCode::MUL => Instruction::Mul(self.decode_multiply()),
+            OpCode::DIV => Instruction::Div(self.decode_divide()),
             OpCode::SIM => Instruction::Similarity(self.decode_similarity()),
             OpCode::JEQ => Instruction::JumpCompare(self.decode_jump_compare(op_code)),
             OpCode::JLT => Instruction::JumpCompare(self.decode_jump_compare(op_code)),
@@ -500,6 +567,48 @@ impl ControlUnit {
             "Executed SUB: {:?} - {:?} -> r{} = \"{:?}\"",
             value_a,
             value_b,
+            instruction.destination_register,
+            self.registers
+                .get_register(&instruction.destination_register)
+        );
+    }
+
+    fn execute_multiply(&mut self, instruction: &MulInstruction) {
+        let first_operand_value = self.get_value(&instruction.first_operand);
+        let second_operand_value = self.get_value(&instruction.second_operand);
+
+        let result = self
+            .semantic_logic_unit
+            .multiply(&first_operand_value, &second_operand_value);
+
+        self.registers
+            .set_register(&instruction.destination_register, Value::Text(result));
+
+        println!(
+            "Executed MUL: {:?} * {:?} -> r{} = \"{:?}\"",
+            first_operand_value,
+            second_operand_value,
+            instruction.destination_register,
+            self.registers
+                .get_register(&instruction.destination_register)
+        );
+    }
+
+    fn execute_divide(&mut self, instruction: &DivInstruction) {
+        let first_operand_value = self.get_value(&instruction.first_operand);
+        let second_operand_value = self.get_value(&instruction.second_operand);
+
+        let result = self
+            .semantic_logic_unit
+            .divide(&first_operand_value, &second_operand_value);
+
+        self.registers
+            .set_register(&instruction.destination_register, Value::Text(result));
+
+        println!(
+            "Executed DIV: {:?} / {:?} -> r{} = \"{:?}\"",
+            first_operand_value,
+            second_operand_value,
             instruction.destination_register,
             self.registers
                 .get_register(&instruction.destination_register)
@@ -619,6 +728,8 @@ impl ControlUnit {
             Instruction::Move(instruction) => self.execute_move(instruction),
             Instruction::Add(instruction) => self.execute_add(instruction),
             Instruction::Sub(instruction) => self.execute_subtract(instruction),
+            Instruction::Mul(instruction) => self.execute_multiply(instruction),
+            Instruction::Div(instruction) => self.execute_divide(instruction),
             Instruction::Similarity(instruction) => self.execute_similarity(instruction),
             Instruction::JumpCompare(instruction) => self.execute_jump_compare(instruction),
             Instruction::Output(instruction) => self.execute_output(instruction),

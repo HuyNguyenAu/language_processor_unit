@@ -321,6 +321,48 @@ impl Assembler {
         self.advance_stack_level();
     }
 
+    fn multiply(&mut self) {
+        self.consume(&TokenType::MUL, "Expected 'mul' keyword.");
+
+        let operand_1 = self.operand("Expected first operand after 'mul'.");
+
+        self.consume(&TokenType::COMMA, "Expected ',' after operand.");
+
+        let operand_2 = self.operand("Expected second operand after ','.");
+
+        self.consume(&TokenType::COMMA, "Expected ',' after second operand.");
+
+        let destination = self.register("Expected destination register after ','.");
+
+        self.emit_op_code_bytecode(OpCode::MUL);
+        self.emit_operand_bytecode(&operand_1);
+        self.emit_operand_bytecode(&operand_2);
+        self.emit_register_bytecode(destination);
+
+        self.advance_stack_level();
+    }
+
+    fn divide(&mut self) {
+        self.consume(&TokenType::DIV, "Expected 'div' keyword.");
+
+        let operand_1 = self.operand("Expected first operand after 'div'.");
+
+        self.consume(&TokenType::COMMA, "Expected ',' after operand.");
+
+        let operand_2 = self.operand("Expected second operand after ','.");
+
+        self.consume(&TokenType::COMMA, "Expected ',' after second operand.");
+
+        let destination = self.register("Expected destination register after ','.");
+
+        self.emit_op_code_bytecode(OpCode::DIV);
+        self.emit_operand_bytecode(&operand_1);
+        self.emit_operand_bytecode(&operand_2);
+        self.emit_register_bytecode(destination);
+
+        self.advance_stack_level();
+    }
+
     fn similarity(&mut self) {
         self.consume(&TokenType::SIM, "Expected 'sim' keyword.");
 
@@ -434,6 +476,8 @@ impl Assembler {
                     TokenType::LABEL => self.label(),
                     TokenType::SUB => self.subtract(),
                     TokenType::ADD => self.addition(),
+                    TokenType::MUL => self.multiply(),
+                    TokenType::DIV => self.divide(),
                     TokenType::SIM => self.similarity(),
                     TokenType::JEQ => self.jump_compare(&TokenType::JEQ),
                     TokenType::JLT => self.jump_compare(&TokenType::JLT),

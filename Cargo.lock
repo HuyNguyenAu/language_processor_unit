@@ -97,7 +97,6 @@ dependencies = [
 name = "cognitive_processor_unit"
 version = "0.1.0"
 dependencies = [
- "base64",
  "reqwest",
  "serde",
  "serde_json",

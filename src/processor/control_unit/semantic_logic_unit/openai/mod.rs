@@ -1,12 +1,10 @@
 use reqwest::blocking::Client;
 
 use crate::processor::control_unit::semantic_logic_unit::openai::{
-    audio_speech::{OpenAIAudioSpeechRequest, OpenAIAudioSpeechResponse},
     chat_completion_models::{OpenAIChatCompletionRequest, OpenAIChatCompletionResponse},
     embeddings_models::{OpenAIEmbeddingsRequest, OpenAIEmbeddingsResponse},
 };
 
-pub mod audio_speech;
 pub mod chat_completion_models;
 pub mod embeddings_models;
 
@@ -14,7 +12,6 @@ pub struct OpenAIClient {
     base_url: &'static str,
     chat_completion_endpoint: &'static str,
     embeddings_endpoint: &'static str,
-    audio_speech_endpoint: &'static str,
 }
 
 impl OpenAIClient {
@@ -23,7 +20,6 @@ impl OpenAIClient {
             base_url: "http://127.0.0.1:8080",
             chat_completion_endpoint: "v1/chat/completions",
             embeddings_endpoint: "v1/embeddings",
-            audio_speech_endpoint: "v1/audio/speech",
         };
     }
 
@@ -108,53 +104,6 @@ impl OpenAIClient {
             Err(error) => {
                 return Err(format!(
                     "Failed to deserialise embedding response JSON. Error: {}. Response Text: {}",
-                    error, text
-                ));
-            }
-        };
-    }
-
-    pub fn create_speech(
-        &self,
-        request: OpenAIAudioSpeechRequest,
-    ) -> Result<OpenAIAudioSpeechResponse, String> {
-        let client = Client::new();
-        let url = format!("{}/{}", "http://127.0.0.1:8000", self.audio_speech_endpoint);
-
-        let body = match serde_json::to_string(&request) {
-            Ok(body) => body,
-            Err(error) => {
-                return Err(format!(
-                    "Failed to serialise audio speech request to JSON. Error: {}",
-                    error
-                ));
-            }
-        };
-        let result = client.post(url).body(body).send();
-        let response = match result {
-            Ok(response) => response,
-            Err(error) => {
-                return Err(format!(
-                    "Failed to send audio speech request. Error: {}",
-                    error
-                ));
-            }
-        };
-        let text: String = match response.text() {
-            Ok(text) => text,
-            Err(error) => {
-                return Err(format!(
-                    "Failed to read audio speech response text. Error: {}",
-                    error
-                ));
-            }
-        };
-
-        return match serde_json::from_str::<OpenAIAudioSpeechResponse>(&text) {
-            Ok(parsed_response) => Ok(parsed_response),
-            Err(error) => {
-                return Err(format!(
-                    "Failed to deserialise audio speech response JSON. Error: {}. Response Text: {}",
                     error, text
                 ));
             }

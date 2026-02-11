@@ -7,5 +7,4 @@ edition = "2024"
 reqwest = { version = "0.13", features = ["blocking"] }
 serde =  { version = "1.0.228", features = ["derive"] }
 serde_json = { version = "1.0.149"}
-base64 = { version = "0.22.1"}
 

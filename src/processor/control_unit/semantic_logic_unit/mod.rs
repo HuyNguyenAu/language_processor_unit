@@ -1,10 +1,7 @@
-use base64::{Engine, prelude::BASE64_STANDARD};
-
 use crate::processor::control_unit::semantic_logic_unit::{
     microcode::Microcode,
     openai::{
         OpenAIClient,
-        audio_speech::OpenAIAudioSpeechRequest,
         chat_completion_models::{OpenAIChatCompletionRequest, OpenAIChatCompletionRequestText},
         embeddings_models::OpenAIEmbeddingsRequest,
     },
@@ -102,37 +99,6 @@ impl SemanticLogicUnit {
         };
     }
 
-    fn speech(&self, content: &str) -> Result<Vec<u8>, String> {
-        let request = OpenAIAudioSpeechRequest {
-            input: content.to_string(),
-            model: self.model.to_string(),
-            voice: "alba".to_string(),
-        };
-
-        let response = &self.openai_client.create_speech(request);
-
-        let speech_response = match &response {
-            Ok(response) => response,
-            Err(error) => {
-                return Err(format!(
-                    "Failed to get speech response from client. Error: {}",
-                    error
-                ));
-            }
-        };
-        let audio_bytes = match Engine::decode(&BASE64_STANDARD, &speech_response.audio) {
-            Ok(bytes) => bytes,
-            Err(error) => {
-                return Err(format!(
-                    "Failed to decode audio data from client. Error: {}",
-                    error
-                ));
-            }
-        };
-
-        return Ok(audio_bytes);
-    }
-
     pub fn addition(&self, value_a: &Value, value_b: &Value) -> String {
         let value_a = match value_a {
             Value::Text(text) => text,
@@ -203,19 +169,5 @@ impl SemanticLogicUnit {
         let percentage_similarity = similarity.clamp(0.0, 1.0) * 100.0;
 
         return (percentage_similarity.round()) as u8;
-    }
-
-    pub fn text_to_speech(&self, value_a: &Value) -> Vec<u8> {
-        let text = match value_a {
-            Value::Text(text) => text,
-            _ => panic!("Text to speech requires a text value."),
-        };
-
-        let speech_result = self.speech(text);
-
-        return match &speech_result {
-            Ok(audio_bytes) => audio_bytes.clone(),
-            Err(error) => panic!("Failed to perform text to speech. Error: {}", error),
-        };
     }
 }

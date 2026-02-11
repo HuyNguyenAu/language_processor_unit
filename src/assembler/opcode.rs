@@ -11,7 +11,6 @@ pub enum OpCode {
     JGE = 0x08,
     OUT = 0x09,
     LOAD = 0x0A,
-    TTS = 0x0B,
 }
 
 impl OpCode {
@@ -28,7 +27,6 @@ impl OpCode {
             0x08 => Ok(OpCode::JGE),
             0x09 => Ok(OpCode::OUT),
             0x0A => Ok(OpCode::LOAD),
-            0x0B => Ok(OpCode::TTS),
             _ => Err("Invalid opcode byte."),
         }
     }

@@ -9,7 +9,6 @@ use crate::{
         instruction::{
             AddInstruction, ComparisonType, Instruction, JumpCompareInstruction, LoadInstruction,
             MoveInstruction, OutputInstruction, SimilarityInstruction, SubInstruction,
-            TextToSpeechInstruction,
         },
         memory_unit::MemoryUnit,
         registers::Registers,
@@ -399,30 +398,6 @@ impl ControlUnit {
         };
     }
 
-    fn decode_text_to_speech(&mut self) -> TextToSpeechInstruction {
-        // Consume TTS opcode.
-        self.advance();
-
-        // Consume the source operand.
-        let source_operand = self.decode_operand(
-            "Failed to determine source operand type for TTS instruction.",
-            "Failed to read source number operand for TTS instruction.",
-            "Failed to read source text operand for TTS instruction.",
-            "Failed to read source register operand for TTS instruction.",
-        );
-
-        // Consume the destination register.
-        let destination_register = self.decode_register(
-            false,
-            "Failed to read destination register for TTS instruction.",
-        );
-
-        return TextToSpeechInstruction {
-            source_operand,
-            destination_register,
-        };
-    }
-
     fn decode_op_code(&mut self) -> Instruction {
         let current_bytecode = match self.current_bytecode {
             Some(bytecode) => bytecode,
@@ -445,7 +420,6 @@ impl ControlUnit {
             OpCode::JGE => Instruction::JumpCompare(self.decode_jump_compare(op_code)),
             OpCode::OUT => Instruction::Output(self.decode_output()),
             OpCode::LOAD => Instruction::Load(self.decode_load()),
-            OpCode::TTS => Instruction::TextToSpeech(self.decode_text_to_speech()),
         };
     }
 
@@ -640,28 +614,6 @@ impl ControlUnit {
         );
     }
 
-    fn execute_text_to_speech(&mut self, instruction: &TextToSpeechInstruction) {
-        let value_a = self.get_value(&instruction.source_operand);
-
-        let speech = self.semantic_logic_unit.text_to_speech(&value_a);
-
-        self.registers
-            .set_register(&instruction.destination_register, Value::Audio(speech));
-
-        println!(
-            "Executed TTS: {:?} -> r{} = \"{:?}\"",
-            value_a,
-            instruction.destination_register,
-            match self
-                .registers
-                .get_register(&instruction.destination_register)
-            {
-                Value::Audio(data) => data[..10].to_vec(),
-                _ => panic!("Expected audio data in register."),
-            }
-        );
-    }
-
     pub fn execute(&mut self, instruction: &Instruction) {
         match instruction {
             Instruction::Move(instruction) => self.execute_move(instruction),
@@ -671,7 +623,6 @@ impl ControlUnit {
             Instruction::JumpCompare(instruction) => self.execute_jump_compare(instruction),
             Instruction::Output(instruction) => self.execute_output(instruction),
             Instruction::Load(instruction) => self.execute_load(instruction),
-            Instruction::TextToSpeech(instruction) => self.execute_text_to_speech(instruction),
         }
     }
 }

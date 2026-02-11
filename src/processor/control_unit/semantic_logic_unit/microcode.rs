@@ -7,15 +7,15 @@ impl Microcode {
 
     pub fn addition(&self, value_a: &str, value_b: &str) -> String {
         return format!(
-            "Synthesize the attributes of the {} with the attributes of the {}. Locate the specific word that represents the intersection of these two identities. Output exactly one word.",
+            "Merge {} into {}. Ensure logical continuity and smooth linguistic transitions. The resulting output must contain the complete factual density of both inputs without redundancy. Answer with a single word if appropriate, otherwise a single sentence.",
             value_a, value_b
         );
     }
 
     pub fn subtract(&self, value_a: &str, value_b: &str) -> String {
         return format!(
-            "Isolate the unique attributes of the {} by removing the shared attributes with the {}. Locate the specific word that represents the difference of these two identities. Output exactly one word.",
-            value_a, value_b
+            "Identify any concepts, entities, or phrases that align with the definitions in {}. Remove them entirely from {}. Reconstruct the remaining concepts, entities, or phrases so it remains grammatically correct and coherent, but devoid of the subtracted elements. Answer with a single word if appropriate, otherwise a single sentence.",
+            value_b, value_a
         );
     }
 }

@@ -9,7 +9,7 @@ pub struct Registers {
     register_6: Value,
     register_7: Value,
     register_8: Value,
-    instruction_pointer: u8,
+    instruction_pointer: usize,
 }
 
 impl Registers {
@@ -27,7 +27,7 @@ impl Registers {
         }
     }
 
-    pub fn get_register(&self, register_number: &u8) -> &Value {
+    pub fn get_register(&self, register_number: &u32) -> &Value {
         return match register_number {
             1 => &self.register_1,
             2 => &self.register_2,
@@ -37,11 +37,11 @@ impl Registers {
             6 => &self.register_6,
             7 => &self.register_7,
             8 => &self.register_8,
-            _ => panic!("Invalid register number."),
+            _ => panic!("Invalid register number: {}. Valid register numbers are 1-8.", register_number),
         };
     }
 
-    pub fn set_register(&mut self, register_number: &u8, value: Value) {
+    pub fn set_register(&mut self, register_number: &u32, value: Value) {
         match register_number {
             1 => self.register_1 = value,
             2 => self.register_2 = value,
@@ -51,16 +51,16 @@ impl Registers {
             6 => self.register_6 = value,
             7 => self.register_7 = value,
             8 => self.register_8 = value,
-            _ => panic!("Invalid register number."),
+            _ => panic!("Invalid register number: {}. Valid register numbers are 1-8.", register_number),
         }
     }
 
-    pub fn get_instruction_pointer(&self) -> u8 {
+    pub fn get_instruction_pointer(&self) -> usize {
         self.instruction_pointer
     }
 
-    pub fn set_instruction_pointer(&mut self, address: &u8) {
-        self.instruction_pointer = *address;
+    pub fn set_instruction_pointer(&mut self, address: usize) {
+        self.instruction_pointer = address;
     }
 
     pub fn advance_instruction_pointer(&mut self) {

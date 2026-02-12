@@ -18,4 +18,18 @@ impl Microcode {
             value_b, value_a
         );
     }
+
+    pub fn multiply(&self, value_a: &str, value_b: &str) -> String {
+        return format!(
+            "Treat \"{}\" as a stylistic or thematic template. Re-encode \"{}\" entirely through the lens of \"{}\". If \"{}\" is a high-magnitude concept, amplify the intensity of \"{}\" proportionally. Answer with a single word if appropriate, otherwise a single sentence.",
+            value_b, value_a, value_b, value_b, value_a
+        );
+    }
+
+    pub fn divide(&self, value_a: &str, value_b: &str) -> String {
+        return format!(
+            "Using \"{}\" as a categorical basis, extract the relevant components from \"{}\". The result should be the 'remainder' or the underlying essence of \"{}\" once the \"{}\" context is accounted for. Answer with a single word if appropriate, otherwise a single sentence.",
+            value_b, value_a, value_a, value_b
+        );
+    }
 }

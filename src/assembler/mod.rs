@@ -11,12 +11,12 @@ pub mod operand;
 mod scanner;
 
 struct UnitialisedLabel {
-    current_bytecode_indices: Vec<usize>,
+    current_byte_code_indices: Vec<usize>,
     token: Token,
 }
 
 pub struct Assembler {
-    bytecode: Vec<u8>,
+    byte_code: Vec<[u8; 4]>,
 
     source: &'static str,
     scanner: Scanner,
@@ -24,8 +24,8 @@ pub struct Assembler {
     previous: Option<Token>,
     current: Option<Token>,
 
-    current_bytecode_index: usize,
-    bytecode_indices: HashMap<u64, usize>,
+    current_byte_code_index: usize,
+    byte_code_indices: HashMap<u64, usize>,
     uninitialised_labels: HashMap<u64, UnitialisedLabel>,
 
     had_error: bool,
@@ -35,17 +35,26 @@ pub struct Assembler {
 impl Assembler {
     pub fn new(source: &'static str) -> Self {
         return Assembler {
-            bytecode: Vec::new(),
+            byte_code: Vec::new(),
             source,
             scanner: Scanner::new(source),
             previous: None,
             current: None,
-            current_bytecode_index: 0,
-            bytecode_indices: HashMap::new(),
+            current_byte_code_index: 0,
+            byte_code_indices: HashMap::new(),
             uninitialised_labels: HashMap::new(),
             had_error: false,
             panic_mode: false,
         };
+    }
+
+    fn lexeme(&self, token: &Token) -> String {
+        return self
+            .source
+            .chars()
+            .skip(token.start())
+            .take(token.end() - token.start())
+            .collect::<String>();
     }
 
     fn error_at(&mut self, token: &Token, message: &str) {
@@ -63,10 +72,7 @@ impl Assembler {
             eprint!(" {}", error);
         }
 
-        eprint!(
-            " at '{}'.",
-            &self.source[token.start()..token.start() + token.length()]
-        );
+        eprint!(" at '{}'.", self.lexeme(token));
 
         eprintln!(" {}", message);
 
@@ -101,9 +107,9 @@ impl Assembler {
         }
     }
 
-    fn previous_lexeme(&self) -> &str {
+    fn previous_lexeme(&self) -> String {
         if let Some(token) = &self.previous {
-            return &self.source[token.start()..token.start() + token.length()];
+            return self.lexeme(&token);
         }
 
         panic!("Failed to get token lexeme. Previous token is None.");
@@ -122,10 +128,10 @@ impl Assembler {
     }
 
     fn advance_stack_level(&mut self) {
-        self.current_bytecode_index = self.bytecode.len() - 1;
+        self.current_byte_code_index = self.byte_code.len() - 1;
     }
 
-    fn number(&mut self, message: &str) -> u8 {
+    fn number(&mut self, message: &str) -> u32 {
         self.consume(&TokenType::NUMBER, message);
 
         return match self.previous_lexeme().parse() {
@@ -140,7 +146,7 @@ impl Assembler {
         };
     }
 
-    fn register(&mut self, message: &str) -> u8 {
+    fn register(&mut self, message: &str) -> u32 {
         self.consume(&TokenType::IDENTIFIER, message);
 
         let lexeme = self.previous_lexeme();
@@ -155,16 +161,21 @@ impl Assembler {
         };
     }
 
-    fn string(&mut self, message: &str) -> &str {
+    fn string(&mut self, message: &str) -> String {
         self.consume(&TokenType::STRING, message);
 
         let lexeme = self.previous_lexeme();
 
         // Remove surrounding quotes.
-        return &lexeme[1..lexeme.len() - 1];
+        return lexeme
+            .chars()
+            .skip(1)
+            .take(lexeme.chars().count() - 2)
+            .collect::<String>()
+            .replace("\\n", "\n");
     }
 
-    fn identifier(&mut self, message: &str) -> &str {
+    fn identifier(&mut self, message: &str) -> String {
         self.consume(&TokenType::IDENTIFIER, message);
 
         return self.previous_lexeme();
@@ -184,37 +195,51 @@ impl Assembler {
         };
     }
 
-    fn emit_number_bytecode(&mut self, value: u8) {
-        self.bytecode.push(value);
+    fn emit_number_bytecode(&mut self, value: u32) {
+        self.byte_code.push(value.to_be_bytes());
     }
 
     fn emit_op_code_bytecode(&mut self, op_code: OpCode) {
-        self.bytecode.push(op_code as u8);
+        self.byte_code.push(OpCode::to_be_bytes(&op_code));
     }
 
-    fn emit_register_bytecode(&mut self, register: u8) {
-        self.bytecode.push(register);
+    fn emit_register_bytecode(&mut self, register: u32) {
+        self.byte_code.push(register.to_be_bytes());
     }
 
     fn emit_operand_bytecode(&mut self, operand: &Operand) {
         match operand {
             Operand::Number(value) => {
-                self.bytecode.push(OperandType::NUMBER as u8);
-                self.bytecode.push(1);
-                self.bytecode.push(*value);
+                self.byte_code
+                    .push(OperandType::to_be_bytes(&OperandType::NUMBER));
+
+                self.byte_code.push(1u32.to_be_bytes());
+                self.byte_code.push(value.to_be_bytes());
             }
             Operand::Text(value) => {
-                self.bytecode.push(OperandType::TEXT as u8);
+                let value_be_bytes = value
+                    .bytes()
+                    .map(|byte| u32::from(byte).to_be_bytes())
+                    .collect::<Vec<[u8; 4]>>();
+                let value_be_bytes_length: u32 = match value_be_bytes.len().try_into() {
+                    Ok(length) => length,
+                    _ => panic!(
+                        "Failed to get byte length of text operand. Byte length exceeds {}. Found byte length: {}.",
+                        u32::MAX,
+                        value_be_bytes.len()
+                    ),
+                };
 
-                let bytes = value.as_bytes();
-
-                self.bytecode.push(bytes.len() as u8);
-                self.bytecode.extend(bytes);
+                self.byte_code
+                    .push(OperandType::to_be_bytes(&OperandType::TEXT));
+                self.byte_code.push((value_be_bytes_length).to_be_bytes()); // Length in 4-byte characters.
+                self.byte_code.extend(value_be_bytes);
             }
             Operand::Register(value) => {
-                self.bytecode.push(OperandType::REGISTER as u8);
-                self.bytecode.push(1);
-                self.bytecode.push(*value);
+                self.byte_code
+                    .push(OperandType::to_be_bytes(&OperandType::REGISTER));
+                self.byte_code.push(1u32.to_be_bytes());
+                self.byte_code.push(value.to_be_bytes());
             }
         }
     }
@@ -266,17 +291,31 @@ impl Assembler {
         let label_name = self.previous_lexeme();
         let value = label_name.trim_end_matches(':');
         let key = Self::hash(value);
-
-        let index = self.current_bytecode_index + 1;
+        let jump_destination_byte_code_index = self.byte_code.len();
 
         // Backpatch any uninitialised labels.
         if let Some(uninitialised_labels) = self.uninitialised_labels.remove(&key) {
-            for bytecode_index in uninitialised_labels.current_bytecode_indices {
-                self.bytecode[bytecode_index] = index as u8;
+            for current_byte_code_index in uninitialised_labels.current_byte_code_indices {
+                let value: u32 = match jump_destination_byte_code_index.try_into() {
+                    Ok(value) => value,
+                    _ => panic!(
+                        "Failed to convert bytecode index to u32 for backpatching. Bytecode index exceeds {}. Found bytecode index: {}.",
+                        u32::MAX,
+                        jump_destination_byte_code_index
+                    ),
+                };
+
+                println!(
+                    "Backpatching label '{}' at bytecode index {} with value {}.",
+                    value, current_byte_code_index, value
+                );
+
+                self.byte_code[current_byte_code_index] = value.to_be_bytes();
             }
         }
 
-        self.bytecode_indices.insert(key, index);
+        self.byte_code_indices
+            .insert(key, jump_destination_byte_code_index);
     }
 
     fn subtract(&mut self) {
@@ -321,6 +360,48 @@ impl Assembler {
         self.advance_stack_level();
     }
 
+    fn multiply(&mut self) {
+        self.consume(&TokenType::MUL, "Expected 'mul' keyword.");
+
+        let operand_1 = self.operand("Expected first operand after 'mul'.");
+
+        self.consume(&TokenType::COMMA, "Expected ',' after operand.");
+
+        let operand_2 = self.operand("Expected second operand after ','.");
+
+        self.consume(&TokenType::COMMA, "Expected ',' after second operand.");
+
+        let destination = self.register("Expected destination register after ','.");
+
+        self.emit_op_code_bytecode(OpCode::MUL);
+        self.emit_operand_bytecode(&operand_1);
+        self.emit_operand_bytecode(&operand_2);
+        self.emit_register_bytecode(destination);
+
+        self.advance_stack_level();
+    }
+
+    fn divide(&mut self) {
+        self.consume(&TokenType::DIV, "Expected 'div' keyword.");
+
+        let operand_1 = self.operand("Expected first operand after 'div'.");
+
+        self.consume(&TokenType::COMMA, "Expected ',' after operand.");
+
+        let operand_2 = self.operand("Expected second operand after ','.");
+
+        self.consume(&TokenType::COMMA, "Expected ',' after second operand.");
+
+        let destination = self.register("Expected destination register after ','.");
+
+        self.emit_op_code_bytecode(OpCode::DIV);
+        self.emit_operand_bytecode(&operand_1);
+        self.emit_operand_bytecode(&operand_2);
+        self.emit_register_bytecode(destination);
+
+        self.advance_stack_level();
+    }
+
     fn similarity(&mut self) {
         self.consume(&TokenType::SIM, "Expected 'sim' keyword.");
 
@@ -343,11 +424,11 @@ impl Assembler {
     }
 
     fn upsert_uninitialised_label(&mut self, key: u64) {
-        let bytecode_index = self.bytecode.len() - 1;
+        let bytecode_index = self.byte_code.len() - 1;
 
         if let Some(uninitialised_label) = self.uninitialised_labels.get_mut(&key) {
             uninitialised_label
-                .current_bytecode_indices
+                .current_byte_code_indices
                 .push(bytecode_index);
         } else {
             let previous_token = match self.previous.clone() {
@@ -358,7 +439,7 @@ impl Assembler {
             self.uninitialised_labels.insert(
                 key,
                 UnitialisedLabel {
-                    current_bytecode_indices: vec![bytecode_index],
+                    current_byte_code_indices: vec![bytecode_index],
                     token: previous_token,
                 },
             );
@@ -381,12 +462,7 @@ impl Assembler {
         self.consume(&TokenType::COMMA, "Expected ',' after second operand.");
 
         let label = self.identifier("Expected label name after ','.");
-        let key = Self::hash(label);
-
-        let current_bytecode_index = match self.bytecode_indices.get(&key) {
-            Some(index) => Some(index.clone()),
-            None => None,
-        };
+        let key = Self::hash(&label);
 
         let opcode = match token_type {
             TokenType::JEQ => OpCode::JEQ,
@@ -401,8 +477,16 @@ impl Assembler {
         self.emit_operand_bytecode(&operand_1);
         self.emit_operand_bytecode(&operand_2);
 
-        if let Some(index) = current_bytecode_index {
-            self.emit_number_bytecode(index as u8);
+        if let Some(index) = self.byte_code_indices.get(&key) {
+            let value: u32 = match index.clone().try_into() {
+                Ok(value) => value,
+                _ => panic!(
+                    "Failed to convert bytecode index to u32 for jump compare. Bytecode index exceeds {}. Found bytecode index: {}.",
+                    u32::MAX,
+                    index
+                ),
+            };
+            self.emit_number_bytecode(value);
         } else {
             // Placeholder for backpatching.
             self.emit_number_bytecode(0);
@@ -434,6 +518,8 @@ impl Assembler {
                     TokenType::LABEL => self.label(),
                     TokenType::SUB => self.subtract(),
                     TokenType::ADD => self.addition(),
+                    TokenType::MUL => self.multiply(),
+                    TokenType::DIV => self.divide(),
                     TokenType::SIM => self.similarity(),
                     TokenType::JEQ => self.jump_compare(&TokenType::JEQ),
                     TokenType::JLT => self.jump_compare(&TokenType::JLT),
@@ -462,6 +548,11 @@ impl Assembler {
             return Err("Assembly failed due to errors.");
         }
 
-        return Ok(self.bytecode.clone());
+        return Ok(self
+            .byte_code
+            .iter()
+            .flat_map(|bytes| bytes.iter())
+            .cloned()
+            .collect());
     }
 }

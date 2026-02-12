@@ -21,6 +21,19 @@ fn build(file_path: &str) {
         Err(error) => panic!("Build failed. Error: {}", error),
     };
 
+    print!("Assembled byte code ({} bytes):", byte_code.len());
+
+    // Print every 4 bytes as a single instruction
+    for (index, byte) in byte_code.iter().enumerate() {
+        if index % 4 == 0 {
+            print!("\n{:04X}: ", index);
+        }
+
+        print!("{:02X} ", byte);
+    }
+
+    println!();
+
     let path = Path::new(file_path);
     let file_stem = match path.file_stem() {
         Some(value) => value,

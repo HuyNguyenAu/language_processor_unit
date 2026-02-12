@@ -7,7 +7,9 @@ use crate::{
     },
     processor::control_unit::{
         instruction::{
-            AddInstruction, ComparisonType, DivInstruction, Instruction, JumpCompareInstruction, LoadInstruction, MoveInstruction, MulInstruction, OutputInstruction, SimilarityInstruction, SubInstruction
+            AddInstruction, ComparisonType, DivInstruction, Instruction, JumpCompareInstruction,
+            LoadInstruction, MoveInstruction, MulInstruction, OutputInstruction,
+            SimilarityInstruction, SubInstruction,
         },
         memory_unit::MemoryUnit,
         registers::Registers,
@@ -25,8 +27,8 @@ pub struct ControlUnit {
     registers: Registers,
     semantic_logic_unit: SemanticLogicUnit,
 
-    previous_bytecode: Option<u8>,
-    current_bytecode: Option<u8>,
+    previous_be_bytes: Option<[u8; 4]>,
+    current_be_bytes: Option<[u8; 4]>,
 }
 
 impl ControlUnit {
@@ -35,8 +37,8 @@ impl ControlUnit {
             memory: MemoryUnit::new(),
             registers: Registers::new(),
             semantic_logic_unit: SemanticLogicUnit::new(),
-            previous_bytecode: None,
-            current_bytecode: None,
+            previous_be_bytes: None,
+            current_be_bytes: None,
         }
     }
 
@@ -45,32 +47,36 @@ impl ControlUnit {
     }
 
     fn is_at_end(&self) -> bool {
-        return self.registers.get_instruction_pointer() as usize >= self.memory.data_length() - 1;
+        return self.registers.get_instruction_pointer() >= self.memory.length() - 1;
     }
 
     fn advance(&mut self) {
         self.registers.advance_instruction_pointer();
 
-        self.previous_bytecode = self.current_bytecode;
+        self.previous_be_bytes = self.current_be_bytes;
 
-        let current_bytecode = self
-            .memory
-            .read_byte(&self.registers.get_instruction_pointer());
-        self.current_bytecode = Some(*current_bytecode);
+        if self.is_at_end() {
+            self.current_be_bytes = None;
+
+            return;
+        }
+
+        let bytes = self.memory.read(self.registers.get_instruction_pointer());
+        self.current_be_bytes = Some(bytes);
     }
 
     fn decode_operand_type(&mut self, message: &str) -> OperandType {
-        let operand_byte = match self.current_bytecode {
-            Some(bytecode) => bytecode,
-            None => panic!("No current bytecode to determine operand type."),
+        let operand_be_bytes = match self.current_be_bytes {
+            Some(be_bytes) => be_bytes,
+            None => panic!("No current bytecode to determine operand type. {}", message),
         };
 
         // Consume operand type bytecode.
         self.advance();
 
-        let operand_type = match OperandType::from_bytecode(&operand_byte) {
+        let operand_type = match OperandType::from_be_bytes(operand_be_bytes) {
             Ok(operand_type) => operand_type,
-            Err(error) => panic!("{} {} Byte: {:02X}", message, error, operand_byte),
+            Err(error) => panic!("{} {} Byte code: {:?}", message, error, operand_be_bytes),
         };
 
         return operand_type;
@@ -79,24 +85,40 @@ impl ControlUnit {
     fn decode_text(&mut self, message: &str) -> String {
         let mut text_length: usize = 0;
 
-        if let Some(length_byte) = self.current_bytecode {
+        if let Some(length_be_bytes) = self.current_be_bytes {
             // Consume text length bytecode.
             self.advance();
 
-            text_length = length_byte as usize;
+            text_length = match u32::from_be_bytes(length_be_bytes).try_into() {
+                Ok(length) => length,
+                _ => panic!(
+                    "Failed to get text length from bytecode. Text length exceeds {}. Found text length byte code: {:?}.",
+                    usize::MAX,
+                    length_be_bytes
+                ),
+            };
         }
 
         let mut text_bytes: Vec<u8> = Vec::new();
 
         while text_bytes.len() < text_length
-            && let Some(text_byte) = self.current_bytecode
+            && let Some(be_bytes) = self.current_be_bytes
         {
             if !self.is_at_end() {
                 // Consume text bytecode.
                 self.advance();
             }
 
-            text_bytes.push(text_byte);
+            let value: u8 = match u32::from_be_bytes(be_bytes).try_into() {
+                Ok(value) => value,
+                _ => panic!(
+                    "Failed to get text byte from bytecode. Text byte value exceeds {}. Found text byte code: {:?}.",
+                    u8::MAX,
+                    be_bytes
+                ),
+            };
+
+            text_bytes.push(value);
         }
 
         if let Ok(text) = String::from_utf8(text_bytes) {
@@ -106,14 +128,14 @@ impl ControlUnit {
         panic!("{}", message);
     }
 
-    fn decode_register(&mut self, length_byte: bool, message: &str) -> u8 {
+    fn decode_register(&mut self, length_byte: bool, message: &str) -> u32 {
         // Consume register length bytecode if needed.
         if length_byte {
             self.advance();
         }
 
-        let register_byte = match self.current_bytecode {
-            Some(bytecode) => bytecode,
+        let register_be_bytes = match self.current_be_bytes {
+            Some(be_bytes) => be_bytes,
             None => panic!("{}", message),
         };
 
@@ -122,17 +144,17 @@ impl ControlUnit {
             self.advance();
         }
 
-        return register_byte;
+        return u32::from_be_bytes(register_be_bytes);
     }
 
-    fn decode_number(&mut self, length_byte: bool, message: &str) -> u8 {
+    fn decode_number(&mut self, length_byte: bool, message: &str) -> u32 {
         // Consume number length bytecode if needed.
         if length_byte {
             self.advance();
         }
 
-        let number_byte = match self.current_bytecode {
-            Some(bytecode) => bytecode,
+        let number_be_bytes = match self.current_be_bytes {
+            Some(be_bytes) => be_bytes,
             None => panic!("{}", message),
         };
 
@@ -141,7 +163,7 @@ impl ControlUnit {
             self.advance();
         }
 
-        return number_byte;
+        return u32::from_be_bytes(number_be_bytes);
     }
 
     fn decode_operand(
@@ -464,13 +486,13 @@ impl ControlUnit {
     }
 
     fn decode_op_code(&mut self) -> Instruction {
-        let current_bytecode = match self.current_bytecode {
-            Some(bytecode) => bytecode,
+        let be_bytes = match self.current_be_bytes {
+            Some(be_bytes) => be_bytes,
             None => panic!("No current bytecode to determine opcode."),
         };
-        let op_code = match OpCode::from_byte(&current_bytecode) {
+        let op_code = match OpCode::from_be_bytes(be_bytes) {
             Ok(op_code) => op_code,
-            Err(error) => panic!("{} Byte: {:02X}", error, current_bytecode),
+            Err(error) => panic!("{} Byte: {:?}", error, be_bytes),
         };
 
         return match op_code {
@@ -491,22 +513,19 @@ impl ControlUnit {
     }
 
     pub fn fetch_and_decode(&mut self) -> Option<Instruction> {
-        // Initialise current bytecode.
-        let current_bytecode = self
-            .memory
-            .read_byte(&self.registers.get_instruction_pointer());
-        self.current_bytecode = Some(*current_bytecode);
-
         if self.is_at_end() {
             return None;
         }
+
+        // Initialise current bytecode.
+        self.current_be_bytes = Some(self.memory.read(self.registers.get_instruction_pointer()));
 
         return Some(self.decode_op_code());
     }
 
     fn get_value(&self, operand: &Operand) -> Value {
         return match operand {
-            Operand::Number(number) => Value::Number(*number),
+            Operand::Number(number) => Value::Number(number.clone()),
             Operand::Text(text) => Value::Text(text.clone()),
             Operand::Register(register_number) => {
                 let value = self.registers.get_register(register_number).clone();
@@ -659,7 +678,15 @@ impl ControlUnit {
         };
 
         if is_true {
-            self.registers.set_instruction_pointer(&address);
+            let address = match usize::try_from(address) {
+                Ok(address) => address,
+                Err(_) => panic!(
+                    "Failed to jump to bytecode index {}. Address exceeds {}.",
+                    address,
+                    usize::MAX
+                ),
+            };
+            self.registers.set_instruction_pointer(address);
         }
 
         match instruction.comparison_type {

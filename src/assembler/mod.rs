@@ -131,7 +131,7 @@ impl Assembler {
         self.current_bytecode_index = self.bytecode.len() - 1;
     }
 
-    fn number(&mut self, message: &str) -> u8 {
+    fn number(&mut self, message: &str) -> u32 {
         self.consume(&TokenType::NUMBER, message);
 
         return match self.previous_lexeme().parse() {
@@ -146,7 +146,7 @@ impl Assembler {
         };
     }
 
-    fn register(&mut self, message: &str) -> u8 {
+    fn register(&mut self, message: &str) -> u32 {
         self.consume(&TokenType::IDENTIFIER, message);
 
         let lexeme = self.previous_lexeme();
@@ -167,7 +167,11 @@ impl Assembler {
         let lexeme = self.previous_lexeme();
 
         // Remove surrounding quotes.
-        return lexeme.chars().skip(1).take(lexeme.len() - 2).collect();
+        return lexeme
+            .chars()
+            .skip(1)
+            .take(lexeme.chars().count() - 2)
+            .collect::<String>();
     }
 
     fn identifier(&mut self, message: &str) -> String {
@@ -190,37 +194,60 @@ impl Assembler {
         };
     }
 
-    fn emit_number_bytecode(&mut self, value: u8) {
-        self.bytecode.push(value);
+    fn emit_number_bytecode(&mut self, value: u32) {
+        self.bytecode.extend(value.to_be_bytes().iter());
     }
 
     fn emit_op_code_bytecode(&mut self, op_code: OpCode) {
-        self.bytecode.push(op_code as u8);
+        self.bytecode.extend(OpCode::to_be_bytes(&op_code).iter());
     }
 
-    fn emit_register_bytecode(&mut self, register: u8) {
-        self.bytecode.push(register);
+    fn emit_register_bytecode(&mut self, register: u32) {
+        self.bytecode.extend(register.to_be_bytes().iter());
     }
 
     fn emit_operand_bytecode(&mut self, operand: &Operand) {
         match operand {
             Operand::Number(value) => {
-                self.bytecode.push(OperandType::NUMBER as u8);
-                self.bytecode.push(1);
-                self.bytecode.push(*value);
+                self.bytecode
+                    .extend(OperandType::to_be_bytes(&OperandType::NUMBER).iter());
+
+                self.bytecode.extend(1u32.to_be_bytes().iter());
+                self.bytecode.extend(value.to_be_bytes().iter());
             }
             Operand::Text(value) => {
-                self.bytecode.push(OperandType::TEXT as u8);
+                let value_be_bytes = value
+                    .bytes()
+                    .map(|byte| u32::from(byte).to_be_bytes())
+                    .flatten()
+                    .collect::<Vec<u8>>();
+                let value_be_bytes_length: u32 = match value_be_bytes.len().try_into() {
+                    Ok(length) => length,
+                    _ => panic!(
+                        "Failed to get byte length of text operand. Byte length exceeds {}. Found byte length: {}.",
+                        u32::MAX,
+                        value_be_bytes.len()
+                    ),
+                };
 
-                let bytes = value.as_bytes();
+                if value_be_bytes_length % 4 != 0 {
+                    panic!(
+                        "Failed to emit text operand bytecode. Byte length of text operand must be a multiple of 4. Found byte length: {}.",
+                        value_be_bytes_length
+                    );
+                }
 
-                self.bytecode.push(bytes.len() as u8);
-                self.bytecode.extend(bytes);
+                self.bytecode
+                    .extend(OperandType::to_be_bytes(&OperandType::TEXT).iter());
+                self.bytecode
+                    .extend((value_be_bytes_length / 4).to_be_bytes().iter()); // Length in 4-byte characters.
+                self.bytecode.extend(value_be_bytes.iter());
             }
             Operand::Register(value) => {
-                self.bytecode.push(OperandType::REGISTER as u8);
-                self.bytecode.push(1);
-                self.bytecode.push(*value);
+                self.bytecode
+                    .extend(OperandType::to_be_bytes(&OperandType::REGISTER).iter());
+                self.bytecode.extend(1u32.to_be_bytes().iter());
+                self.bytecode.extend(value.to_be_bytes().iter());
             }
         }
     }
@@ -278,7 +305,17 @@ impl Assembler {
         // Backpatch any uninitialised labels.
         if let Some(uninitialised_labels) = self.uninitialised_labels.remove(&key) {
             for bytecode_index in uninitialised_labels.current_bytecode_indices {
-                self.bytecode[bytecode_index] = index as u8;
+                let value: u32 = match index.try_into() {
+                    Ok(value) => value,
+                    _ => panic!(
+                        "Failed to convert bytecode index to u32 for backpatching. Bytecode index exceeds {}. Found bytecode index: {}.",
+                        u32::MAX,
+                        index
+                    ),
+                };
+
+                self.bytecode[bytecode_index..bytecode_index + 4]
+                    .copy_from_slice(&value.to_be_bytes());
             }
         }
 
@@ -431,11 +468,6 @@ impl Assembler {
         let label = self.identifier("Expected label name after ','.");
         let key = Self::hash(&label);
 
-        let current_bytecode_index = match self.bytecode_indices.get(&key) {
-            Some(index) => Some(index.clone()),
-            None => None,
-        };
-
         let opcode = match token_type {
             TokenType::JEQ => OpCode::JEQ,
             TokenType::JLT => OpCode::JLT,
@@ -449,8 +481,16 @@ impl Assembler {
         self.emit_operand_bytecode(&operand_1);
         self.emit_operand_bytecode(&operand_2);
 
-        if let Some(index) = current_bytecode_index {
-            self.emit_number_bytecode(index as u8);
+        if let Some(index) = self.bytecode_indices.get(&key) {
+            let value: u32 = match index.clone().try_into() {
+                Ok(value) => value,
+                _ => panic!(
+                    "Failed to convert bytecode index to u32 for jump compare. Bytecode index exceeds {}. Found bytecode index: {}.",
+                    u32::MAX,
+                    index
+                ),
+            };
+            self.emit_number_bytecode(value);
         } else {
             // Placeholder for backpatching.
             self.emit_number_bytecode(0);

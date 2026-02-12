@@ -1,23 +1,23 @@
 #[derive(Debug)]
 pub enum OpCode {
-    MOV = 0x00,
-    ADD = 0x01,
-    SUB = 0x02,
-    MUL = 0x03,
-    DIV = 0x04,
-    SIM = 0x05,
-    JEQ = 0x06,
-    JLT = 0x07,
-    JLE = 0x08,
-    JGT = 0x09,
-    JGE = 0x0A,
-    OUT = 0x0B,
-    LOAD = 0x0C,
+    MOV,
+    ADD,
+    SUB,
+    MUL,
+    DIV,
+    SIM,
+    JEQ,
+    JLT,
+    JLE,
+    JGT,
+    JGE,
+    OUT,
+    LOAD,
 }
 
 impl OpCode {
-    pub fn from_byte(byte: &u8) -> Result<OpCode, &'static str> {
-        return match byte {
+    pub fn from_be_bytes(be_bytes: [u8; 4]) -> Result<OpCode, &'static str> {
+        return match u32::from_be_bytes(be_bytes) {
             0x00 => Ok(OpCode::MOV),
             0x01 => Ok(OpCode::ADD),
             0x02 => Ok(OpCode::SUB),
@@ -33,5 +33,25 @@ impl OpCode {
             0x0C => Ok(OpCode::LOAD),
             _ => Err("Invalid opcode byte."),
         };
+    }
+
+    pub fn to_be_bytes(&self) -> [u8; 4] {
+        let value: u32 = match self {
+            OpCode::MOV => 0x00,
+            OpCode::ADD => 0x01,
+            OpCode::SUB => 0x02,
+            OpCode::MUL => 0x03,
+            OpCode::DIV => 0x04,
+            OpCode::SIM => 0x05,
+            OpCode::JEQ => 0x06,
+            OpCode::JLT => 0x07,
+            OpCode::JLE => 0x08,
+            OpCode::JGT => 0x09,
+            OpCode::JGE => 0x0A,
+            OpCode::OUT => 0x0B,
+            OpCode::LOAD => 0x0C,
+        };
+
+        return value.to_be_bytes();
     }
 }

@@ -171,7 +171,7 @@ impl SemanticLogicUnit {
         };
     }
 
-    pub fn similarity(&self, value_a: &Value, value_b: &Value) -> u8 {
+    pub fn similarity(&self, value_a: &Value, value_b: &Value) -> u32 {
         let value_a = match value_a {
             Value::Text(text) => text,
             _ => panic!("Similarity requires text value."),
@@ -181,29 +181,27 @@ impl SemanticLogicUnit {
             _ => panic!("Similarity requires text value."),
         };
 
-        let first_embedding_result = self.embeddings(value_a);
-        let first_embedding = match &first_embedding_result {
+        let value_a_embeddings = match self.embeddings(value_a) {
             Ok(embedding) => embedding,
             Err(error) => panic!("Failed to get first embedding. Error: {}", error),
         };
 
-        let second_embedding_result = self.embeddings(value_b);
-        let second_embedding = match &second_embedding_result {
+        let value_b_embeddings = match self.embeddings(value_b) {
             Ok(embedding) => embedding,
             Err(error) => panic!("Failed to get second embedding. Error: {}", error),
         };
 
         // Compute cosine similarity.
-        let dot_product: f32 = first_embedding
+        let dot_product: f32 = value_a_embeddings
             .iter()
-            .zip(second_embedding.iter())
+            .zip(value_b_embeddings.iter())
             .map(|(a, b)| a * b)
             .sum();
-        let x_euclidean_length: f32 = first_embedding.iter().map(|x| x * x).sum::<f32>().sqrt();
-        let y_euclidean_length: f32 = second_embedding.iter().map(|y| y * y).sum::<f32>().sqrt();
+        let x_euclidean_length: f32 = value_a_embeddings.iter().map(|x| x * x).sum::<f32>().sqrt();
+        let y_euclidean_length: f32 = value_b_embeddings.iter().map(|y| y * y).sum::<f32>().sqrt();
         let similarity = dot_product / (x_euclidean_length * y_euclidean_length);
         let percentage_similarity = similarity.clamp(0.0, 1.0) * 100.0;
 
-        return (percentage_similarity.round()) as u8;
+        return percentage_similarity.round() as u32;
     }
 }

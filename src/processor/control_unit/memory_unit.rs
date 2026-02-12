@@ -11,14 +11,16 @@ impl MemoryUnit {
         self.data = bytecode;
     }
 
-    pub fn read_byte(&self, address: &u8) -> &u8 {
-        return match self.data.get(*address as usize) {
-            Some(byte) => byte,
+    pub fn read(&self, address: usize) -> [u8; 4] {
+        let bytes = match self.data.get(address..address + 4) {
+            Some(bytes) => bytes,
             None => panic!("Address out of bounds."),
         };
+
+        return [bytes[0], bytes[1], bytes[2], bytes[3]];
     }
 
-    pub fn data_length(&self) -> usize {
-        self.data.len()
+    pub fn length(&self) -> usize {
+        return self.data.len();
     }
 }

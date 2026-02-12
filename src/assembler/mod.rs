@@ -11,12 +11,12 @@ pub mod operand;
 mod scanner;
 
 struct UnitialisedLabel {
-    current_bytecode_indices: Vec<usize>,
+    current_byte_code_indices: Vec<usize>,
     token: Token,
 }
 
 pub struct Assembler {
-    bytecode: Vec<u8>,
+    byte_code: Vec<[u8; 4]>,
 
     source: &'static str,
     scanner: Scanner,
@@ -24,8 +24,8 @@ pub struct Assembler {
     previous: Option<Token>,
     current: Option<Token>,
 
-    current_bytecode_index: usize,
-    bytecode_indices: HashMap<u64, usize>,
+    current_byte_code_index: usize,
+    byte_code_indices: HashMap<u64, usize>,
     uninitialised_labels: HashMap<u64, UnitialisedLabel>,
 
     had_error: bool,
@@ -35,13 +35,13 @@ pub struct Assembler {
 impl Assembler {
     pub fn new(source: &'static str) -> Self {
         return Assembler {
-            bytecode: Vec::new(),
+            byte_code: Vec::new(),
             source,
             scanner: Scanner::new(source),
             previous: None,
             current: None,
-            current_bytecode_index: 0,
-            bytecode_indices: HashMap::new(),
+            current_byte_code_index: 0,
+            byte_code_indices: HashMap::new(),
             uninitialised_labels: HashMap::new(),
             had_error: false,
             panic_mode: false,
@@ -128,7 +128,7 @@ impl Assembler {
     }
 
     fn advance_stack_level(&mut self) {
-        self.current_bytecode_index = self.bytecode.len() - 1;
+        self.current_byte_code_index = self.byte_code.len() - 1;
     }
 
     fn number(&mut self, message: &str) -> u32 {
@@ -195,32 +195,31 @@ impl Assembler {
     }
 
     fn emit_number_bytecode(&mut self, value: u32) {
-        self.bytecode.extend(value.to_be_bytes().iter());
+        self.byte_code.push(value.to_be_bytes());
     }
 
     fn emit_op_code_bytecode(&mut self, op_code: OpCode) {
-        self.bytecode.extend(OpCode::to_be_bytes(&op_code).iter());
+        self.byte_code.push(OpCode::to_be_bytes(&op_code));
     }
 
     fn emit_register_bytecode(&mut self, register: u32) {
-        self.bytecode.extend(register.to_be_bytes().iter());
+        self.byte_code.push(register.to_be_bytes());
     }
 
     fn emit_operand_bytecode(&mut self, operand: &Operand) {
         match operand {
             Operand::Number(value) => {
-                self.bytecode
-                    .extend(OperandType::to_be_bytes(&OperandType::NUMBER).iter());
+                self.byte_code
+                    .push(OperandType::to_be_bytes(&OperandType::NUMBER));
 
-                self.bytecode.extend(1u32.to_be_bytes().iter());
-                self.bytecode.extend(value.to_be_bytes().iter());
+                self.byte_code.push(1u32.to_be_bytes());
+                self.byte_code.push(value.to_be_bytes());
             }
             Operand::Text(value) => {
                 let value_be_bytes = value
                     .bytes()
                     .map(|byte| u32::from(byte).to_be_bytes())
-                    .flatten()
-                    .collect::<Vec<u8>>();
+                    .collect::<Vec<[u8; 4]>>();
                 let value_be_bytes_length: u32 = match value_be_bytes.len().try_into() {
                     Ok(length) => length,
                     _ => panic!(
@@ -230,24 +229,17 @@ impl Assembler {
                     ),
                 };
 
-                if value_be_bytes_length % 4 != 0 {
-                    panic!(
-                        "Failed to emit text operand bytecode. Byte length of text operand must be a multiple of 4. Found byte length: {}.",
-                        value_be_bytes_length
-                    );
-                }
-
-                self.bytecode
-                    .extend(OperandType::to_be_bytes(&OperandType::TEXT).iter());
-                self.bytecode
-                    .extend((value_be_bytes_length / 4).to_be_bytes().iter()); // Length in 4-byte characters.
-                self.bytecode.extend(value_be_bytes.iter());
+                self.byte_code
+                    .push(OperandType::to_be_bytes(&OperandType::TEXT));
+                self.byte_code
+                    .push((value_be_bytes_length).to_be_bytes()); // Length in 4-byte characters.
+                self.byte_code.extend(value_be_bytes);
             }
             Operand::Register(value) => {
-                self.bytecode
-                    .extend(OperandType::to_be_bytes(&OperandType::REGISTER).iter());
-                self.bytecode.extend(1u32.to_be_bytes().iter());
-                self.bytecode.extend(value.to_be_bytes().iter());
+                self.byte_code
+                    .push(OperandType::to_be_bytes(&OperandType::REGISTER));
+                self.byte_code.push(1u32.to_be_bytes());
+                self.byte_code.push(value.to_be_bytes());
             }
         }
     }
@@ -299,27 +291,28 @@ impl Assembler {
         let label_name = self.previous_lexeme();
         let value = label_name.trim_end_matches(':');
         let key = Self::hash(value);
-
-        let index = self.current_bytecode_index + 1;
+        let jump_destination_byte_code_index = self.byte_code.len();
 
         // Backpatch any uninitialised labels.
         if let Some(uninitialised_labels) = self.uninitialised_labels.remove(&key) {
-            for bytecode_index in uninitialised_labels.current_bytecode_indices {
-                let value: u32 = match index.try_into() {
+            for current_byte_code_index in uninitialised_labels.current_byte_code_indices {
+                let value: u32 = match jump_destination_byte_code_index.try_into() {
                     Ok(value) => value,
                     _ => panic!(
                         "Failed to convert bytecode index to u32 for backpatching. Bytecode index exceeds {}. Found bytecode index: {}.",
                         u32::MAX,
-                        index
+                        jump_destination_byte_code_index
                     ),
                 };
 
-                self.bytecode[bytecode_index..bytecode_index + 4]
-                    .copy_from_slice(&value.to_be_bytes());
+                println!("Backpatching label '{}' at bytecode index {} with value {}.", value, current_byte_code_index, value);
+
+                self.byte_code[current_byte_code_index] = value.to_be_bytes();
             }
         }
 
-        self.bytecode_indices.insert(key, index);
+        self.byte_code_indices
+            .insert(key, jump_destination_byte_code_index);
     }
 
     fn subtract(&mut self) {
@@ -428,11 +421,11 @@ impl Assembler {
     }
 
     fn upsert_uninitialised_label(&mut self, key: u64) {
-        let bytecode_index = self.bytecode.len() - 1;
+        let bytecode_index = self.byte_code.len() - 1;
 
         if let Some(uninitialised_label) = self.uninitialised_labels.get_mut(&key) {
             uninitialised_label
-                .current_bytecode_indices
+                .current_byte_code_indices
                 .push(bytecode_index);
         } else {
             let previous_token = match self.previous.clone() {
@@ -443,7 +436,7 @@ impl Assembler {
             self.uninitialised_labels.insert(
                 key,
                 UnitialisedLabel {
-                    current_bytecode_indices: vec![bytecode_index],
+                    current_byte_code_indices: vec![bytecode_index],
                     token: previous_token,
                 },
             );
@@ -481,7 +474,7 @@ impl Assembler {
         self.emit_operand_bytecode(&operand_1);
         self.emit_operand_bytecode(&operand_2);
 
-        if let Some(index) = self.bytecode_indices.get(&key) {
+        if let Some(index) = self.byte_code_indices.get(&key) {
             let value: u32 = match index.clone().try_into() {
                 Ok(value) => value,
                 _ => panic!(
@@ -552,6 +545,11 @@ impl Assembler {
             return Err("Assembly failed due to errors.");
         }
 
-        return Ok(self.bytecode.clone());
+        return Ok(self
+            .byte_code
+            .iter()
+            .flat_map(|bytes| bytes.iter())
+            .cloned()
+            .collect());
     }
 }

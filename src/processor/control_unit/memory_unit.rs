@@ -1,5 +1,5 @@
 pub struct MemoryUnit {
-    data: Vec<u8>,
+    data: Vec<[u8; 4]>,
 }
 
 impl MemoryUnit {
@@ -7,17 +7,15 @@ impl MemoryUnit {
         MemoryUnit { data: Vec::new() }
     }
 
-    pub fn load(&mut self, bytecode: Vec<u8>) {
-        self.data = bytecode;
+    pub fn load(&mut self, byte_code: Vec<[u8; 4]>) {
+        self.data = byte_code;
     }
 
-    pub fn read(&self, address: usize) -> [u8; 4] {
-        let bytes = match self.data.get(address..address + 4) {
+    pub fn read(&self, address: usize) -> &[u8; 4] {
+        return match self.data.get(address) {
             Some(bytes) => bytes,
             None => panic!("Address out of bounds."),
         };
-
-        return [bytes[0], bytes[1], bytes[2], bytes[3]];
     }
 
     pub fn length(&self) -> usize {

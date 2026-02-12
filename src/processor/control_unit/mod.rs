@@ -42,12 +42,12 @@ impl ControlUnit {
         }
     }
 
-    pub fn load_bytecode(&mut self, bytecode: Vec<u8>) {
-        self.memory.load(bytecode);
+    pub fn load_byte_code(&mut self, byte_code: Vec<[u8; 4]>) {
+        self.memory.load(byte_code);
     }
 
     fn is_at_end(&self) -> bool {
-        return self.registers.get_instruction_pointer() >= self.memory.length() - 1;
+        return self.registers.get_instruction_pointer() >= self.memory.length();
     }
 
     fn advance(&mut self) {
@@ -62,7 +62,7 @@ impl ControlUnit {
         }
 
         let bytes = self.memory.read(self.registers.get_instruction_pointer());
-        self.current_be_bytes = Some(bytes);
+        self.current_be_bytes = Some(bytes.clone());
     }
 
     fn decode_operand_type(&mut self, message: &str) -> OperandType {
@@ -426,6 +426,7 @@ impl ControlUnit {
             )
             .as_str(),
         );
+
         let comparison_type = match op_code {
             OpCode::JEQ => ComparisonType::Equal,
             OpCode::JLT => ComparisonType::LessThan,
@@ -518,7 +519,7 @@ impl ControlUnit {
         }
 
         // Initialise current bytecode.
-        self.current_be_bytes = Some(self.memory.read(self.registers.get_instruction_pointer()));
+        self.current_be_bytes = Some(self.memory.read(self.registers.get_instruction_pointer()).clone());
 
         return Some(self.decode_op_code());
     }

@@ -13,8 +13,32 @@ impl Processor {
         }
     }
 
-    pub fn load(&mut self, bytecode: Vec<u8>) {
-        self.control.load_bytecode(bytecode);
+    pub fn load(&mut self, data: Vec<u8>) {
+        let byte_code: Vec<[u8; 4]> = data
+            .chunks(4)
+            .map(|chunk| {
+                return [
+                    chunk
+                        .get(0)
+                        .cloned()
+                        .expect("Byte code chunk is missing the first byte"),
+                    chunk
+                        .get(1)
+                        .cloned()
+                        .expect("Byte code chunk is missing the second byte"),
+                    chunk
+                        .get(2)
+                        .cloned()
+                        .expect("Byte code chunk is missing the third byte"),
+                    chunk
+                        .get(3)
+                        .cloned()
+                        .expect("Byte code chunk is missing the fourth byte"),
+                ];
+            })
+            .collect();
+
+        self.control.load_byte_code(byte_code);
     }
 
     pub fn run(&mut self) {

@@ -21,15 +21,14 @@ fn build(file_path: &str) {
         Err(error) => panic!("Build failed. Error: {}", error),
     };
 
-    print!("Assembled byte code ({} bytes):", byte_code.len());
+    println!("Assembled byte code ({} bytes):", byte_code.len());
 
     // Print every 4 bytes as a single instruction
-    for (index, byte) in byte_code.iter().enumerate() {
-        if index % 4 == 0 {
-            print!("\n{:04X}: ", index);
-        }
+    for (chuck_index, byte) in byte_code.chunks(4).enumerate() {
+        let index = chuck_index * 4;
 
-        print!("{:02X} ", byte);
+        print!("{} {:02X} ({}): ", chuck_index, index, index);
+        println!("{:?} ", byte);
     }
 
     println!();
@@ -51,14 +50,14 @@ fn build(file_path: &str) {
 }
 
 fn run(file_path: &str) {
-    let bytecode = match read(file_path) {
+    let data = match read(file_path) {
         Ok(value) => value,
         Err(error) => panic!("Run failed. Error: {}", error),
     };
 
     let mut processor = processor::Processor::new();
 
-    processor.load(bytecode);
+    processor.load(data);
     processor.run();
 }
 

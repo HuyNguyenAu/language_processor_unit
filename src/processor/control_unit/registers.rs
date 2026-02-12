@@ -64,6 +64,6 @@ impl Registers {
     }
 
     pub fn advance_instruction_pointer(&mut self) {
-        self.instruction_pointer += 4;
+        self.instruction_pointer += 1;
     }
 }

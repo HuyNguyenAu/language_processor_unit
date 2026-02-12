@@ -8,7 +8,7 @@
         ; Execution
         sim r1, r2, r3
         jgt r3, 80, end
-        mov r4, "The sentences are not similar enough."
+        mov r4, "The sentences are not similar."
 
         ; Output
 end:    out r4

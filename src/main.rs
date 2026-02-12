@@ -8,7 +8,7 @@ use std::{
     path::Path,
 };
 
-fn build(file_path: &str) {
+fn build(file_path: &str, debug: bool) {
     let source = match read_to_string(file_path) {
         Ok(content) => Box::leak(Box::new(content)).as_str(),
         Err(error) => panic!("Build failed. Error: {}", error),
@@ -21,17 +21,19 @@ fn build(file_path: &str) {
         Err(error) => panic!("Build failed. Error: {}", error),
     };
 
-    println!("Assembled byte code ({} bytes):", byte_code.len());
+    if debug {
+        println!("Assembled byte code ({} bytes):", byte_code.len());
 
-    // Print every 4 bytes as a single instruction
-    for (chuck_index, byte) in byte_code.chunks(4).enumerate() {
-        let index = chuck_index * 4;
+        // Print every 4 bytes as a single instruction
+        for (chuck_index, byte) in byte_code.chunks(4).enumerate() {
+            let index = chuck_index * 4;
 
-        print!("{} {:02X} ({}): ", chuck_index, index, index);
-        println!("{:?} ", byte);
+            print!("{} {:02X} ({}): ", chuck_index, index, index);
+            println!("{:?} ", byte);
+        }
+
+        println!();
     }
-
-    println!();
 
     let path = Path::new(file_path);
     let file_stem = match path.file_stem() {
@@ -84,7 +86,7 @@ fn main() {
     let debug = args.get(3).map_or(false, |arg| arg == "--debug");
 
     match command.as_str() {
-        "build" => build(file_path),
+        "build" => build(file_path, debug),
         "run" => run(file_path, debug),
         _ => panic!("Unknown command: {}", command),
     }

@@ -33,7 +33,7 @@ pub enum TokenType {
 pub struct Token {
     token_type: TokenType,
     start: usize,
-    length: usize,
+    end: usize,
     line: usize,
     column: usize,
     error: Option<&'static str>,
@@ -43,7 +43,7 @@ impl Token {
     pub fn new(
         token_type: TokenType,
         start: usize,
-        length: usize,
+        end: usize,
         line: usize,
         column: usize,
         error: Option<&'static str>,
@@ -51,7 +51,7 @@ impl Token {
         Token {
             token_type,
             start,
-            length,
+            end,
             line,
             column,
             error,
@@ -66,8 +66,8 @@ impl Token {
         return self.start;
     }
 
-    pub fn length(&self) -> usize {
-        return self.length;
+    pub fn end(&self) -> usize {
+        return self.end;
     }
 
     pub fn line(&self) -> usize {

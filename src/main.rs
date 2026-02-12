@@ -9,12 +9,12 @@ use std::{
 };
 
 fn build(file_path: &str) {
-    let instructions = match read_to_string(file_path) {
+    let source = match read_to_string(file_path) {
         Ok(content) => Box::leak(Box::new(content)).as_str(),
         Err(error) => panic!("Build failed. Error: {}", error),
     };
 
-    let mut compiler = assembler::Assembler::new(instructions);
+    let mut compiler = assembler::Assembler::new(source);
 
     let byte_code = match compiler.assemble() {
         Ok(byte_code) => byte_code,

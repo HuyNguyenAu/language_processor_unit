@@ -33,7 +33,7 @@ impl Scanner {
     }
 
     fn is_at_end(&self) -> bool {
-        return self.current >= self.source.len();
+        return self.current >= self.source.chars().count();
     }
 
     fn advance(&mut self) -> char {
@@ -43,7 +43,7 @@ impl Scanner {
         return self.source.chars().nth(self.current - 1).expect(
             format!(
                 "Tried to advance past end of source. Source length: {}, current: {}",
-                self.source.len(),
+                self.source.chars().count(),
                 self.current - 1
             )
             .as_str(),
@@ -54,7 +54,7 @@ impl Scanner {
         return self.source.chars().nth(self.current).expect(
             format!(
                 "Tried to peek past end of source. Source length: {}, current: {}",
-                self.source.len(),
+                self.source.chars().count(),
                 self.current
             )
             .as_str(),
@@ -65,7 +65,7 @@ impl Scanner {
         return self.source.chars().nth(self.current + 1).expect(
             format!(
                 "Tried to peek next past end of source. Source length: {}, current: {}",
-                self.source.len(),
+                self.source.chars().count(),
                 self.current + 1
             )
             .as_str(),
@@ -76,7 +76,7 @@ impl Scanner {
         return Token::new(
             token_type,
             self.start,
-            self.current - self.start,
+            self.current,
             self.line,
             self.column,
             None,
@@ -87,7 +87,7 @@ impl Scanner {
         return Token::new(
             TokenType::ERROR,
             self.start,
-            self.current - self.start,
+            self.current,
             self.line,
             self.column,
             Some(message),

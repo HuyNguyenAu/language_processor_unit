@@ -48,6 +48,15 @@ impl Assembler {
         };
     }
 
+    fn lexeme(&self, token: &Token) -> String {
+        return self
+            .source
+            .chars()
+            .skip(token.start())
+            .take(token.end() - token.start())
+            .collect::<String>();
+    }
+
     fn error_at(&mut self, token: &Token, message: &str) {
         if self.panic_mode {
             return;
@@ -63,10 +72,7 @@ impl Assembler {
             eprint!(" {}", error);
         }
 
-        eprint!(
-            " at '{}'.",
-            &self.source[token.start()..token.start() + token.length()]
-        );
+        eprint!(" at '{}'.", self.lexeme(token));
 
         eprintln!(" {}", message);
 
@@ -101,9 +107,9 @@ impl Assembler {
         }
     }
 
-    fn previous_lexeme(&self) -> &str {
+    fn previous_lexeme(&self) -> String {
         if let Some(token) = &self.previous {
-            return &self.source[token.start()..token.start() + token.length()];
+            return self.lexeme(&token);
         }
 
         panic!("Failed to get token lexeme. Previous token is None.");
@@ -155,16 +161,16 @@ impl Assembler {
         };
     }
 
-    fn string(&mut self, message: &str) -> &str {
+    fn string(&mut self, message: &str) -> String {
         self.consume(&TokenType::STRING, message);
 
         let lexeme = self.previous_lexeme();
 
         // Remove surrounding quotes.
-        return &lexeme[1..lexeme.len() - 1];
+        return lexeme.chars().skip(1).take(lexeme.len() - 2).collect();
     }
 
-    fn identifier(&mut self, message: &str) -> &str {
+    fn identifier(&mut self, message: &str) -> String {
         self.consume(&TokenType::IDENTIFIER, message);
 
         return self.previous_lexeme();
@@ -423,7 +429,7 @@ impl Assembler {
         self.consume(&TokenType::COMMA, "Expected ',' after second operand.");
 
         let label = self.identifier("Expected label name after ','.");
-        let key = Self::hash(label);
+        let key = Self::hash(&label);
 
         let current_bytecode_index = match self.bytecode_indices.get(&key) {
             Some(index) => Some(index.clone()),

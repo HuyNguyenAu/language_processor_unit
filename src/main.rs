@@ -68,12 +68,6 @@ fn startup() {
     {
         panic!("Failed to create build directory. Error: {}", error);
     }
-
-    if !Path::new(constants::TEMP_DIR).exists()
-        && let Err(error) = std::fs::create_dir_all(constants::TEMP_DIR)
-    {
-        panic!("Failed to create temp directory. Error: {}", error);
-    }
 }
 
 fn main() {

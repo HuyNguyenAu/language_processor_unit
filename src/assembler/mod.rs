@@ -171,7 +171,8 @@ impl Assembler {
             .chars()
             .skip(1)
             .take(lexeme.chars().count() - 2)
-            .collect::<String>();
+            .collect::<String>()
+            .replace("\\n", "\n");
     }
 
     fn identifier(&mut self, message: &str) -> String {
@@ -231,8 +232,7 @@ impl Assembler {
 
                 self.byte_code
                     .push(OperandType::to_be_bytes(&OperandType::TEXT));
-                self.byte_code
-                    .push((value_be_bytes_length).to_be_bytes()); // Length in 4-byte characters.
+                self.byte_code.push((value_be_bytes_length).to_be_bytes()); // Length in 4-byte characters.
                 self.byte_code.extend(value_be_bytes);
             }
             Operand::Register(value) => {
@@ -305,7 +305,10 @@ impl Assembler {
                     ),
                 };
 
-                println!("Backpatching label '{}' at bytecode index {} with value {}.", value, current_byte_code_index, value);
+                println!(
+                    "Backpatching label '{}' at bytecode index {} with value {}.",
+                    value, current_byte_code_index, value
+                );
 
                 self.byte_code[current_byte_code_index] = value.to_be_bytes();
             }

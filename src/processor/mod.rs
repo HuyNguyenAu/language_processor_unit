@@ -41,9 +41,9 @@ impl Processor {
         self.control.load_byte_code(byte_code);
     }
 
-    pub fn run(&mut self) {
+    pub fn run(&mut self, debug: bool) {
         while let Some(instruction) = self.control.fetch_and_decode() {
-            self.control.execute(&instruction);
+            self.control.execute(&instruction, debug);
         }
     }
 }

@@ -49,7 +49,7 @@ fn build(file_path: &str) {
     }
 }
 
-fn run(file_path: &str) {
+fn run(file_path: &str, debug: bool) {
     let data = match read(file_path) {
         Ok(value) => value,
         Err(error) => panic!("Run failed. Error: {}", error),
@@ -58,7 +58,7 @@ fn run(file_path: &str) {
     let mut processor = processor::Processor::new();
 
     processor.load(data);
-    processor.run();
+    processor.run(debug);
 }
 
 fn startup() {
@@ -81,10 +81,11 @@ fn main() {
         Some(value) => value,
         None => panic!("No file path provided"),
     };
+    let debug = args.get(3).map_or(false, |arg| arg == "--debug");
 
     match command.as_str() {
         "build" => build(file_path),
-        "run" => run(file_path),
+        "run" => run(file_path, debug),
         _ => panic!("Unknown command: {}", command),
     }
 }

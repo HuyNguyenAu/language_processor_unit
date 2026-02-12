@@ -519,7 +519,11 @@ impl ControlUnit {
         }
 
         // Initialise current bytecode.
-        self.current_be_bytes = Some(self.memory.read(self.registers.get_instruction_pointer()).clone());
+        self.current_be_bytes = Some(
+            self.memory
+                .read(self.registers.get_instruction_pointer())
+                .clone(),
+        );
 
         return Some(self.decode_op_code());
     }
@@ -543,20 +547,22 @@ impl ControlUnit {
         };
     }
 
-    fn execute_move(&mut self, instruction: &MoveInstruction) {
+    fn execute_move(&mut self, instruction: &MoveInstruction, debug: bool) {
         let value = self.get_value(&instruction.value);
         self.registers
             .set_register(&instruction.destination_register, value);
 
-        println!(
-            "Executed MOV: r{} = \"{:?}\"",
-            instruction.destination_register,
-            self.registers
-                .get_register(&instruction.destination_register)
-        );
+        if debug {
+            println!(
+                "Executed MOV: r{} = \"{:?}\"",
+                instruction.destination_register,
+                self.registers
+                    .get_register(&instruction.destination_register)
+            );
+        }
     }
 
-    fn execute_add(&mut self, instruction: &AddInstruction) {
+    fn execute_add(&mut self, instruction: &AddInstruction, debug: bool) {
         let value_a = self.get_value(&instruction.first_operand);
         let value_b = self.get_value(&instruction.second_operand);
 
@@ -565,17 +571,19 @@ impl ControlUnit {
         self.registers
             .set_register(&instruction.destination_register, Value::Text(result));
 
-        println!(
-            "Executed ADD: {:?} + {:?} -> r{} = \"{:?}\"",
-            value_a,
-            value_b,
-            instruction.destination_register,
-            self.registers
-                .get_register(&instruction.destination_register)
-        );
+        if debug {
+            println!(
+                "Executed ADD: {:?} + {:?} -> r{} = \"{:?}\"",
+                value_a,
+                value_b,
+                instruction.destination_register,
+                self.registers
+                    .get_register(&instruction.destination_register)
+            );
+        }
     }
 
-    fn execute_subtract(&mut self, instruction: &SubInstruction) {
+    fn execute_subtract(&mut self, instruction: &SubInstruction, debug: bool) {
         let value_a = self.get_value(&instruction.first_operand);
         let value_b = self.get_value(&instruction.second_operand);
 
@@ -583,17 +591,20 @@ impl ControlUnit {
 
         self.registers
             .set_register(&instruction.destination_register, Value::Text(result));
-        println!(
-            "Executed SUB: {:?} - {:?} -> r{} = \"{:?}\"",
-            value_a,
-            value_b,
-            instruction.destination_register,
-            self.registers
-                .get_register(&instruction.destination_register)
-        );
+
+        if debug {
+            println!(
+                "Executed SUB: {:?} - {:?} -> r{} = \"{:?}\"",
+                value_a,
+                value_b,
+                instruction.destination_register,
+                self.registers
+                    .get_register(&instruction.destination_register)
+            );
+        }
     }
 
-    fn execute_multiply(&mut self, instruction: &MulInstruction) {
+    fn execute_multiply(&mut self, instruction: &MulInstruction, debug: bool) {
         let first_operand_value = self.get_value(&instruction.first_operand);
         let second_operand_value = self.get_value(&instruction.second_operand);
 
@@ -604,17 +615,19 @@ impl ControlUnit {
         self.registers
             .set_register(&instruction.destination_register, Value::Text(result));
 
-        println!(
-            "Executed MUL: {:?} * {:?} -> r{} = \"{:?}\"",
-            first_operand_value,
-            second_operand_value,
-            instruction.destination_register,
-            self.registers
-                .get_register(&instruction.destination_register)
-        );
+        if debug {
+            println!(
+                "Executed MUL: {:?} * {:?} -> r{} = \"{:?}\"",
+                first_operand_value,
+                second_operand_value,
+                instruction.destination_register,
+                self.registers
+                    .get_register(&instruction.destination_register)
+            );
+        }
     }
 
-    fn execute_divide(&mut self, instruction: &DivInstruction) {
+    fn execute_divide(&mut self, instruction: &DivInstruction, debug: bool) {
         let first_operand_value = self.get_value(&instruction.first_operand);
         let second_operand_value = self.get_value(&instruction.second_operand);
 
@@ -625,17 +638,19 @@ impl ControlUnit {
         self.registers
             .set_register(&instruction.destination_register, Value::Text(result));
 
-        println!(
-            "Executed DIV: {:?} / {:?} -> r{} = \"{:?}\"",
-            first_operand_value,
-            second_operand_value,
-            instruction.destination_register,
-            self.registers
-                .get_register(&instruction.destination_register)
-        );
+        if debug {
+            println!(
+                "Executed DIV: {:?} / {:?} -> r{} = \"{:?}\"",
+                first_operand_value,
+                second_operand_value,
+                instruction.destination_register,
+                self.registers
+                    .get_register(&instruction.destination_register)
+            );
+        }
     }
 
-    fn execute_similarity(&mut self, instruction: &SimilarityInstruction) {
+    fn execute_similarity(&mut self, instruction: &SimilarityInstruction, debug: bool) {
         let value_a = self.get_value(&instruction.first_operand);
         let value_b = self.get_value(&instruction.second_operand);
 
@@ -644,17 +659,19 @@ impl ControlUnit {
         self.registers
             .set_register(&instruction.destination_register, Value::Number(score));
 
-        println!(
-            "Executed SIM: {:?} ~ {:?} -> r{} = \"{:?}\"",
-            value_a,
-            value_b,
-            instruction.destination_register,
-            self.registers
-                .get_register(&instruction.destination_register)
-        );
+        if debug {
+            println!(
+                "Executed SIM: {:?} ~ {:?} -> r{} = \"{:?}\"",
+                value_a,
+                value_b,
+                instruction.destination_register,
+                self.registers
+                    .get_register(&instruction.destination_register)
+            );
+        }
     }
 
-    fn execute_jump_compare(&mut self, instruction: &JumpCompareInstruction) {
+    fn execute_jump_compare(&mut self, instruction: &JumpCompareInstruction, debug: bool) {
         let value_a = match self.get_value(&instruction.first_operand) {
             Value::Number(num) => num,
             _ => panic!(
@@ -690,49 +707,55 @@ impl ControlUnit {
             self.registers.set_instruction_pointer(address);
         }
 
-        match instruction.comparison_type {
-            ComparisonType::Equal => {
-                println!(
-                    "Executed JEQ: {:?} == {:?} -> {}, {}",
+        if debug {
+            match instruction.comparison_type {
+                ComparisonType::Equal => {
+                    println!(
+                        "Executed JEQ: {:?} == {:?} -> {}, {}",
+                        value_a, value_b, is_true, instruction.bytecode_jump_index
+                    );
+                }
+                ComparisonType::LessThan => {
+                    println!(
+                        "Executed JLT: {:?} < {:?} -> {}, {}",
+                        value_a, value_b, is_true, instruction.bytecode_jump_index
+                    );
+                }
+                ComparisonType::LessThanOrEqual => {
+                    println!(
+                        "Executed JLE: {:?} <= {:?} -> {}, {}",
+                        value_a, value_b, is_true, instruction.bytecode_jump_index
+                    );
+                }
+                ComparisonType::GreaterThan => {
+                    println!(
+                        "Executed JGT: {:?} > {:?} -> {}, {}",
+                        value_a, value_b, is_true, instruction.bytecode_jump_index
+                    );
+                }
+                ComparisonType::GreaterThanOrEqual => println!(
+                    "Executed JGE: {:?} >= {:?} -> {}, {}",
                     value_a, value_b, is_true, instruction.bytecode_jump_index
-                );
+                ),
             }
-            ComparisonType::LessThan => {
-                println!(
-                    "Executed JLT: {:?} < {:?} -> {}, {}",
-                    value_a, value_b, is_true, instruction.bytecode_jump_index
-                );
-            }
-            ComparisonType::LessThanOrEqual => {
-                println!(
-                    "Executed JLE: {:?} <= {:?} -> {}, {}",
-                    value_a, value_b, is_true, instruction.bytecode_jump_index
-                );
-            }
-            ComparisonType::GreaterThan => {
-                println!(
-                    "Executed JGT: {:?} > {:?} -> {}, {}",
-                    value_a, value_b, is_true, instruction.bytecode_jump_index
-                );
-            }
-            ComparisonType::GreaterThanOrEqual => println!(
-                "Executed JGE: {:?} >= {:?} -> {}, {}",
-                value_a, value_b, is_true, instruction.bytecode_jump_index
-            ),
         }
     }
 
-    fn execute_output(&mut self, instruction: &OutputInstruction) {
+    fn execute_output(&mut self, instruction: &OutputInstruction, debug: bool) {
         let value_a = match self.get_value(&instruction.source_operand) {
             Value::Number(num) => num.to_string(),
             Value::Text(text) => text,
             _ => panic!("OUT instruction requires text or number operands."),
         };
 
-        println!("Executed OUT: {}", value_a);
+        if debug {
+            println!("Executed OUT: {}", value_a);
+        } else {
+            println!("{}", value_a);
+        }
     }
 
-    fn execute_load(&mut self, instruction: &LoadInstruction) {
+    fn execute_load(&mut self, instruction: &LoadInstruction, debug: bool) {
         let file_contents = match read_to_string(&instruction.file_path) {
             Ok(value) => value,
             Err(error) => panic!("Run failed. Error: {}", error),
@@ -743,25 +766,27 @@ impl ControlUnit {
             Value::Text(file_contents),
         );
 
-        println!(
-            "Executed LOAD: r{} = \"{:?}\"",
-            instruction.destination_register,
-            self.registers
-                .get_register(&instruction.destination_register)
-        );
+        if debug {
+            println!(
+                "Executed LOAD: r{} = \"{:?}\"",
+                instruction.destination_register,
+                self.registers
+                    .get_register(&instruction.destination_register)
+            );
+        }
     }
 
-    pub fn execute(&mut self, instruction: &Instruction) {
+    pub fn execute(&mut self, instruction: &Instruction, debug: bool) {
         match instruction {
-            Instruction::Move(instruction) => self.execute_move(instruction),
-            Instruction::Add(instruction) => self.execute_add(instruction),
-            Instruction::Sub(instruction) => self.execute_subtract(instruction),
-            Instruction::Mul(instruction) => self.execute_multiply(instruction),
-            Instruction::Div(instruction) => self.execute_divide(instruction),
-            Instruction::Similarity(instruction) => self.execute_similarity(instruction),
-            Instruction::JumpCompare(instruction) => self.execute_jump_compare(instruction),
-            Instruction::Output(instruction) => self.execute_output(instruction),
-            Instruction::Load(instruction) => self.execute_load(instruction),
+            Instruction::Move(instruction) => self.execute_move(instruction, debug),
+            Instruction::Add(instruction) => self.execute_add(instruction, debug),
+            Instruction::Sub(instruction) => self.execute_subtract(instruction, debug),
+            Instruction::Mul(instruction) => self.execute_multiply(instruction, debug),
+            Instruction::Div(instruction) => self.execute_divide(instruction, debug),
+            Instruction::Similarity(instruction) => self.execute_similarity(instruction, debug),
+            Instruction::JumpCompare(instruction) => self.execute_jump_compare(instruction, debug),
+            Instruction::Output(instruction) => self.execute_output(instruction, debug),
+            Instruction::Load(instruction) => self.execute_load(instruction, debug),
         }
     }
 }

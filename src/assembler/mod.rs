@@ -345,6 +345,7 @@ impl Assembler {
 
         self.emit_op_code_bytecode(OpCode::LF);
         self.emit_register_bytecode(destination_register);
+      
         match self.emit_immediate_bytecode(&Immediate::Text(file_path)) {
             Ok(()) => (),
             Err(message) => {

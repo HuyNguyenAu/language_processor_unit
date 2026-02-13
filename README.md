@@ -76,7 +76,7 @@ The processor has 8 general-purpose registers, named X0 to X7. These registers c
 
 Clone the repository:
 ```bash
-git clone https://github.com/your-username/cognitive_processor_unit.git
+git clone https://github.com/HuyNguyenAu/cognitive_processor_unit.git
 cd cognitive_processor_unit
 ```
 

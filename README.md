@@ -72,6 +72,30 @@ Available instructions in the assembly language:
 
 The processor has 8 general-purpose registers, named X0 to X7. These registers can hold text, images, or audio data.
 
+# Quick Start
+
+Clone the repository:
+```bash
+git clone https://github.com/your-username/cognitive_processor_unit.git
+cd cognitive_processor_unit
+```
+
+Start the LLama.cpp server:
+```bash
+./llama-server --embeddings --pooling mean -m path/to/your/model.bin
+```
+
+Build the example program:
+```bash
+cargo run build examples/simple.aism
+```
+
+Run the example program:
+
+```bash
+cargo run run data/build/simple.caism
+```
+
 # Acknowledgements
 
 This project was inspired by the following works:

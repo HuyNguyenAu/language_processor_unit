@@ -1,17 +1,17 @@
 # Cognitive Processor Unit
 
-Imagine a basic processor that has the following components:
+Imagine a simple processor that has the following components:
 
 - Memory
 - Registers
 - Semantic Logic Unit (SLU)
 - Control Unit (CU)
 
-Instead of a traditional Arithmetic Logic Unit (ALU) that performs arithmetic and logical operations on binary data, this processor has a Semantic Logic Unit (SLU) that performs operations based prompts and embeddings.
+Instead of a traditional Arithmetic Logic Unit (ALU) that performs arithmetic and logical operations on binary data, this processor uses an Large Language Model (LLM) as its SLU to process multi-modal data such as text, images, and audio. The CU would be responsible for fetching instructions, decoding them, and controlling the flow of data between the memory, registers, and the SLU.
 
-In this frame, we could think of prompts as micro-code instructions that guide the SLU on how to process the data, while embeddings represent the data in a high-dimensional space that can be used to compare with other data.
+In this frame, we could think of prompts as micro-code instructions that guide the SLU on how to process the data. The SLU would take the input data from the registers, process it according to the instructions, and then store the output back in the registers or memory.
 
-Previously code operates on data types like integers, floats, and strings. In contrast, this processor has the ability to operate multi-modal data types such as images, text, and audio.
+The instruction set is closely inspired by RISC-V assembly language, but with a focus on operations that are relevant to multi-modal data processing. For example, instead of traditional arithmetic operations, we have a `SIM` instruction that computes the similarity between two pieces of data. This greatly simplifies the code of the assembler and processor, which allows us to focus on the fun parts!
 
 ## Why?
 
@@ -29,11 +29,13 @@ Imagine being able to write code like this:
 
         SIM X5, X1, X2                  ; Compare X2 to X1 and store the similarity score in X5.
 
-        BLT X3, X5, END                 ; If similarity score in X5 is less than 80, jump to END.
-        LI X4, "Is a dog."              ; Change  the output message.
+        BGE X5, X3, END                 ; If similarity score in X5 is greater than or equal to 80, jump to END.
+        LI X4, "Is a dog."              ; Change the output message.
 
 END:    OUT X4                          ; Output the result.
 ```
+
+This is an experimental project to explore the idea of a cognitive processor unit that treats multi-modal data as primitive data types, which could potentially lead to new ways of programming and interacting with data.
 
 # Requirements
 
@@ -70,11 +72,11 @@ Available instructions in the assembly language:
 
 # Registers
 
-The processor has 8 general-purpose registers, named X0 to X7. These registers can hold text, images, or audio data.
+The processor has 32 general-purpose registers, named X1 to X32. These registers can hold text, images, or audio data.
 
 # Acknowledgements
 
 This project was inspired by the following works:
 
-- [Crafting Interpreters](https://craftinginterpreters.com/) by Bob Nystrom
-- [Andrej Karpathy](https://karpathy.ai/) LLM OS and Software 2.0 ideas
+- [Crafting Interpreters](https://craftinginterpreters.com/) by Bob Nystrom. The structure and design of the assembler and processor follows a similar approach to the one described in this book.
+- [Andrej Karpathy](https://karpathy.ai/) LLM OS and Software 2.0 ideas.

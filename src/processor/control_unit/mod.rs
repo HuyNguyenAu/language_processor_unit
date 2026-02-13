@@ -41,23 +41,15 @@ impl ControlUnit {
         }
     }
 
-    pub fn load_byte_code(&mut self, byte_code: Vec<[u8; 4]>) {
-        self.memory.load(byte_code);
-    }
-
     fn is_at_end(&self) -> bool {
         return self.registers.get_instruction_pointer() >= self.memory.length();
     }
 
-    fn peek(&self) -> Option<[u8; 4]> {
-        if self.is_at_end() {
-            return None;
-        }
-
+    fn peek(&self) -> [u8; 4] {
         return match self.memory.read(self.registers.get_instruction_pointer()) {
-            Ok(bytes) => Some(*bytes),
+            Ok(bytes) => bytes.clone(),
             Err(error) => panic!(
-                "Failed to read byte code at instruction pointer. Error: {}. Instruction pointer value: {}.",
+                "Failed to read byte code at instruction pointer during peek. Error: {}. Instruction pointer value: {}.",
                 error,
                 self.registers.get_instruction_pointer()
             ),
@@ -200,7 +192,10 @@ impl ControlUnit {
 
         return match ImmediateType::from_be_bytes(be_bytes) {
             Ok(immediate_type) => immediate_type,
-            Err(error) => panic!("{} {} Byte code: {:?}", message, error, be_bytes),
+            Err(error) => panic!(
+                "{} {}, Instruction Byte code: {:?}",
+                message, error, be_bytes
+            ),
         };
     }
 
@@ -394,19 +389,32 @@ impl ControlUnit {
         return OutputInstruction { source_register };
     }
 
+    pub fn load_byte_code(&mut self, byte_code: Vec<[u8; 4]>) {
+        self.memory.load(byte_code);
+
+        // Reset instruction pointer and byte code tracking.
+        self.registers.set_instruction_pointer(0);
+        self.previous_be_bytes = None;
+        self.current_be_bytes = Some(self.peek());
+    }
+
     pub fn fetch_and_decode(&mut self) -> Option<Instruction> {
         if self.is_at_end() {
             return None;
         }
 
-        let peek = self
-            .peek()
-            .expect("Failed to peek at current byte code during fetch and decode.");
-        let op_code = match OpCode::from_be_bytes(peek) {
+        let current_be_bytes = match self.current_be_bytes {
+            Some(be_bytes) => be_bytes,
+            None => panic!(
+                "No current byte code to fetch and decode. Instruction pointer value: {}.",
+                self.registers.get_instruction_pointer()
+            ),
+        };
+        let op_code = match OpCode::from_be_bytes(current_be_bytes) {
             Ok(op_code) => op_code,
             Err(error) => panic!(
                 "Failed to decode opcode from byte code. Error: {}. Byte code: {:?}.",
-                error, peek
+                error, current_be_bytes
             ),
         };
         let instruction = match op_code {
@@ -633,6 +641,7 @@ impl ControlUnit {
             };
 
             self.registers.set_instruction_pointer(address);
+            self.current_be_bytes = Some(self.peek());
         }
 
         if debug {

@@ -7,6 +7,7 @@ use crate::processor::control_unit::semantic_logic_unit::openai::{
 
 pub mod chat_completion_models;
 pub mod embeddings_models;
+pub mod model_config;
 
 pub struct OpenAIClient {
     base_url: &'static str,

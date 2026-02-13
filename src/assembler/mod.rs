@@ -148,8 +148,8 @@ impl Assembler {
 
         let lexeme = self.previous_lexeme();
 
-        // Ensure the lexeme starts with 'x' and is followed by a number.
-        if !lexeme.starts_with('x') || lexeme.len() != 2 {
+        // Ensure the lexeme starts with "x".
+        if !lexeme.starts_with("x") {
             return Err(format!(
                 "Invalid register format: '{}'. Expected format: 'xN' where N is a number between 0 and 32.",
                 lexeme

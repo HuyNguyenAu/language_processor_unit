@@ -1,13 +1,13 @@
 use std::collections::HashMap;
 use std::hash::{DefaultHasher, Hash, Hasher};
 
+use crate::assembler::immediate::{Immediate, ImmediateType};
 use crate::assembler::opcode::OpCode;
-use crate::assembler::operand::{Operand, OperandType};
 use crate::assembler::scanner::Scanner;
 use crate::assembler::scanner::token::{Token, TokenType};
 
+pub mod immediate;
 pub mod opcode;
-pub mod operand;
 mod scanner;
 
 struct UnitialisedLabel {
@@ -112,7 +112,7 @@ impl Assembler {
             return self.lexeme(&token);
         }
 
-        panic!("Failed to get token lexeme. Previous token is None.");
+        panic!("Expected previous token to be present, but it is None.");
     }
 
     fn consume(&mut self, token_type: &TokenType, message: &str) {
@@ -131,34 +131,49 @@ impl Assembler {
         self.current_byte_code_index = self.byte_code.len() - 1;
     }
 
-    fn number(&mut self, message: &str) -> u32 {
+    fn number(&mut self, message: &str) -> Result<u32, String> {
         self.consume(&TokenType::NUMBER, message);
 
         return match self.previous_lexeme().parse() {
-            Ok(value) => value,
-            _ => panic!(
-                "{}",
-                format!(
-                    "Failed to parse number from lexeme '{}'.",
-                    self.previous_lexeme()
-                )
-            ),
+            Ok(value) => Ok(value),
+            Err(_) => Err(format!(
+                "Failed to parse number from lexeme '{}'.",
+                self.previous_lexeme()
+            )),
         };
     }
 
-    fn register(&mut self, message: &str) -> u32 {
+    fn register(&mut self, message: &str) -> Result<u32, String> {
         self.consume(&TokenType::IDENTIFIER, message);
 
         let lexeme = self.previous_lexeme();
-        let register = lexeme[1..].to_string(); // Remove the 'r' prefix.
 
-        return match register.parse() {
+        // Ensure the lexeme starts with 'x' and is followed by a number.
+        if !lexeme.starts_with('x') || lexeme.len() != 2 {
+            return Err(format!(
+                "Invalid register format: '{}'. Expected format: 'xN' where N is a number between 0 and 32.",
+                lexeme
+            ));
+        }
+
+        let register_number = match u32::from_str_radix(&lexeme[1..], 10) {
             Ok(value) => value,
-            _ => panic!(
-                "{}",
-                format!("Failed to parse register from lexeme '{}'.", lexeme)
-            ),
+            Err(_) => {
+                return Err(format!(
+                    "Failed to parse register number from lexeme '{}'. Expected format: 'xN' where N is a number between 0 and 32.",
+                    lexeme
+                ));
+            }
         };
+
+        if register_number > 32 {
+            return Err(format!(
+                "Register number out of range: '{}'. Expected format: 'xN' where N is a number between 0 and 32.",
+                lexeme
+            ));
+        }
+
+        return Ok(register_number);
     }
 
     fn string(&mut self, message: &str) -> String {
@@ -181,17 +196,34 @@ impl Assembler {
         return self.previous_lexeme();
     }
 
-    fn operand(&mut self, message: &str) -> Operand {
+    fn immediate(&mut self, message: &str) -> Result<Immediate, String> {
         let current_type = match self.current {
             Some(ref token) => token.token_type(),
-            None => panic!("Failed to parse operand. Current token is None."),
+            None => {
+                return Err(format!(
+                    "Failed to parse immediate value. Current token is None. {}",
+                    message
+                ));
+            }
         };
 
         return match current_type {
-            TokenType::NUMBER => Operand::Number(self.number(message)),
-            TokenType::STRING => Operand::Text(self.string(message).to_string()),
-            TokenType::IDENTIFIER => Operand::Register(self.register(message)),
-            _ => panic!("Expected number, string, or register as operand."),
+            TokenType::STRING => Ok(Immediate::Text(self.string(message).to_string())),
+            TokenType::NUMBER => {
+                let number = self.number(message);
+
+                if let Ok(number) = number {
+                    return Ok(Immediate::Number(number));
+                }
+
+                return Err(format!("Failed to parse immediate number. {}", message));
+            }
+            _ => {
+                return Err(format!(
+                    "Invalid immediate value. Expected number or string. Found token type: {:?}. {}",
+                    current_type, message
+                ));
+            }
         };
     }
 
@@ -207,73 +239,138 @@ impl Assembler {
         self.byte_code.push(register.to_be_bytes());
     }
 
-    fn emit_operand_bytecode(&mut self, operand: &Operand) {
-        match operand {
-            Operand::Number(value) => {
+    fn emit_immediate_bytecode(&mut self, immediate: &Immediate) -> Result<(), String> {
+        match immediate {
+            Immediate::Number(value) => {
                 self.byte_code
-                    .push(OperandType::to_be_bytes(&OperandType::NUMBER));
+                    .push(ImmediateType::to_be_bytes(&ImmediateType::NUMBER));
 
                 self.byte_code.push(1u32.to_be_bytes());
                 self.byte_code.push(value.to_be_bytes());
             }
-            Operand::Text(value) => {
+            Immediate::Text(value) => {
                 let value_be_bytes = value
                     .bytes()
                     .map(|byte| u32::from(byte).to_be_bytes())
                     .collect::<Vec<[u8; 4]>>();
                 let value_be_bytes_length: u32 = match value_be_bytes.len().try_into() {
                     Ok(length) => length,
-                    _ => panic!(
-                        "Failed to get byte length of text operand. Byte length exceeds {}. Found byte length: {}.",
-                        u32::MAX,
-                        value_be_bytes.len()
-                    ),
+                    Err(_) => {
+                        return Err(format!(
+                            "Failed to convert text byte length to u32 for value '{}'. Text byte length exceeds {}.",
+                            value,
+                            u32::MAX
+                        ));
+                    }
                 };
 
                 self.byte_code
-                    .push(OperandType::to_be_bytes(&OperandType::TEXT));
+                    .push(ImmediateType::to_be_bytes(&ImmediateType::TEXT));
                 self.byte_code.push((value_be_bytes_length).to_be_bytes()); // Length in 4-byte characters.
                 self.byte_code.extend(value_be_bytes);
             }
-            Operand::Register(value) => {
-                self.byte_code
-                    .push(OperandType::to_be_bytes(&OperandType::REGISTER));
-                self.byte_code.push(1u32.to_be_bytes());
-                self.byte_code.push(value.to_be_bytes());
-            }
         }
+
+        return Ok(());
     }
 
-    fn load(&mut self) {
-        self.consume(&TokenType::LOAD, "Expected 'load' keyword.");
+    fn load_immediate(&mut self) {
+        self.consume(&TokenType::LI, "Expected 'li' keyword.");
 
-        let register = self.register("Expected register name.");
+        let destination_register = match self.register("Expected destination register.") {
+            Ok(register) => register,
+            Err(message) => {
+                self.error_at_current(&message);
+                return;
+            }
+        };
 
-        self.consume(&TokenType::COMMA, "Expected ',' after register name.");
+        self.consume(
+            &TokenType::COMMA,
+            "Expected ',' after destination register.",
+        );
+
+        let immediate = match self.immediate("Expected immediate after ','.") {
+            Ok(immediate) => immediate,
+            Err(message) => {
+                self.error_at_current(&message);
+                return;
+            }
+        };
+
+        self.emit_op_code_bytecode(OpCode::LI);
+        self.emit_register_bytecode(destination_register);
+        match self.emit_immediate_bytecode(&immediate) {
+            Ok(()) => (),
+            Err(message) => {
+                self.error_at_current(&message);
+                return;
+            }
+        }
+
+        self.advance_stack_level();
+    }
+
+    fn load_file(&mut self) {
+        self.consume(&TokenType::LF, "Expected 'lf' keyword.");
+
+        let destination_register = match self.register("Expected destination register.") {
+            Ok(register) => register,
+            Err(message) => {
+                self.error_at_current(&message);
+                return;
+            }
+        };
+
+        self.consume(
+            &TokenType::COMMA,
+            "Expected ',' after destination register.",
+        );
 
         let file_path = self
             .string("Expected file path string after ','.")
             .to_string();
 
-        self.emit_op_code_bytecode(OpCode::LOAD);
-        self.emit_register_bytecode(register);
-        self.emit_operand_bytecode(&Operand::Text(file_path));
+        self.emit_op_code_bytecode(OpCode::LF);
+        self.emit_register_bytecode(destination_register);
+        match self.emit_immediate_bytecode(&Immediate::Text(file_path)) {
+            Ok(()) => (),
+            Err(message) => {
+                self.error_at_current(&message);
+                return;
+            }
+        }
 
         self.advance_stack_level();
     }
 
-    fn _move(&mut self) {
-        self.consume(&TokenType::MOV, "Expected 'mov' keyword.");
+    fn move_value(&mut self) {
+        self.consume(&TokenType::MV, "Expected 'mv' keyword.");
 
-        let register = self.register("Expected register name.");
+        let destination_register = match self.register("Expected destination register.") {
+            Ok(register) => register,
+            Err(message) => {
+                self.error_at_current(&message);
+                return;
+            }
+        };
 
-        self.consume(&TokenType::COMMA, "Expected ',' after register name.");
+        self.consume(
+            &TokenType::COMMA,
+            "Expected ',' after destination register.",
+        );
 
-        let variable_value = self.operand("Expected operand after ','.");
+        let source_register = match self.register("Expected source register after ','.") {
+            Ok(register) => register,
+            Err(message) => {
+                self.error_at_current(&message);
+                return;
+            }
+        };
 
-        self.emit_op_code_bytecode(OpCode::MOV);
-        self.emit_register_bytecode(register);
-        self.emit_operand_bytecode(&variable_value);
+        self.emit_op_code_bytecode(OpCode::MV);
+        self.emit_register_bytecode(destination_register);
+        self.emit_register_bytecode(source_register);
 
         self.advance_stack_level();
     }
@@ -298,11 +395,15 @@ impl Assembler {
             for current_byte_code_index in uninitialised_labels.current_byte_code_indices {
                 let value: u32 = match jump_destination_byte_code_index.try_into() {
                     Ok(value) => value,
-                    _ => panic!(
-                        "Failed to convert bytecode index to u32 for backpatching. Bytecode index exceeds {}. Found bytecode index: {}.",
-                        u32::MAX,
-                        jump_destination_byte_code_index
-                    ),
+                    Err(_) => {
+                        self.error_at_current(&format!(
+                            "Failed to convert bytecode index to u32 for backpatching. Bytecode index exceeds {}. Found bytecode index: {}.",
+                            u32::MAX,
+                            jump_destination_byte_code_index
+                        ));
+
+                        return;
+                    }
                 };
 
                 println!(
@@ -318,44 +419,88 @@ impl Assembler {
             .insert(key, jump_destination_byte_code_index);
     }
 
-    fn subtract(&mut self) {
-        self.consume(&TokenType::SUB, "Expected 'sub' keyword.");
+    fn addition(&mut self) {
+        self.consume(&TokenType::ADD, "Expected 'add' keyword.");
 
-        let operand_1 = self.operand("Expected first operand after 'sub'.");
+        let destination_register = match self.register("Expected destination register after 'add'.")
+        {
+            Ok(register) => register,
+            Err(message) => {
+                self.error_at_current(&message);
+                return;
+            }
+        };
 
-        self.consume(&TokenType::COMMA, "Expected ',' after operand.");
+        self.consume(
+            &TokenType::COMMA,
+            "Expected ',' after destination register.",
+        );
 
-        let operand_2 = self.operand("Expected second operand after ','.");
+        let source_register_1 = match self.register("Expected source register 1 after ','.") {
+            Ok(register) => register,
+            Err(message) => {
+                self.error_at_current(&message);
+                return;
+            }
+        };
 
-        self.consume(&TokenType::COMMA, "Expected ',' after second operand.");
+        self.consume(&TokenType::COMMA, "Expected ',' after source register 1.");
 
-        let destination = self.register("Expected destination register after ','.");
+        let source_register_2 = match self.register("Expected source register 2 after ','.") {
+            Ok(register) => register,
+            Err(message) => {
+                self.error_at_current(&message);
+                return;
+            }
+        };
 
-        self.emit_op_code_bytecode(OpCode::SUB);
-        self.emit_operand_bytecode(&operand_1);
-        self.emit_operand_bytecode(&operand_2);
-        self.emit_register_bytecode(destination);
+        self.emit_op_code_bytecode(OpCode::ADD);
+        self.emit_register_bytecode(destination_register);
+        self.emit_register_bytecode(source_register_1);
+        self.emit_register_bytecode(source_register_2);
 
         self.advance_stack_level();
     }
 
-    fn addition(&mut self) {
-        self.consume(&TokenType::ADD, "Expected 'add' keyword.");
+    fn subtract(&mut self) {
+        self.consume(&TokenType::SUB, "Expected 'sub' keyword.");
 
-        let operand_1 = self.operand("Expected first operand after 'add'.");
+        let destination_register = match self.register("Expected destination register after 'sub'.")
+        {
+            Ok(register) => register,
+            Err(message) => {
+                self.error_at_current(&message);
+                return;
+            }
+        };
 
-        self.consume(&TokenType::COMMA, "Expected ',' after operand.");
+        self.consume(
+            &TokenType::COMMA,
+            "Expected ',' after destination register.",
+        );
 
-        let operand_2 = self.operand("Expected second operand after ','.");
+        let source_register_1 = match self.register("Expected source register 1 after ','.") {
+            Ok(register) => register,
+            Err(message) => {
+                self.error_at_current(&message);
+                return;
+            }
+        };
 
-        self.consume(&TokenType::COMMA, "Expected ',' after second operand.");
+        self.consume(&TokenType::COMMA, "Expected ',' after source register 1.");
 
-        let destination = self.register("Expected destination register after ','.");
+        let source_register_2 = match self.register("Expected source register 2 after ','.") {
+            Ok(register) => register,
+            Err(message) => {
+                self.error_at_current(&message);
+                return;
+            }
+        };
 
-        self.emit_op_code_bytecode(OpCode::ADD);
-        self.emit_operand_bytecode(&operand_1);
-        self.emit_operand_bytecode(&operand_2);
-        self.emit_register_bytecode(destination);
+        self.emit_op_code_bytecode(OpCode::SUB);
+        self.emit_register_bytecode(destination_register);
+        self.emit_register_bytecode(source_register_1);
+        self.emit_register_bytecode(source_register_2);
 
         self.advance_stack_level();
     }
@@ -363,20 +508,42 @@ impl Assembler {
     fn multiply(&mut self) {
         self.consume(&TokenType::MUL, "Expected 'mul' keyword.");
 
-        let operand_1 = self.operand("Expected first operand after 'mul'.");
+        let destination_register = match self.register("Expected destination register after 'mul'.")
+        {
+            Ok(register) => register,
+            Err(message) => {
+                self.error_at_current(&message);
+                return;
+            }
+        };
 
-        self.consume(&TokenType::COMMA, "Expected ',' after operand.");
+        self.consume(
+            &TokenType::COMMA,
+            "Expected ',' after destination register.",
+        );
 
-        let operand_2 = self.operand("Expected second operand after ','.");
+        let source_register_1 = match self.register("Expected source register 1 after ','.") {
+            Ok(register) => register,
+            Err(message) => {
+                self.error_at_current(&message);
+                return;
+            }
+        };
 
-        self.consume(&TokenType::COMMA, "Expected ',' after second operand.");
+        self.consume(&TokenType::COMMA, "Expected ',' after source register 1.");
 
-        let destination = self.register("Expected destination register after ','.");
+        let source_register_2 = match self.register("Expected source register 2 after ','.") {
+            Ok(register) => register,
+            Err(message) => {
+                self.error_at_current(&message);
+                return;
+            }
+        };
 
         self.emit_op_code_bytecode(OpCode::MUL);
-        self.emit_operand_bytecode(&operand_1);
-        self.emit_operand_bytecode(&operand_2);
-        self.emit_register_bytecode(destination);
+        self.emit_register_bytecode(destination_register);
+        self.emit_register_bytecode(source_register_1);
+        self.emit_register_bytecode(source_register_2);
 
         self.advance_stack_level();
     }
@@ -384,20 +551,42 @@ impl Assembler {
     fn divide(&mut self) {
         self.consume(&TokenType::DIV, "Expected 'div' keyword.");
 
-        let operand_1 = self.operand("Expected first operand after 'div'.");
+        let destination_register = match self.register("Expected destination register after 'div'.")
+        {
+            Ok(register) => register,
+            Err(message) => {
+                self.error_at_current(&message);
+                return;
+            }
+        };
 
-        self.consume(&TokenType::COMMA, "Expected ',' after operand.");
+        self.consume(
+            &TokenType::COMMA,
+            "Expected ',' after destination register.",
+        );
 
-        let operand_2 = self.operand("Expected second operand after ','.");
+        let source_register_1 = match self.register("Expected source register 1 after ','.") {
+            Ok(register) => register,
+            Err(message) => {
+                self.error_at_current(&message);
+                return;
+            }
+        };
 
-        self.consume(&TokenType::COMMA, "Expected ',' after second operand.");
+        self.consume(&TokenType::COMMA, "Expected ',' after source register 1.");
 
-        let destination = self.register("Expected destination register after ','.");
+        let source_register_2 = match self.register("Expected source register 2 after ','.") {
+            Ok(register) => register,
+            Err(message) => {
+                self.error_at_current(&message);
+                return;
+            }
+        };
 
         self.emit_op_code_bytecode(OpCode::DIV);
-        self.emit_operand_bytecode(&operand_1);
-        self.emit_operand_bytecode(&operand_2);
-        self.emit_register_bytecode(destination);
+        self.emit_register_bytecode(destination_register);
+        self.emit_register_bytecode(source_register_1);
+        self.emit_register_bytecode(source_register_2);
 
         self.advance_stack_level();
     }
@@ -405,25 +594,45 @@ impl Assembler {
     fn similarity(&mut self) {
         self.consume(&TokenType::SIM, "Expected 'sim' keyword.");
 
-        let operand_1 = self.operand("Expected first operand after 'sim'.");
+        let destination_register = match self.register("Expected destination register after ','.") {
+            Ok(register) => register,
+            Err(message) => {
+                self.error_at_current(&message);
+                return;
+            }
+        };
 
-        self.consume(&TokenType::COMMA, "Expected ',' after operand.");
+        self.consume(
+            &TokenType::COMMA,
+            "Expected ',' after destination register.",
+        );
 
-        let operand_2 = self.operand("Expected second operand after ','.");
+        let source_register_1 = match self.register("Expected source register 1 after ','.") {
+            Ok(register) => register,
+            Err(message) => {
+                self.error_at_current(&message);
+                return;
+            }
+        };
 
-        self.consume(&TokenType::COMMA, "Expected ',' after second operand.");
+        self.consume(&TokenType::COMMA, "Expected ',' after source register 1.");
 
-        let destination = self.register("Expected destination register after ','.");
+        let source_register_2 = match self.register("Expected source register 2 after ','.") {
+            Ok(register) => register,
+            Err(message) => {
+                self.error_at_current(&message);
+                return;
+            }
+        };
 
         self.emit_op_code_bytecode(OpCode::SIM);
-        self.emit_operand_bytecode(&operand_1);
-        self.emit_operand_bytecode(&operand_2);
-        self.emit_register_bytecode(destination);
-
+        self.emit_register_bytecode(destination_register);
+        self.emit_register_bytecode(source_register_1);
+        self.emit_register_bytecode(source_register_2);
         self.advance_stack_level();
     }
 
-    fn upsert_uninitialised_label(&mut self, key: u64) {
+    fn upsert_uninitialised_label(&mut self, key: u64) -> Result<(), String> {
         let bytecode_index = self.byte_code.len() - 1;
 
         if let Some(uninitialised_label) = self.uninitialised_labels.get_mut(&key) {
@@ -433,7 +642,9 @@ impl Assembler {
         } else {
             let previous_token = match self.previous.clone() {
                 Some(token) => token,
-                None => panic!("Failed to get current token for uninitialised label."),
+                None => {
+                    return Err("Failed to get current token for uninitialised label.".to_string());
+                }
             };
 
             self.uninitialised_labels.insert(
@@ -444,54 +655,81 @@ impl Assembler {
                 },
             );
         }
+
+        Ok(())
     }
 
-    fn jump_compare(&mut self, token_type: &TokenType) {
+    fn branch(&mut self, token_type: &TokenType) {
         self.consume(
             token_type,
             format!("Expected '{:?}' keyword.", token_type).as_str(),
         );
 
-        let operand_1 =
-            self.operand(format!("Expected first operand after '{:?}'.", token_type).as_str());
+        let source_register_1 =
+            match self.register("Expected source register 1 after branch keyword.") {
+                Ok(register) => register,
+                Err(message) => {
+                    self.error_at_current(&message);
+                    return;
+                }
+            };
 
-        self.consume(&TokenType::COMMA, "Expected ',' after operand.");
+        self.consume(&TokenType::COMMA, "Expected ',' after source register 1.");
 
-        let operand_2 = self.operand("Expected second operand after ','.");
+        let source_register_2 = match self.register("Expected source register 2 after ','.") {
+            Ok(register) => register,
+            Err(message) => {
+                self.error_at_current(&message);
+                return;
+            }
+        };
 
-        self.consume(&TokenType::COMMA, "Expected ',' after second operand.");
+        self.consume(&TokenType::COMMA, "Expected ',' after source register 2.");
 
-        let label = self.identifier("Expected label name after ','.");
-        let key = Self::hash(&label);
+        let label_name = self.identifier("Expected label name after ','.");
+        let key = Self::hash(&label_name);
 
         let opcode = match token_type {
-            TokenType::JEQ => OpCode::JEQ,
-            TokenType::JLT => OpCode::JLT,
-            TokenType::JLE => OpCode::JLE,
-            TokenType::JGT => OpCode::JGT,
-            TokenType::JGE => OpCode::JGE,
-            _ => panic!("Unexpected token type for jump compare."),
+            TokenType::BEQ => OpCode::BEQ,
+            TokenType::BLT => OpCode::BLT,
+            TokenType::BLE => OpCode::BLE,
+            TokenType::BGT => OpCode::BGT,
+            TokenType::BGE => OpCode::BGE,
+            _ => {
+                self.error_at_current("Invalid branch instruction.");
+                return;
+            }
         };
 
         self.emit_op_code_bytecode(opcode);
-        self.emit_operand_bytecode(&operand_1);
-        self.emit_operand_bytecode(&operand_2);
+        self.emit_register_bytecode(source_register_1);
+        self.emit_register_bytecode(source_register_2);
 
         if let Some(index) = self.byte_code_indices.get(&key) {
             let value: u32 = match index.clone().try_into() {
                 Ok(value) => value,
-                _ => panic!(
+                Err(_) => {
+                    self.error_at_current(format!(
                     "Failed to convert bytecode index to u32 for jump compare. Bytecode index exceeds {}. Found bytecode index: {}.",
                     u32::MAX,
                     index
-                ),
+                ).as_str());
+
+                    return;
+                }
             };
             self.emit_number_bytecode(value);
         } else {
             // Placeholder for backpatching.
             self.emit_number_bytecode(0);
             // Record the current bytecode index for backpatching later.
-            self.upsert_uninitialised_label(key);
+            match self.upsert_uninitialised_label(key) {
+                Ok(()) => (),
+                Err(message) => {
+                    self.error_at_current(&message);
+                    return;
+                }
+            }
         }
 
         self.advance_stack_level();
@@ -500,10 +738,16 @@ impl Assembler {
     fn output(&mut self) {
         self.consume(&TokenType::OUT, "Expected 'out' keyword.");
 
-        let operand = self.operand("Expected operand after 'out'.");
+        let source_register = match self.register("Expected source register after 'out'.") {
+            Ok(register) => register,
+            Err(message) => {
+                self.error_at_current(&message);
+                return;
+            }
+        };
 
         self.emit_op_code_bytecode(OpCode::OUT);
-        self.emit_operand_bytecode(&operand);
+        self.emit_register_bytecode(source_register);
 
         self.advance_stack_level();
     }
@@ -514,25 +758,26 @@ impl Assembler {
         while !self.panic_mode {
             if let Some(current_token) = &self.current {
                 match current_token.token_type() {
-                    TokenType::MOV => self._move(),
-                    TokenType::LABEL => self.label(),
-                    TokenType::SUB => self.subtract(),
+                    TokenType::LI => self.load_immediate(),
+                    TokenType::LF => self.load_file(),
+                    TokenType::MV => self.move_value(),
                     TokenType::ADD => self.addition(),
+                    TokenType::SUB => self.subtract(),
                     TokenType::MUL => self.multiply(),
                     TokenType::DIV => self.divide(),
                     TokenType::SIM => self.similarity(),
-                    TokenType::JEQ => self.jump_compare(&TokenType::JEQ),
-                    TokenType::JLT => self.jump_compare(&TokenType::JLT),
-                    TokenType::JLE => self.jump_compare(&TokenType::JLE),
-                    TokenType::JGT => self.jump_compare(&TokenType::JGT),
-                    TokenType::JGE => self.jump_compare(&TokenType::JGE),
+                    TokenType::LABEL => self.label(),
+                    TokenType::BEQ => self.branch(&TokenType::BEQ),
+                    TokenType::BLT => self.branch(&TokenType::BLT),
+                    TokenType::BLE => self.branch(&TokenType::BLE),
+                    TokenType::BGT => self.branch(&TokenType::BGT),
+                    TokenType::BGE => self.branch(&TokenType::BGE),
                     TokenType::OUT => self.output(),
-                    TokenType::LOAD => self.load(),
                     TokenType::EOF => break,
                     _ => self.error_at_current("Unexpected keyword."),
                 }
             } else {
-                panic!("Failed to assemble. Current token is None.")
+                self.error_at_current("Unexpected end of input. Expected more tokens.");
             }
         }
 

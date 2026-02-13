@@ -1,57 +1,60 @@
-use crate::processor::control_unit::semantic_logic_unit::value::Value;
+#[derive(Debug, Clone)]
+pub enum Value {
+    Text(String),
+    Number(u32),
+    None,
+}
 
 pub struct Registers {
-    register_1: Value,
-    register_2: Value,
-    register_3: Value,
-    register_4: Value,
-    register_5: Value,
-    register_6: Value,
-    register_7: Value,
-    register_8: Value,
+    general_purpose_registers: [Value; 32],
     instruction_pointer: usize,
 }
 
 impl Registers {
     pub fn new() -> Self {
         Registers {
-            register_1: Value::None,
-            register_2: Value::None,
-            register_3: Value::None,
-            register_4: Value::None,
-            register_5: Value::None,
-            register_6: Value::None,
-            register_7: Value::None,
-            register_8: Value::None,
+            general_purpose_registers: [const { Value::None }; 32],
             instruction_pointer: 0,
         }
     }
 
-    pub fn get_register(&self, register_number: &u32) -> &Value {
-        return match register_number {
-            1 => &self.register_1,
-            2 => &self.register_2,
-            3 => &self.register_3,
-            4 => &self.register_4,
-            5 => &self.register_5,
-            6 => &self.register_6,
-            7 => &self.register_7,
-            8 => &self.register_8,
-            _ => panic!("Invalid register number: {}. Valid register numbers are 1-8.", register_number),
+    pub fn get_register(&self, register_number: u32) -> &Value {
+        let register_number =
+            usize::try_from(register_number).expect("Failed to convert register number to usize.");
+
+        if register_number -1 > 32 {
+            panic!(
+                "Invalid register number: {}. Valid register numbers are 0-32.",
+                register_number
+            );
+        }
+
+        return match self.general_purpose_registers.get(register_number - 1) {
+            Some(value) => value,
+            None => panic!(
+                "Invalid register number: {}. Valid register numbers are 0-32.",
+                register_number
+            ),
         };
     }
 
-    pub fn set_register(&mut self, register_number: &u32, value: Value) {
+    pub fn set_register(&mut self, register_number: u32, value: Value) {
+        let register_number =
+            usize::try_from(register_number).expect("Failed to convert register number to usize.");
+
+        if register_number - 1 > 31 {
+            panic!(
+                "Invalid register number: {}. Valid register numbers are 0-32.",
+                register_number
+            );
+        }
+
         match register_number {
-            1 => self.register_1 = value,
-            2 => self.register_2 = value,
-            3 => self.register_3 = value,
-            4 => self.register_4 = value,
-            5 => self.register_5 = value,
-            6 => self.register_6 = value,
-            7 => self.register_7 = value,
-            8 => self.register_8 = value,
-            _ => panic!("Invalid register number: {}. Valid register numbers are 1-8.", register_number),
+            0..=31 => self.general_purpose_registers[register_number - 1] = value,
+            _ => panic!(
+                "Invalid register number: {}. Valid register numbers are 0-32.",
+                register_number
+            ),
         }
     }
 

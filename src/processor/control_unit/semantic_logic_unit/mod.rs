@@ -1,16 +1,14 @@
-use crate::processor::control_unit::semantic_logic_unit::{
+use crate::processor::control_unit::{registers::Value, semantic_logic_unit::{
     microcode::Microcode,
     openai::{
         OpenAIClient,
         chat_completion_models::{OpenAIChatCompletionRequest, OpenAIChatCompletionRequestText},
         embeddings_models::OpenAIEmbeddingsRequest,
     },
-    value::Value,
-};
+}};
 
 mod microcode;
 mod openai;
-pub mod value;
 
 pub struct SemanticLogicUnit {
     micro_code: Microcode,

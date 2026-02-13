@@ -22,19 +22,55 @@ The goal of this project was to try to explore the following idea:
 Imagine being able to write code like this:
 
 ```
-START:  MOV R1, "cat.jpg"   ; Load the input image of a cat into register R1.
-        MOV R2, "dog.jpg"   ; Load the target image of a dog into register R2.
-        SIM R1, R2, R3      ; Compare R2 to R1 and store the similarity score in R3.
+        LI X1, "cat.jpg"                ; Load the input image of a cat into register X1.
+        LI X2, "dog.jpg"                ; Load the target image of a dog into register X2.
+        LI X3, 80                       ; Initialize register X3 with the similarity threshold value of 80.
+        LI X4, "Not a dog."             ; Load the output message into register X4.
 
-        JLT R3, 80, START   ; If similarity score in R3 is less than 80, jump back to START.
+        SIM X5, X1, X2                  ; Compare X2 to X1 and store the similarity score in X5.
 
-        OUT "Is a dog."     ; Output the result.
+        BLT X3, X5, END                 ; If similarity score in X5 is less than 80, jump to END.
+        LI X4, "Is a dog."              ; Change  the output message.
+
+END:    OUT X4                          ; Output the result.
 ```
 
 # Requirements
 
 - [Rust](https://rust-lang.org/) minimum version 1.93.0
 - [LLama.cpp](https://github.com/ggml-org/llama.cpp) server with minimum release tag b7843
+
+# Instruction Terminology
+
+- `rd` - destination register
+- `rs` - source register
+- `value` - can be an immediate value (e.g., a string or number)
+
+# Instruction Set
+
+Available instructions in the assembly language:
+
+| Instruction | Description                     | Use                        |
+| ----------- | ------------------------------- | -------------------------- |
+| LI          | Load Immediate                  | `li rd, imm`               |
+| LF          | Load File                       | `lf rd, "file_path"`       |
+| MV          | Copy Register                   | `mv rd, rs`                |
+| ADD         | Add                             | `add rd, rs1, rs2`         |
+| SUB         | Subtract                        | `sub rd, rs1, rs2`         |
+| MUL         | Multiply                        | `mul rd, rs1, rs2`         |
+| DIV         | Divide                          | `div rd, rs1, rs2`         |
+| SIM         | Similarity                      | `sim rd, rs1, rs2`         |
+| LABEL       | Label                           | `label_name:`              |
+| BEQ         | Branch if Equal                 | `beq rs1, rs2, label_name` |
+| BLT         | Branch if Less Than             | `blt rs1, rs2, label_name` |
+| BLE         | Branch if Less Than or Equal    | `ble rs1, rs2, label_name` |
+| BGT         | Branch if Greater Than          | `bgt rs1, rs2, label_name` |
+| BGE         | Branch if Greater Than or Equal | `bge rs1, rs2, label_name` |
+| OUT         | Output                          | `out rs`                   |
+
+# Registers
+
+The processor has 8 general-purpose registers, named X0 to X7. These registers can hold text, images, or audio data.
 
 # Acknowledgements
 

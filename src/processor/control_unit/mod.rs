@@ -45,9 +45,9 @@ impl ControlUnit {
         return self.registers.get_instruction_pointer() >= self.memory.length();
     }
 
-    fn peek(&self) -> [u8; 4] {
+    fn peek(&self) -> &[u8; 4] {
         return match self.memory.read(self.registers.get_instruction_pointer()) {
-            Ok(bytes) => bytes.clone(),
+            Ok(bytes) => bytes,
             Err(error) => panic!(
                 "Failed to read byte code at instruction pointer during peek. Error: {}. Instruction pointer value: {}.",
                 error,
@@ -68,7 +68,7 @@ impl ControlUnit {
         }
 
         let bytes = match self.memory.read(self.registers.get_instruction_pointer()) {
-            Ok(bytes) => bytes.clone(),
+            Ok(bytes) => *bytes,
             Err(error) => panic!(
                 "Failed to read byte code at instruction pointer. Error: {}. Instruction pointer value: {}.",
                 error,
@@ -395,7 +395,7 @@ impl ControlUnit {
         // Reset instruction pointer and byte code tracking.
         self.registers.set_instruction_pointer(0);
         self.previous_be_bytes = None;
-        self.current_be_bytes = Some(self.peek());
+        self.current_be_bytes = Some(self.peek().to_owned());
     }
 
     pub fn fetch_and_decode(&mut self) -> Option<Instruction> {
@@ -437,18 +437,16 @@ impl ControlUnit {
         return Some(instruction);
     }
 
-    fn get_value(&self, value: &Immediate) -> Value {
-        return match value {
-            Immediate::Text(text) => Value::Text(text.clone()),
+    fn execute_load_immediate(&mut self, instruction: &LoadImmediateInstruction, debug: bool) {
+        let value = match &instruction.value {
+            Immediate::Text(text) => Value::Text(text.to_string()),
             Immediate::Number(number) => Value::Number(*number),
         };
-    }
 
-    fn execute_load_immediate(&mut self, instruction: &LoadImmediateInstruction, debug: bool) {
-        match self.registers.set_register(
-            instruction.destination_register,
-            self.get_value(&instruction.value),
-        ) {
+        match self
+            .registers
+            .set_register(instruction.destination_register, &value)
+        {
             Ok(_) => (),
             Err(error) => panic!(
                 "Failed to set register for LI instruction. Error: {}",
@@ -472,10 +470,10 @@ impl ControlUnit {
             Err(error) => panic!("Run failed. Error: {}", error),
         };
 
-        match self
-            .registers
-            .set_register(instruction.destination_register, Value::Text(file_contents))
-        {
+        match self.registers.set_register(
+            instruction.destination_register,
+            &Value::Text(file_contents),
+        ) {
             Ok(_) => (),
             Err(error) => panic!(
                 "Failed to set register for LF instruction. Error: {}",
@@ -495,13 +493,13 @@ impl ControlUnit {
 
     fn execute_move(&mut self, instruction: &MoveInstruction, debug: bool) {
         let value = match self.registers.get_register(instruction.source_register) {
-            Ok(value) => value.clone(),
+            Ok(value) => value.to_owned(),
             Err(error) => panic!("Failed to execute MOV instruction. Error: {}", error),
         };
 
         match self
             .registers
-            .set_register(instruction.destination_register, value)
+            .set_register(instruction.destination_register, &value)
         {
             Ok(_) => (),
             Err(error) => panic!(
@@ -522,14 +520,14 @@ impl ControlUnit {
 
     fn execute_arithmetic(&mut self, instruction: &ArithmeticInstruction, debug: bool) {
         let value_a = match self.registers.get_register(instruction.source_register_1) {
-            Ok(value) => value.clone(),
+            Ok(value) => value,
             Err(error) => panic!(
                 "Failed to execute {:?} instruction. Error: {}",
                 instruction.arithmetic_type, error
             ),
         };
         let value_b = match self.registers.get_register(instruction.source_register_2) {
-            Ok(value) => value.clone(),
+            Ok(value) => value,
             Err(error) => panic!(
                 "Failed to execute {:?} instruction. Error: {}",
                 instruction.arithmetic_type, error
@@ -537,28 +535,28 @@ impl ControlUnit {
         };
 
         let result = match instruction.arithmetic_type {
-            ArithmeticType::Add => match self.semantic_logic_unit.addition(&value_a, &value_b) {
+            ArithmeticType::Add => match self.semantic_logic_unit.addition(value_a, value_b) {
                 Ok(result) => Value::Text(result),
                 Err(error) => panic!(
                     "Failed to perform {:?}. Error: {}",
                     instruction.arithmetic_type, error
                 ),
             },
-            ArithmeticType::Sub => match self.semantic_logic_unit.subtract(&value_a, &value_b) {
+            ArithmeticType::Sub => match self.semantic_logic_unit.subtract(value_a, value_b) {
                 Ok(result) => Value::Text(result),
                 Err(error) => panic!(
                     "Failed to perform {:?}. Error: {}",
                     instruction.arithmetic_type, error
                 ),
             },
-            ArithmeticType::Mul => match self.semantic_logic_unit.multiply(&value_a, &value_b) {
+            ArithmeticType::Mul => match self.semantic_logic_unit.multiply(value_a, value_b) {
                 Ok(result) => Value::Text(result),
                 Err(error) => panic!(
                     "Failed to perform {:?}. Error: {}",
                     instruction.arithmetic_type, error
                 ),
             },
-            ArithmeticType::Div => match self.semantic_logic_unit.divide(&value_a, &value_b) {
+            ArithmeticType::Div => match self.semantic_logic_unit.divide(value_a, value_b) {
                 Ok(result) => Value::Text(result),
                 Err(error) => panic!(
                     "Failed to perform {:?}. Error: {}",
@@ -566,7 +564,7 @@ impl ControlUnit {
                 ),
             },
             ArithmeticType::Similarity => {
-                match self.semantic_logic_unit.similarity(&value_a, &value_b) {
+                match self.semantic_logic_unit.similarity(value_a, value_b) {
                     Ok(result) => Value::Number(result),
                     Err(error) => panic!(
                         "Failed to perform {:?}. Error: {}",
@@ -576,17 +574,6 @@ impl ControlUnit {
             }
         };
 
-        match self
-            .registers
-            .set_register(instruction.destination_register, result)
-        {
-            Ok(_) => (),
-            Err(error) => panic!(
-                "Failed to set register for {:?} instruction. Error: {}",
-                instruction.arithmetic_type, error
-            ),
-        };
-
         if debug {
             println!(
                 "Executed {:?}: {:?} + {:?} -> r{} = \"{:?}\"",
@@ -594,16 +581,26 @@ impl ControlUnit {
                 value_a,
                 value_b,
                 instruction.destination_register,
-                self.registers
-                    .get_register(instruction.destination_register)
+                result
             );
         }
+
+        match self
+            .registers
+            .set_register(instruction.destination_register, &result)
+        {
+            Ok(_) => {}
+            Err(error) => panic!(
+                "Failed to set register for {:?} instruction. Error: {}",
+                instruction.arithmetic_type, error
+            ),
+        };
     }
 
     fn execute_branch(&mut self, instruction: &BranchInstruction, debug: bool) {
         let value_a = match self.registers.get_register(instruction.source_register_1) {
             Ok(value) => match value {
-                Value::Number(number) => number.clone(),
+                Value::Number(number) => *number,
                 _ => panic!(
                     "{:?} instruction requires numeric operands.",
                     instruction.branch_type
@@ -613,7 +610,7 @@ impl ControlUnit {
         };
         let value_b = match self.registers.get_register(instruction.source_register_2) {
             Ok(value) => match value {
-                Value::Number(number) => number.clone(),
+                Value::Number(number) => *number,
                 _ => panic!(
                     "{:?} instruction requires numeric operands.",
                     instruction.branch_type
@@ -621,7 +618,7 @@ impl ControlUnit {
             },
             Err(error) => panic!("Failed to execute branch instruction. Error: {}", error),
         };
-        let address = instruction.byte_code_index.clone();
+        let address = instruction.byte_code_index;
         let is_true = match instruction.branch_type {
             BranchType::Equal => value_a == value_b,
             BranchType::LessThan => value_a < value_b,
@@ -641,7 +638,7 @@ impl ControlUnit {
             };
 
             self.registers.set_instruction_pointer(address);
-            self.current_be_bytes = Some(self.peek());
+            self.current_be_bytes = Some(self.peek().to_owned());
         }
 
         if debug {
@@ -697,7 +694,7 @@ impl ControlUnit {
     fn execute_output(&mut self, instruction: &OutputInstruction, debug: bool) {
         let value_a = match self.registers.get_register(instruction.source_register) {
             Ok(value) => match value {
-                Value::Text(text) => text.clone(),
+                Value::Text(text) => text.to_string(),
                 Value::Number(number) => number.to_string(),
                 _ => panic!("OUT instruction requires text or number operands."),
             },

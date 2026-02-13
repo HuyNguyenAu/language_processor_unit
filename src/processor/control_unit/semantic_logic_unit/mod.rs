@@ -92,7 +92,7 @@ impl SemanticLogicUnit {
         };
 
         return match embeddings {
-            Some(value) => Ok(value.embedding.clone()),
+            Some(value) => Ok(value.embedding.to_owned()),
             None => Err("No embeddings returned from client.".to_string()),
         };
     }

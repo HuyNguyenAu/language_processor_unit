@@ -81,7 +81,7 @@ impl Assembler {
 
     fn error_at_current(&mut self, message: &str) {
         let token = match &self.current {
-            Some(token) => token.clone(),
+            Some(token) => token.to_owned(),
             None => panic!(
                 "Failed to handle error at current token.\nError: {}",
                 message
@@ -93,7 +93,7 @@ impl Assembler {
 
     fn error_at_previous(&mut self, message: &str) {
         let token = match &self.previous {
-            Some(token) => token.clone(),
+            Some(token) => token.to_owned(),
             None => panic!(
                 "Failed to handle error at previous token.\nError: {}",
                 message
@@ -104,12 +104,12 @@ impl Assembler {
     }
 
     fn advance(&mut self) {
-        self.previous = self.current.clone();
+        self.previous = self.current.to_owned();
 
         loop {
             let current_token = self.scanner.scan_token();
 
-            self.current = Some(current_token.clone());
+            self.current = Some(current_token.to_owned());
 
             if current_token.token_type() != &TokenType::ERROR {
                 return;
@@ -499,7 +499,7 @@ impl Assembler {
                 .current_byte_code_indices
                 .push(bytecode_index);
         } else {
-            let previous_token = match self.previous.clone() {
+            let previous_token = match self.previous.to_owned() {
                 Some(token) => token,
                 None => {
                     return Err("Failed to get current token for uninitialised label.".to_string());
@@ -570,7 +570,7 @@ impl Assembler {
         self.emit_register_bytecode(source_register_2);
 
         if let Some(index) = self.byte_code_indices.get(&key) {
-            let value: u32 = match index.clone().try_into() {
+            let value: u32 = match (*index).try_into() {
                 Ok(value) => value,
                 Err(_) => {
                     self.error_at_current(format!(
@@ -650,7 +650,7 @@ impl Assembler {
         }
 
         if let Some((_, uninitialised_label)) = self.uninitialised_labels.iter().nth(0) {
-            let token = uninitialised_label.token.clone();
+            let token = uninitialised_label.token.to_owned();
 
             self.error_at(&token, "Undefined label referenced here.");
 

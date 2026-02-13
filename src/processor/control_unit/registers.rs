@@ -45,7 +45,7 @@ impl Registers {
         };
     }
 
-    pub fn set_register(&mut self, register_number: u32, value: Value) -> Result<(), String> {
+    pub fn set_register(&mut self, register_number: u32, value: &Value) -> Result<(), String> {
         let register_number = match usize::try_from(register_number) {
             Ok(num) => num,
             Err(_) => {
@@ -64,7 +64,7 @@ impl Registers {
         }
 
         match register_number {
-            0..=31 => self.general_purpose_registers[register_number - 1] = value,
+            0..=31 => self.general_purpose_registers[register_number - 1] = value.to_owned(),
             _ => {
                 return Err(format!(
                     "Invalid register number: {}. Valid register numbers are 0-32.",

@@ -91,6 +91,18 @@ impl Assembler {
         self.error_at(&token, message);
     }
 
+    fn error_at_previous(&mut self, message: &str) {
+        let token = match &self.previous {
+            Some(token) => token.clone(),
+            None => panic!(
+                "Failed to handle error at previous token.\nError: {}",
+                message
+            ),
+        };
+
+        self.error_at(&token, message);
+    }
+
     fn advance(&mut self) {
         self.previous = self.current.clone();
 
@@ -414,11 +426,31 @@ impl Assembler {
             .insert(key, jump_destination_byte_code_index);
     }
 
-    fn addition(&mut self) {
-        self.consume(&TokenType::ADD, "Expected 'add' keyword.");
+    fn arithmetic(&mut self, token_type: &TokenType) {
+        self.consume(
+            token_type,
+            format!("Expected '{:?}' keyword.", token_type).as_str(),
+        );
 
-        let destination_register = match self.register("Expected destination register after 'add'.")
-        {
+        let opcode = match token_type {
+            TokenType::ADD => OpCode::ADD,
+            TokenType::SUB => OpCode::SUB,
+            TokenType::MUL => OpCode::MUL,
+            TokenType::DIV => OpCode::DIV,
+            TokenType::SIM => OpCode::SIM,
+            _ => {
+                self.error_at_previous("Invalid arithmetic instruction.");
+                return;
+            }
+        };
+
+        let destination_register = match self.register(
+            format!(
+                "Expected destination register after '{:?}' keyword.",
+                token_type
+            )
+            .as_str(),
+        ) {
             Ok(register) => register,
             Err(message) => {
                 self.error_at_current(&message);
@@ -449,181 +481,11 @@ impl Assembler {
             }
         };
 
-        self.emit_op_code_bytecode(OpCode::ADD);
+        self.emit_op_code_bytecode(opcode);
         self.emit_register_bytecode(destination_register);
         self.emit_register_bytecode(source_register_1);
         self.emit_register_bytecode(source_register_2);
 
-        self.advance_stack_level();
-    }
-
-    fn subtract(&mut self) {
-        self.consume(&TokenType::SUB, "Expected 'sub' keyword.");
-
-        let destination_register = match self.register("Expected destination register after 'sub'.")
-        {
-            Ok(register) => register,
-            Err(message) => {
-                self.error_at_current(&message);
-                return;
-            }
-        };
-
-        self.consume(
-            &TokenType::COMMA,
-            "Expected ',' after destination register.",
-        );
-
-        let source_register_1 = match self.register("Expected source register 1 after ','.") {
-            Ok(register) => register,
-            Err(message) => {
-                self.error_at_current(&message);
-                return;
-            }
-        };
-
-        self.consume(&TokenType::COMMA, "Expected ',' after source register 1.");
-
-        let source_register_2 = match self.register("Expected source register 2 after ','.") {
-            Ok(register) => register,
-            Err(message) => {
-                self.error_at_current(&message);
-                return;
-            }
-        };
-
-        self.emit_op_code_bytecode(OpCode::SUB);
-        self.emit_register_bytecode(destination_register);
-        self.emit_register_bytecode(source_register_1);
-        self.emit_register_bytecode(source_register_2);
-
-        self.advance_stack_level();
-    }
-
-    fn multiply(&mut self) {
-        self.consume(&TokenType::MUL, "Expected 'mul' keyword.");
-
-        let destination_register = match self.register("Expected destination register after 'mul'.")
-        {
-            Ok(register) => register,
-            Err(message) => {
-                self.error_at_current(&message);
-                return;
-            }
-        };
-
-        self.consume(
-            &TokenType::COMMA,
-            "Expected ',' after destination register.",
-        );
-
-        let source_register_1 = match self.register("Expected source register 1 after ','.") {
-            Ok(register) => register,
-            Err(message) => {
-                self.error_at_current(&message);
-                return;
-            }
-        };
-
-        self.consume(&TokenType::COMMA, "Expected ',' after source register 1.");
-
-        let source_register_2 = match self.register("Expected source register 2 after ','.") {
-            Ok(register) => register,
-            Err(message) => {
-                self.error_at_current(&message);
-                return;
-            }
-        };
-
-        self.emit_op_code_bytecode(OpCode::MUL);
-        self.emit_register_bytecode(destination_register);
-        self.emit_register_bytecode(source_register_1);
-        self.emit_register_bytecode(source_register_2);
-
-        self.advance_stack_level();
-    }
-
-    fn divide(&mut self) {
-        self.consume(&TokenType::DIV, "Expected 'div' keyword.");
-
-        let destination_register = match self.register("Expected destination register after 'div'.")
-        {
-            Ok(register) => register,
-            Err(message) => {
-                self.error_at_current(&message);
-                return;
-            }
-        };
-
-        self.consume(
-            &TokenType::COMMA,
-            "Expected ',' after destination register.",
-        );
-
-        let source_register_1 = match self.register("Expected source register 1 after ','.") {
-            Ok(register) => register,
-            Err(message) => {
-                self.error_at_current(&message);
-                return;
-            }
-        };
-
-        self.consume(&TokenType::COMMA, "Expected ',' after source register 1.");
-
-        let source_register_2 = match self.register("Expected source register 2 after ','.") {
-            Ok(register) => register,
-            Err(message) => {
-                self.error_at_current(&message);
-                return;
-            }
-        };
-
-        self.emit_op_code_bytecode(OpCode::DIV);
-        self.emit_register_bytecode(destination_register);
-        self.emit_register_bytecode(source_register_1);
-        self.emit_register_bytecode(source_register_2);
-
-        self.advance_stack_level();
-    }
-
-    fn similarity(&mut self) {
-        self.consume(&TokenType::SIM, "Expected 'sim' keyword.");
-
-        let destination_register = match self.register("Expected destination register after ','.") {
-            Ok(register) => register,
-            Err(message) => {
-                self.error_at_current(&message);
-                return;
-            }
-        };
-
-        self.consume(
-            &TokenType::COMMA,
-            "Expected ',' after destination register.",
-        );
-
-        let source_register_1 = match self.register("Expected source register 1 after ','.") {
-            Ok(register) => register,
-            Err(message) => {
-                self.error_at_current(&message);
-                return;
-            }
-        };
-
-        self.consume(&TokenType::COMMA, "Expected ',' after source register 1.");
-
-        let source_register_2 = match self.register("Expected source register 2 after ','.") {
-            Ok(register) => register,
-            Err(message) => {
-                self.error_at_current(&message);
-                return;
-            }
-        };
-
-        self.emit_op_code_bytecode(OpCode::SIM);
-        self.emit_register_bytecode(destination_register);
-        self.emit_register_bytecode(source_register_1);
-        self.emit_register_bytecode(source_register_2);
         self.advance_stack_level();
     }
 
@@ -660,14 +522,31 @@ impl Assembler {
             format!("Expected '{:?}' keyword.", token_type).as_str(),
         );
 
-        let source_register_1 =
-            match self.register("Expected source register 1 after branch keyword.") {
-                Ok(register) => register,
-                Err(message) => {
-                    self.error_at_current(&message);
-                    return;
-                }
-            };
+        let opcode = match token_type {
+            TokenType::BEQ => OpCode::BEQ,
+            TokenType::BLT => OpCode::BLT,
+            TokenType::BLE => OpCode::BLE,
+            TokenType::BGT => OpCode::BGT,
+            TokenType::BGE => OpCode::BGE,
+            _ => {
+                self.error_at_previous("Invalid branch instruction.");
+                return;
+            }
+        };
+
+        let source_register_1 = match self.register(
+            format!(
+                "Expected source register 1 after '{:?}' keyword.",
+                token_type
+            )
+            .as_str(),
+        ) {
+            Ok(register) => register,
+            Err(message) => {
+                self.error_at_current(&message);
+                return;
+            }
+        };
 
         self.consume(&TokenType::COMMA, "Expected ',' after source register 1.");
 
@@ -683,18 +562,6 @@ impl Assembler {
 
         let label_name = self.identifier("Expected label name after ','.");
         let key = Self::hash(&label_name);
-
-        let opcode = match token_type {
-            TokenType::BEQ => OpCode::BEQ,
-            TokenType::BLT => OpCode::BLT,
-            TokenType::BLE => OpCode::BLE,
-            TokenType::BGT => OpCode::BGT,
-            TokenType::BGE => OpCode::BGE,
-            _ => {
-                self.error_at_current("Invalid branch instruction.");
-                return;
-            }
-        };
 
         self.emit_op_code_bytecode(opcode);
         self.emit_register_bytecode(source_register_1);
@@ -756,11 +623,11 @@ impl Assembler {
                     TokenType::LI => self.load_immediate(),
                     TokenType::LF => self.load_file(),
                     TokenType::MV => self.move_value(),
-                    TokenType::ADD => self.addition(),
-                    TokenType::SUB => self.subtract(),
-                    TokenType::MUL => self.multiply(),
-                    TokenType::DIV => self.divide(),
-                    TokenType::SIM => self.similarity(),
+                    TokenType::ADD => self.arithmetic(&TokenType::ADD),
+                    TokenType::SUB => self.arithmetic(&TokenType::SUB),
+                    TokenType::MUL => self.arithmetic(&TokenType::MUL),
+                    TokenType::DIV => self.arithmetic(&TokenType::DIV),
+                    TokenType::SIM => self.arithmetic(&TokenType::SIM),
                     TokenType::LABEL => self.label(),
                     TokenType::BEQ => self.branch(&TokenType::BEQ),
                     TokenType::BLT => self.branch(&TokenType::BLT),

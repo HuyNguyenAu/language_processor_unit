@@ -19,35 +19,17 @@ pub struct MoveInstruction {
 }
 
 #[derive(Debug)]
-pub struct AddInstruction {
-    pub destination_register: u32,
-    pub source_register_1: u32,
-    pub source_register_2: u32,
+pub enum ArithmeticType {
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Similarity,
 }
 
 #[derive(Debug)]
-pub struct SubInstruction {
-    pub destination_register: u32,
-    pub source_register_1: u32,
-    pub source_register_2: u32,
-}
-
-#[derive(Debug)]
-pub struct MulInstruction {
-    pub destination_register: u32,
-    pub source_register_1: u32,
-    pub source_register_2: u32,
-}
-
-#[derive(Debug)]
-pub struct DivInstruction {
-    pub destination_register: u32,
-    pub source_register_1: u32,
-    pub source_register_2: u32,
-}
-
-#[derive(Debug)]
-pub struct SimilarityInstruction {
+pub struct ArithmeticInstruction {
+    pub arithmetic_type: ArithmeticType,
     pub destination_register: u32,
     pub source_register_1: u32,
     pub source_register_2: u32,
@@ -80,11 +62,7 @@ pub enum Instruction {
     LoadImmediate(LoadImmediateInstruction),
     LoadFile(LoadFileInstruction),
     Move(MoveInstruction),
-    Add(AddInstruction),
-    Sub(SubInstruction),
-    Mul(MulInstruction),
-    Div(DivInstruction),
-    Similarity(SimilarityInstruction),
+    Arithmetic(ArithmeticInstruction),
     Branch(BranchInstruction),
     Output(OutputInstruction),
 }

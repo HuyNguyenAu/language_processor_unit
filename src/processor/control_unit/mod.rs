@@ -61,8 +61,15 @@ impl ControlUnit {
             return;
         }
 
-        let bytes = self.memory.read(self.registers.get_instruction_pointer());
-        self.current_be_bytes = Some(bytes.clone());
+        let bytes = match self.memory.read(self.registers.get_instruction_pointer()) {
+            Ok(bytes) => bytes.clone(),
+            Err(error) => panic!(
+                "Failed to read byte code at instruction pointer. Error: {}. Instruction pointer value: {}.",
+                error,
+                self.registers.get_instruction_pointer()
+            ),
+        };
+        self.current_be_bytes = Some(bytes);
     }
 
     fn decode_text(&mut self, message: &str) -> String {
@@ -482,11 +489,15 @@ impl ControlUnit {
         }
 
         // Initialise current bytecode.
-        self.current_be_bytes = Some(
-            self.memory
-                .read(self.registers.get_instruction_pointer())
-                .clone(),
-        );
+        let bytes = match self.memory.read(self.registers.get_instruction_pointer()) {
+            Ok(bytes) => bytes.clone(),
+            Err(error) => panic!(
+                "Failed to read byte code at instruction pointer. Error: {}. Instruction pointer value: {}.",
+                error,
+                self.registers.get_instruction_pointer()
+            ),
+        };
+        self.current_be_bytes = Some(bytes);
 
         return Some(self.decode_op_code());
     }
@@ -499,10 +510,16 @@ impl ControlUnit {
     }
 
     fn execute_load_immediate(&mut self, instruction: &LoadImmediateInstruction, debug: bool) {
-        self.registers.set_register(
+        match self.registers.set_register(
             instruction.destination_register,
             self.get_value(&instruction.value),
-        );
+        ) {
+            Ok(_) => (),
+            Err(error) => panic!(
+                "Failed to set register for LI instruction. Error: {}",
+                error
+            ),
+        };
 
         if debug {
             println!(
@@ -520,8 +537,16 @@ impl ControlUnit {
             Err(error) => panic!("Run failed. Error: {}", error),
         };
 
-        self.registers
-            .set_register(instruction.destination_register, Value::Text(file_contents));
+        match self
+            .registers
+            .set_register(instruction.destination_register, Value::Text(file_contents))
+        {
+            Ok(_) => (),
+            Err(error) => panic!(
+                "Failed to set register for LF instruction. Error: {}",
+                error
+            ),
+        };
 
         if debug {
             println!(
@@ -534,12 +559,21 @@ impl ControlUnit {
     }
 
     fn execute_move(&mut self, instruction: &MoveInstruction, debug: bool) {
-        let value = self
+        let value = match self.registers.get_register(instruction.source_register) {
+            Ok(value) => value.clone(),
+            Err(error) => panic!("Failed to execute MOV instruction. Error: {}", error),
+        };
+
+        match self
             .registers
-            .get_register(instruction.source_register)
-            .clone();
-        self.registers
-            .set_register(instruction.destination_register, value);
+            .set_register(instruction.destination_register, value)
+        {
+            Ok(_) => (),
+            Err(error) => panic!(
+                "Failed to set register for MOV instruction. Error: {}",
+                error
+            ),
+        };
 
         if debug {
             println!(
@@ -552,19 +586,30 @@ impl ControlUnit {
     }
 
     fn execute_add(&mut self, instruction: &AddInstruction, debug: bool) {
-        let value_a = self
-            .registers
-            .get_register(instruction.source_register_1)
-            .clone();
-        let value_b = self
-            .registers
-            .get_register(instruction.source_register_2)
-            .clone();
+        let value_a = match self.registers.get_register(instruction.source_register_1) {
+            Ok(value) => value.clone(),
+            Err(error) => panic!("Failed to execute ADD instruction. Error: {}", error),
+        };
+        let value_b = match self.registers.get_register(instruction.source_register_2) {
+            Ok(value) => value.clone(),
+            Err(error) => panic!("Failed to execute ADD instruction. Error: {}", error),
+        };
 
-        let result = self.semantic_logic_unit.addition(&value_a, &value_b);
+        let result = match self.semantic_logic_unit.addition(&value_a, &value_b) {
+            Ok(result) => result,
+            Err(error) => panic!("Failed to perform addition. Error: {}", error),
+        };
 
-        self.registers
-            .set_register(instruction.destination_register, Value::Text(result));
+        match self
+            .registers
+            .set_register(instruction.destination_register, Value::Text(result))
+        {
+            Ok(_) => (),
+            Err(error) => panic!(
+                "Failed to set register for ADD instruction. Error: {}",
+                error
+            ),
+        };
 
         if debug {
             println!(
@@ -579,19 +624,30 @@ impl ControlUnit {
     }
 
     fn execute_subtract(&mut self, instruction: &SubInstruction, debug: bool) {
-        let value_a = self
-            .registers
-            .get_register(instruction.source_register_1)
-            .clone();
-        let value_b = self
-            .registers
-            .get_register(instruction.source_register_2)
-            .clone();
+        let value_a = match self.registers.get_register(instruction.source_register_1) {
+            Ok(value) => value.clone(),
+            Err(error) => panic!("Failed to execute SUB instruction. Error: {}", error),
+        };
+        let value_b = match self.registers.get_register(instruction.source_register_2) {
+            Ok(value) => value.clone(),
+            Err(error) => panic!("Failed to execute SUB instruction. Error: {}", error),
+        };
 
-        let result = self.semantic_logic_unit.subtract(&value_a, &value_b);
+        let result = match self.semantic_logic_unit.subtract(&value_a, &value_b) {
+            Ok(result) => result,
+            Err(error) => panic!("Failed to perform subtraction. Error: {}", error),
+        };
 
-        self.registers
-            .set_register(instruction.destination_register, Value::Text(result));
+        match self
+            .registers
+            .set_register(instruction.destination_register, Value::Text(result))
+        {
+            Ok(_) => (),
+            Err(error) => panic!(
+                "Failed to set register for SUB instruction. Error: {}",
+                error
+            ),
+        };
 
         if debug {
             println!(
@@ -606,19 +662,30 @@ impl ControlUnit {
     }
 
     fn execute_multiply(&mut self, instruction: &MulInstruction, debug: bool) {
-        let value_a = self
-            .registers
-            .get_register(instruction.source_register_1)
-            .clone();
-        let value_b = self
-            .registers
-            .get_register(instruction.source_register_2)
-            .clone();
+        let value_a = match self.registers.get_register(instruction.source_register_1) {
+            Ok(value) => value.clone(),
+            Err(error) => panic!("Failed to execute MUL instruction. Error: {}", error),
+        };
+        let value_b = match self.registers.get_register(instruction.source_register_2) {
+            Ok(value) => value.clone(),
+            Err(error) => panic!("Failed to execute MUL instruction. Error: {}", error),
+        };
 
-        let result = self.semantic_logic_unit.multiply(&value_a, &value_b);
+        let result = match self.semantic_logic_unit.multiply(&value_a, &value_b) {
+            Ok(result) => result,
+            Err(error) => panic!("Failed to perform multiplication. Error: {}", error),
+        };
 
-        self.registers
-            .set_register(instruction.destination_register, Value::Text(result));
+        match self
+            .registers
+            .set_register(instruction.destination_register, Value::Text(result))
+        {
+            Ok(_) => (),
+            Err(error) => panic!(
+                "Failed to set register for MUL instruction. Error: {}",
+                error
+            ),
+        };
 
         if debug {
             println!(
@@ -633,19 +700,30 @@ impl ControlUnit {
     }
 
     fn execute_divide(&mut self, instruction: &DivInstruction, debug: bool) {
-        let value_a = self
-            .registers
-            .get_register(instruction.source_register_1)
-            .clone();
-        let value_b = self
-            .registers
-            .get_register(instruction.source_register_2)
-            .clone();
+        let value_a = match self.registers.get_register(instruction.source_register_1) {
+            Ok(value) => value.clone(),
+            Err(error) => panic!("Failed to execute DIV instruction. Error: {}", error),
+        };
+        let value_b = match self.registers.get_register(instruction.source_register_2) {
+            Ok(value) => value.clone(),
+            Err(error) => panic!("Failed to execute DIV instruction. Error: {}", error),
+        };
 
-        let result = self.semantic_logic_unit.divide(&value_a, &value_b);
+        let result = match self.semantic_logic_unit.divide(&value_a, &value_b) {
+            Ok(result) => result,
+            Err(error) => panic!("Failed to perform division. Error: {}", error),
+        };
 
-        self.registers
-            .set_register(instruction.destination_register, Value::Text(result));
+        match self
+            .registers
+            .set_register(instruction.destination_register, Value::Text(result))
+        {
+            Ok(_) => (),
+            Err(error) => panic!(
+                "Failed to set register for DIV instruction. Error: {}",
+                error
+            ),
+        };
 
         if debug {
             println!(
@@ -660,19 +738,30 @@ impl ControlUnit {
     }
 
     fn execute_similarity(&mut self, instruction: &SimilarityInstruction, debug: bool) {
-        let value_a = self
-            .registers
-            .get_register(instruction.source_register_1)
-            .clone();
-        let value_b = self
-            .registers
-            .get_register(instruction.source_register_2)
-            .clone();
+        let value_a = match self.registers.get_register(instruction.source_register_1) {
+            Ok(value) => value.clone(),
+            Err(error) => panic!("Failed to execute SIM instruction. Error: {}", error),
+        };
+        let value_b = match self.registers.get_register(instruction.source_register_2) {
+            Ok(value) => value.clone(),
+            Err(error) => panic!("Failed to execute SIM instruction. Error: {}", error),
+        };
 
-        let result = self.semantic_logic_unit.similarity(&value_a, &value_b);
+        let result = match self.semantic_logic_unit.similarity(&value_a, &value_b) {
+            Ok(result) => result,
+            Err(error) => panic!("Failed to perform similarity calculation. Error: {}", error),
+        };
 
-        self.registers
-            .set_register(instruction.destination_register, Value::Number(result));
+        match self
+            .registers
+            .set_register(instruction.destination_register, Value::Number(result))
+        {
+            Ok(_) => (),
+            Err(error) => panic!(
+                "Failed to set register for SIM instruction. Error: {}",
+                error
+            ),
+        };
 
         if debug {
             println!(
@@ -687,27 +776,25 @@ impl ControlUnit {
     }
 
     fn execute_branch(&mut self, instruction: &BranchInstruction, debug: bool) {
-        let value_a = match self
-            .registers
-            .get_register(instruction.source_register_1)
-            .clone()
-        {
-            Value::Number(num) => num,
-            _ => panic!(
-                "{:?} instruction requires numeric operands.",
-                instruction.branch_type
-            ),
+        let value_a = match self.registers.get_register(instruction.source_register_1) {
+            Ok(value) => match value {
+                Value::Number(number) => number.clone(),
+                _ => panic!(
+                    "{:?} instruction requires numeric operands.",
+                    instruction.branch_type
+                ),
+            },
+            Err(error) => panic!("Failed to execute branch instruction. Error: {}", error),
         };
-        let value_b = match self
-            .registers
-            .get_register(instruction.source_register_2)
-            .clone()
-        {
-            Value::Number(num) => num,
-            _ => panic!(
-                "{:?} instruction requires numeric operands.",
-                instruction.branch_type
-            ),
+        let value_b = match self.registers.get_register(instruction.source_register_2) {
+            Ok(value) => match value {
+                Value::Number(number) => number.clone(),
+                _ => panic!(
+                    "{:?} instruction requires numeric operands.",
+                    instruction.branch_type
+                ),
+            },
+            Err(error) => panic!("Failed to execute branch instruction. Error: {}", error),
         };
         let address = instruction.byte_code_index.clone();
         let is_true = match instruction.branch_type {
@@ -767,9 +854,12 @@ impl ControlUnit {
 
     fn execute_output(&mut self, instruction: &OutputInstruction, debug: bool) {
         let value_a = match self.registers.get_register(instruction.source_register) {
-            Value::Text(text) => text.clone(),
-            Value::Number(number) => number.to_string(),
-            _ => panic!("OUT instruction requires text or number operands."),
+            Ok(value) => match value {
+                Value::Text(text) => text.clone(),
+                Value::Number(number) => number.to_string(),
+                _ => panic!("OUT instruction requires text or number operands."),
+            },
+            Err(error) => panic!("Failed to execute OUT instruction. Error: {}", error),
         };
 
         if debug {

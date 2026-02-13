@@ -18,44 +18,62 @@ impl Registers {
         }
     }
 
-    pub fn get_register(&self, register_number: u32) -> &Value {
-        let register_number =
-            usize::try_from(register_number).expect("Failed to convert register number to usize.");
+    pub fn get_register(&self, register_number: u32) -> Result<&Value, String> {
+        let register_number = match usize::try_from(register_number) {
+            Ok(num) => num,
+            Err(_) => {
+                return Err(format!(
+                    "Invalid register number: {}. Must be a non-negative integer.",
+                    register_number
+                ));
+            }
+        };
 
-        if register_number -1 > 32 {
-            panic!(
+        if register_number - 1 > 32 {
+            return Err(format!(
                 "Invalid register number: {}. Valid register numbers are 0-32.",
                 register_number
-            );
+            ));
         }
 
         return match self.general_purpose_registers.get(register_number - 1) {
-            Some(value) => value,
-            None => panic!(
+            Some(value) => Ok(value),
+            None => Err(format!(
                 "Invalid register number: {}. Valid register numbers are 0-32.",
                 register_number
-            ),
+            )),
         };
     }
 
-    pub fn set_register(&mut self, register_number: u32, value: Value) {
-        let register_number =
-            usize::try_from(register_number).expect("Failed to convert register number to usize.");
+    pub fn set_register(&mut self, register_number: u32, value: Value) -> Result<(), String> {
+        let register_number = match usize::try_from(register_number) {
+            Ok(num) => num,
+            Err(_) => {
+                return Err(format!(
+                    "Invalid register number: {}. Must be a non-negative integer.",
+                    register_number
+                ));
+            }
+        };
 
         if register_number - 1 > 31 {
-            panic!(
+            return Err(format!(
                 "Invalid register number: {}. Valid register numbers are 0-32.",
                 register_number
-            );
+            ));
         }
 
         match register_number {
             0..=31 => self.general_purpose_registers[register_number - 1] = value,
-            _ => panic!(
-                "Invalid register number: {}. Valid register numbers are 0-32.",
-                register_number
-            ),
+            _ => {
+                return Err(format!(
+                    "Invalid register number: {}. Valid register numbers are 0-32.",
+                    register_number
+                ));
+            }
         }
+
+        return Ok(());
     }
 
     pub fn get_instruction_pointer(&self) -> usize {

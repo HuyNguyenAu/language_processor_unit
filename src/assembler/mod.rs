@@ -406,11 +406,6 @@ impl Assembler {
                     }
                 };
 
-                println!(
-                    "Backpatching label '{}' at bytecode index {} with value {}.",
-                    value, current_byte_code_index, value
-                );
-
                 self.byte_code[current_byte_code_index] = value.to_be_bytes();
             }
         }

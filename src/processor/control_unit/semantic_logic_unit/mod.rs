@@ -1,16 +1,14 @@
-use crate::processor::control_unit::semantic_logic_unit::{
+use crate::processor::control_unit::{registers::Value, semantic_logic_unit::{
     microcode::Microcode,
     openai::{
         OpenAIClient,
         chat_completion_models::{OpenAIChatCompletionRequest, OpenAIChatCompletionRequestText},
         embeddings_models::OpenAIEmbeddingsRequest,
     },
-    value::Value,
-};
+}};
 
 mod microcode;
 mod openai;
-pub mod value;
 
 pub struct SemanticLogicUnit {
     micro_code: Microcode,
@@ -94,101 +92,101 @@ impl SemanticLogicUnit {
         };
 
         return match embeddings {
-            Some(value) => Ok(value.embedding.clone()),
+            Some(value) => Ok(value.embedding.to_owned()),
             None => Err("No embeddings returned from client.".to_string()),
         };
     }
 
-    pub fn addition(&self, value_a: &Value, value_b: &Value) -> String {
+    pub fn addition(&self, value_a: &Value, value_b: &Value) -> Result<String, String> {
         let value_a = match value_a {
             Value::Text(text) => text,
-            _ => panic!("Addition requires text value."),
+            _ => return Err("Addition requires text value.".to_string()),
         };
         let value_b = match value_b {
             Value::Text(text) => text,
-            _ => panic!("Addition requires text value."),
+            _ => return Err("Addition requires text value.".to_string()),
         };
 
         let content = self.micro_code.addition(value_a, value_b);
 
         return match &self.chat(content.as_str()) {
-            Ok(choice) => choice.to_lowercase(),
-            Err(error) => panic!("Failed to perform addition. Error: {}", error),
+            Ok(choice) => Ok(choice.to_lowercase()),
+            Err(error) => Err(format!("Failed to perform addition. Error: {}", error)),
         };
     }
 
-    pub fn subtract(&self, value_a: &Value, value_b: &Value) -> String {
+    pub fn subtract(&self, value_a: &Value, value_b: &Value) -> Result<String, String> {
         let value_a = match value_a {
             Value::Text(text) => text,
-            _ => panic!("Subtraction requires text value."),
+            _ => return Err("Subtraction requires text value.".to_string()),
         };
         let value_b = match value_b {
             Value::Text(text) => text,
-            _ => panic!("Subtraction requires text value."),
+            _ => return Err("Subtraction requires text value.".to_string()),
         };
 
         let content = self.micro_code.subtract(value_a, value_b);
 
         return match &self.chat(content.as_str()) {
-            Ok(choice) => choice.to_lowercase(),
-            Err(error) => panic!("Failed to perform subtraction. Error: {}", error),
+            Ok(choice) => Ok(choice.to_lowercase()),
+            Err(error) => Err(format!("Failed to perform subtraction. Error: {}", error)),
         };
     }
 
-    pub fn multiply(&self, value_a: &Value, value_b: &Value) -> String {
+    pub fn multiply(&self, value_a: &Value, value_b: &Value) -> Result<String, String> {
         let value_a = match value_a {
             Value::Text(text) => text,
-            _ => panic!("Multiplication requires text value."),
+            _ => return Err("Multiplication requires text value.".to_string()),
         };
         let value_b = match value_b {
             Value::Text(text) => text,
-            _ => panic!("Multiplication requires text value."),
+            _ => return Err("Multiplication requires text value.".to_string()),
         };
 
         let content = self.micro_code.multiply(value_a, value_b);
 
         return match &self.chat(content.as_str()) {
-            Ok(choice) => choice.to_lowercase(),
-            Err(error) => panic!("Failed to perform multiplication. Error: {}", error),
+            Ok(choice) => Ok(choice.to_lowercase()),
+            Err(error) => Err(format!("Failed to perform multiplication. Error: {}", error)),
         };
     }
 
-    pub fn divide(&self, value_a: &Value, value_b: &Value) -> String {
+    pub fn divide(&self, value_a: &Value, value_b: &Value) -> Result<String, String> {
         let value_a = match value_a {
             Value::Text(text) => text,
-            _ => panic!("Division requires text value."),
+            _ => return Err("Division requires text value.".to_string()),
         };
         let value_b = match value_b {
             Value::Text(text) => text,
-            _ => panic!("Division requires text value."),
+            _ => return Err("Division requires text value.".to_string()),
         };
 
         let content = self.micro_code.divide(value_a, value_b);
 
         return match &self.chat(content.as_str()) {
-            Ok(choice) => choice.to_lowercase(),
-            Err(error) => panic!("Failed to perform division. Error: {}", error),
+            Ok(choice) => Ok(choice.to_lowercase()),
+            Err(error) => Err(format!("Failed to perform division. Error: {}", error)),
         };
     }
 
-    pub fn similarity(&self, value_a: &Value, value_b: &Value) -> u32 {
+    pub fn similarity(&self, value_a: &Value, value_b: &Value) -> Result<u32, String> {
         let value_a = match value_a {
             Value::Text(text) => text,
-            _ => panic!("Similarity requires text value."),
+            _ => return Err("Similarity requires text value.".to_string()),
         };
         let value_b = match value_b {
             Value::Text(text) => text,
-            _ => panic!("Similarity requires text value."),
+            _ => return Err("Similarity requires text value.".to_string()),
         };
 
         let value_a_embeddings = match self.embeddings(value_a) {
             Ok(embedding) => embedding,
-            Err(error) => panic!("Failed to get first embedding. Error: {}", error),
+            Err(error) => return Err(format!("Failed to get first embedding. Error: {}", error)),
         };
 
         let value_b_embeddings = match self.embeddings(value_b) {
             Ok(embedding) => embedding,
-            Err(error) => panic!("Failed to get second embedding. Error: {}", error),
+            Err(error) => return Err(format!("Failed to get second embedding. Error: {}", error)),
         };
 
         // Compute cosine similarity.
@@ -202,6 +200,6 @@ impl SemanticLogicUnit {
         let similarity = dot_product / (x_euclidean_length * y_euclidean_length);
         let percentage_similarity = similarity.clamp(0.0, 1.0) * 100.0;
 
-        return percentage_similarity.round() as u32;
+        return Ok(percentage_similarity.round() as u32);
     }
 }

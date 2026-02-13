@@ -140,19 +140,20 @@ impl Scanner {
         }
 
         return match identifier.to_lowercase().as_str() {
-            "mov" => self.make_token(TokenType::MOV),
+            "li" => self.make_token(TokenType::LI),
+            "lf" => self.make_token(TokenType::LF),
+            "mv" => self.make_token(TokenType::MV),
             "add" => self.make_token(TokenType::ADD),
             "sub" => self.make_token(TokenType::SUB),
             "mul" => self.make_token(TokenType::MUL),
             "div" => self.make_token(TokenType::DIV),
             "sim" => self.make_token(TokenType::SIM),
-            "jeq" => self.make_token(TokenType::JEQ),
-            "jle" => self.make_token(TokenType::JLE),
-            "jlt" => self.make_token(TokenType::JLT),
-            "jge" => self.make_token(TokenType::JGE),
-            "jgt" => self.make_token(TokenType::JGT),
+            "beq" => self.make_token(TokenType::BEQ),
+            "ble" => self.make_token(TokenType::BLE),
+            "blt" => self.make_token(TokenType::BLT),
+            "bge" => self.make_token(TokenType::BGE),
+            "bgt" => self.make_token(TokenType::BGT),
             "out" => self.make_token(TokenType::OUT),
-            "load" => self.make_token(TokenType::LOAD),
             _ => self.make_token(TokenType::IDENTIFIER),
         };
     }

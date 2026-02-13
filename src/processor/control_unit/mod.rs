@@ -2,18 +2,17 @@ use std::fs::read_to_string;
 
 use crate::{
     assembler::{
+        immediate::{Immediate, ImmediateType},
         opcode::OpCode,
-        operand::{Operand, OperandType},
     },
     processor::control_unit::{
         instruction::{
-            AddInstruction, ComparisonType, DivInstruction, Instruction, JumpCompareInstruction,
-            LoadInstruction, MoveInstruction, MulInstruction, OutputInstruction,
-            SimilarityInstruction, SubInstruction,
+            ArithmeticInstruction, ArithmeticType, BranchInstruction, BranchType, Instruction,
+            LoadFileInstruction, LoadImmediateInstruction, MoveInstruction, OutputInstruction,
         },
         memory_unit::MemoryUnit,
-        registers::Registers,
-        semantic_logic_unit::{SemanticLogicUnit, value::Value},
+        registers::{Registers, Value},
+        semantic_logic_unit::SemanticLogicUnit,
     },
 };
 
@@ -42,12 +41,19 @@ impl ControlUnit {
         }
     }
 
-    pub fn load_byte_code(&mut self, byte_code: Vec<[u8; 4]>) {
-        self.memory.load(byte_code);
-    }
-
     fn is_at_end(&self) -> bool {
         return self.registers.get_instruction_pointer() >= self.memory.length();
+    }
+
+    fn peek(&self) -> &[u8; 4] {
+        return match self.memory.read(self.registers.get_instruction_pointer()) {
+            Ok(bytes) => bytes,
+            Err(error) => panic!(
+                "Failed to read byte code at instruction pointer during peek. Error: {}. Instruction pointer value: {}.",
+                error,
+                self.registers.get_instruction_pointer()
+            ),
+        };
     }
 
     fn advance(&mut self) {
@@ -61,25 +67,31 @@ impl ControlUnit {
             return;
         }
 
-        let bytes = self.memory.read(self.registers.get_instruction_pointer());
-        self.current_be_bytes = Some(bytes.clone());
+        let bytes = match self.memory.read(self.registers.get_instruction_pointer()) {
+            Ok(bytes) => *bytes,
+            Err(error) => panic!(
+                "Failed to read byte code at instruction pointer. Error: {}. Instruction pointer value: {}.",
+                error,
+                self.registers.get_instruction_pointer()
+            ),
+        };
+        self.current_be_bytes = Some(bytes);
     }
 
-    fn decode_operand_type(&mut self, message: &str) -> OperandType {
-        let operand_be_bytes = match self.current_be_bytes {
-            Some(be_bytes) => be_bytes,
-            None => panic!("No current bytecode to determine operand type. {}", message),
-        };
+    fn decode_op_code(&mut self, expected_op_code: &OpCode, message: &str) -> OpCode {
+        if let Some(current_be_bytes) = &self.current_be_bytes
+            && let Ok(current_op_code) = OpCode::from_be_bytes(*current_be_bytes)
+            && current_op_code == *expected_op_code
+        {
+            self.advance();
 
-        // Consume operand type bytecode.
-        self.advance();
+            return current_op_code;
+        }
 
-        let operand_type = match OperandType::from_be_bytes(operand_be_bytes) {
-            Ok(operand_type) => operand_type,
-            Err(error) => panic!("{} {} Byte code: {:?}", message, error, operand_be_bytes),
-        };
-
-        return operand_type;
+        panic!(
+            "{} Expected opcode: {:?}. Found byte code: {:?}.",
+            message, expected_op_code, self.current_be_bytes
+        );
     }
 
     fn decode_text(&mut self, message: &str) -> String {
@@ -166,27 +178,93 @@ impl ControlUnit {
         return u32::from_be_bytes(number_be_bytes);
     }
 
-    fn decode_operand(
-        &mut self,
-        operand_type_message: &str,
-        operand_number: &str,
-        operand_text: &str,
-        operand_register: &str,
-    ) -> Operand {
-        let operand_type = self.decode_operand_type(operand_type_message);
+    fn decode_immediate_type(&mut self, message: &str) -> ImmediateType {
+        let be_bytes = match self.current_be_bytes {
+            Some(be_bytes) => be_bytes,
+            None => panic!(
+                "No current bytecode to determine immediate type. {}",
+                message
+            ),
+        };
 
-        return match operand_type {
-            OperandType::NUMBER => Operand::Number(self.decode_number(true, operand_number)),
-            OperandType::TEXT => Operand::Text(self.decode_text(operand_text)),
-            OperandType::REGISTER => {
-                Operand::Register(self.decode_register(true, operand_register))
+        // Consume value type bytecode.
+        self.advance();
+
+        return match ImmediateType::from_be_bytes(be_bytes) {
+            Ok(immediate_type) => immediate_type,
+            Err(error) => panic!(
+                "{} {}, Instruction Byte code: {:?}",
+                message, error, be_bytes
+            ),
+        };
+    }
+
+    fn decode_immediate(
+        &mut self,
+        value_type_message: &str,
+        value_number_message: &str,
+        value_text_message: &str,
+    ) -> Immediate {
+        return match self.decode_immediate_type(value_type_message) {
+            ImmediateType::NUMBER => {
+                Immediate::Number(self.decode_number(true, value_number_message))
             }
+            ImmediateType::TEXT => Immediate::Text(self.decode_text(value_text_message)),
+        };
+    }
+
+    fn decode_load_immediate(&mut self) -> LoadImmediateInstruction {
+        // Consume LI opcode.
+        self.decode_op_code(&OpCode::LI, "Failed to decode LI opcode.");
+
+        // Consume the destination register.
+        let destination_register = self.decode_register(
+            false,
+            "Failed to decode destination register for LI instruction.",
+        );
+
+        // Consume the immediate value.
+        let value = self.decode_immediate(
+            "Failed to decode immediate type for LI instruction.",
+            "Failed to decode number for LI instruction.",
+            "Failed to decode text for LI instruction.",
+        );
+
+        return LoadImmediateInstruction {
+            destination_register,
+            value,
+        };
+    }
+
+    fn decode_load_file(&mut self) -> LoadFileInstruction {
+        // Consume LF opcode.
+        self.decode_op_code(&OpCode::LF, "Failed to decode LF opcode.");
+
+        // Consume the destination register.
+        let destination_register = self.decode_register(
+            false,
+            "Failed to decode destination register for LF instruction.",
+        );
+
+        // Consume the immediate value.
+        let value = match self.decode_immediate(
+            "Failed to decode immediate type for LF instruction.",
+            "Failed to decode number for LF instruction.",
+            "Failed to decode text for LF instruction.",
+        ) {
+            Immediate::Text(text) => text,
+            _ => panic!("LF instruction requires a text immediate for the file path."),
+        };
+
+        return LoadFileInstruction {
+            destination_register,
+            value,
         };
     }
 
     fn decode_move(&mut self) -> MoveInstruction {
         // Consume MOV opcode.
-        self.advance();
+        self.decode_op_code(&OpCode::MV, "Failed to decode MV opcode.");
 
         // Consume the destination register.
         let destination_register = self.decode_register(
@@ -194,253 +272,109 @@ impl ControlUnit {
             "Failed to read destination register for MOV instruction.",
         );
 
-        // Consume value operand.
-        let value = self.decode_operand(
-            "Failed to determine operand type for MOV instruction.",
-            "Failed to read number for MOV instruction.",
-            "Failed to read text for MOV instruction.",
-            "Failed to read source register for MOV instruction.",
-        );
+        // Consume the source register.
+        let source_register =
+            self.decode_register(false, "Failed to read source register for MOV instruction.");
 
         return MoveInstruction {
             destination_register,
-            value,
+            source_register,
         };
     }
 
-    fn decode_subtract(&mut self) -> SubInstruction {
-        // Consume SUB opcode.
-        self.advance();
-
-        // Consume the first operand.
-        let first_operand = self.decode_operand(
-            "Failed to determine first operand type for SUB instruction.",
-            "Failed to read first number operand for SUB instruction.",
-            "Failed to read first text operand for SUB instruction.",
-            "Failed to read first register operand for SUB instruction.",
-        );
-
-        // Consume the second operand.
-        let second_operand = self.decode_operand(
-            "Failed to determine second operand type for SUB instruction.",
-            "Failed to read second number operand for SUB instruction.",
-            "Failed to read second text operand for SUB instruction.",
-            "Failed to read second register operand for SUB instruction.",
+    fn decode_arithmetic(&mut self, op_code: OpCode) -> ArithmeticInstruction {
+        // Consume arithmetic opcode.
+        self.decode_op_code(
+            &op_code,
+            format!("Failed to decode {:?} opcode.", op_code).as_str(),
         );
 
         // Consume the destination register.
         let destination_register = self.decode_register(
-            false,
-            "Failed to read destination register for SUB instruction.",
-        );
-
-        return SubInstruction {
-            destination_register,
-            first_operand,
-            second_operand,
-        };
-    }
-
-    fn decode_multiply(&mut self) -> MulInstruction {
-        // Consume MUL opcode.
-        self.advance();
-
-        // Consume the first operand.
-        let first_operand = self.decode_operand(
-            "Failed to determine first operand type for MUL instruction.",
-            "Failed to read first number operand for MUL instruction.",
-            "Failed to read first text operand for MUL instruction.",
-            "Failed to read first register operand for MUL instruction.",
-        );
-
-        // Consume the second operand.
-        let second_operand = self.decode_operand(
-            "Failed to determine second operand type for MUL instruction.",
-            "Failed to read second number operand for MUL instruction.",
-            "Failed to read second text operand for MUL instruction.",
-            "Failed to read second register operand for MUL instruction.",
-        );
-
-        // Consume the destination register.
-        let destination_register = self.decode_register(
-            false,
-            "Failed to read destination register for MUL instruction.",
-        );
-
-        return MulInstruction {
-            destination_register,
-            first_operand,
-            second_operand,
-        };
-    }
-
-    fn decode_divide(&mut self) -> DivInstruction {
-        // Consume DIV opcode.
-        self.advance();
-
-        // Consume the first operand.
-        let first_operand = self.decode_operand(
-            "Failed to determine first operand type for DIV instruction.",
-            "Failed to read first number operand for DIV instruction.",
-            "Failed to read first text operand for DIV instruction.",
-            "Failed to read first register operand for DIV instruction.",
-        );
-
-        // Consume the second operand.
-        let second_operand = self.decode_operand(
-            "Failed to determine second operand type for DIV instruction.",
-            "Failed to read second number operand for DIV instruction.",
-            "Failed to read second text operand for DIV instruction.",
-            "Failed to read second register operand for DIV instruction.",
-        );
-
-        // Consume the destination register.
-        let destination_register = self.decode_register(
-            false,
-            "Failed to read destination register for DIV instruction.",
-        );
-
-        return DivInstruction {
-            destination_register,
-            first_operand,
-            second_operand,
-        };
-    }
-
-    fn decode_addition(&mut self) -> AddInstruction {
-        // Consume ADD opcode.
-        self.advance();
-
-        // Consume the first operand.
-        let first_operand = self.decode_operand(
-            "Failed to determine first operand type for ADD instruction.",
-            "Failed to read first number operand for ADD instruction.",
-            "Failed to read first text operand for ADD instruction.",
-            "Failed to read first register operand for ADD instruction.",
-        );
-
-        // Consume the second operand.
-        let second_operand = self.decode_operand(
-            "Failed to determine second operand type for ADD instruction.",
-            "Failed to read second number operand for ADD instruction.",
-            "Failed to read second text operand for ADD instruction.",
-            "Failed to read second register operand for ADD instruction.",
-        );
-
-        // Consume the destination register.
-        let destination_register = self.decode_register(
-            false,
-            "Failed to read destination register for ADD instruction.",
-        );
-
-        return AddInstruction {
-            destination_register,
-            first_operand,
-            second_operand,
-        };
-    }
-
-    fn decode_similarity(&mut self) -> SimilarityInstruction {
-        // Consume SIM opcode.
-        self.advance();
-
-        // Consume the first operand.
-        let first_operand = self.decode_operand(
-            "Failed to determine first operand type for SIM instruction.",
-            "Failed to read first number operand for SIM instruction.",
-            "Failed to read first text operand for SIM instruction.",
-            "Failed to read first register operand for SIM instruction.",
-        );
-
-        // Consume the second operand.
-        let second_operand = self.decode_operand(
-            "Failed to determine second operand type for SIM instruction.",
-            "Failed to read second number operand for SIM instruction.",
-            "Failed to read second text operand for SIM instruction.",
-            "Failed to read second register operand for SIM instruction.",
-        );
-
-        // Consume the destination register.
-        let destination_register = self.decode_register(
-            false,
-            "Failed to read destination register for SIM instruction.",
-        );
-
-        return SimilarityInstruction {
-            destination_register,
-            first_operand,
-            second_operand,
-        };
-    }
-
-    fn decode_jump_compare(&mut self, op_code: OpCode) -> JumpCompareInstruction {
-        // Consume jump comparison opcode.
-        self.advance();
-
-        // Consume the first operand.
-        let first_operand = self.decode_operand(
-            &format!(
-                "Failed to determine first operand type for {:?} instruction.",
-                op_code
-            ),
-            &format!(
-                "Failed to read first number operand for {:?} instruction.",
-                op_code
-            ),
-            &format!(
-                "Failed to read first text operand for {:?} instruction.",
-                op_code
-            ),
-            &format!(
-                "Failed to read first register operand for {:?} instruction.",
-                op_code
-            ),
-        );
-
-        // Consume the second operand.
-        let second_operand = self.decode_operand(
-            &format!(
-                "Failed to determine second operand type for {:?} instruction.",
-                op_code
-            ),
-            &format!(
-                "Failed to read second number operand for {:?} instruction.",
-                op_code
-            ),
-            &format!(
-                "Failed to read second text operand for {:?} instruction.",
-                op_code
-            ),
-            &format!(
-                "Failed to read second register operand for {:?} instruction.",
-                op_code
-            ),
-        );
-
-        // Consume the bytecode jump index.
-        let bytecode_jump_index = self.decode_number(
             false,
             format!(
-                "Failed to read bytecode code jump index for {:?} instruction.",
+                "Failed to read destination register for {:?} instruction.",
                 op_code
             )
             .as_str(),
         );
 
-        let comparison_type = match op_code {
-            OpCode::JEQ => ComparisonType::Equal,
-            OpCode::JLT => ComparisonType::LessThan,
-            OpCode::JLE => ComparisonType::LessThanOrEqual,
-            OpCode::JGT => ComparisonType::GreaterThan,
-            OpCode::JGE => ComparisonType::GreaterThanOrEqual,
-            _ => panic!("Invalid opcode for jump compare instruction."),
+        // Consume the source register 1.
+        let source_register_1 = self.decode_register(
+            false,
+            format!(
+                "Failed to read source register 1 for {:?} instruction.",
+                op_code
+            )
+            .as_str(),
+        );
+
+        // Consume the source register 2.
+        let source_register_2 = self.decode_register(
+            false,
+            format!(
+                "Failed to read source register 2 for {:?} instruction.",
+                op_code
+            )
+            .as_str(),
+        );
+
+        let arithmetic_type = match op_code {
+            OpCode::ADD => ArithmeticType::Add,
+            OpCode::SUB => ArithmeticType::Sub,
+            OpCode::MUL => ArithmeticType::Mul,
+            OpCode::DIV => ArithmeticType::Div,
+            OpCode::SIM => ArithmeticType::Similarity,
+            _ => panic!("Invalid opcode '{:?}' for arithmetic instruction.", op_code),
         };
 
-        return JumpCompareInstruction {
-            comparison_type,
-            bytecode_jump_index,
-            first_operand,
-            second_operand,
+        return ArithmeticInstruction {
+            arithmetic_type,
+            destination_register,
+            source_register_1,
+            source_register_2,
+        };
+    }
+
+    fn decode_branch(&mut self, op_code: OpCode) -> BranchInstruction {
+        // Consume branch opcode.
+        self.advance();
+
+        // Consume the source register 1.
+        let source_register_1 = self.decode_register(
+            false,
+            "Failed to read source register 1 for branch instruction.",
+        );
+
+        // Consume the source register 2.
+        let source_register_2 = self.decode_register(
+            false,
+            "Failed to read source register 2 for branch instruction.",
+        );
+        // Consume the branch jump index.
+        let byte_code_index = self.decode_number(
+            false,
+            format!(
+                "Failed to read branch jump index for {:?} instruction.",
+                op_code
+            )
+            .as_str(),
+        );
+
+        let branch_type = match op_code {
+            OpCode::BEQ => BranchType::Equal,
+            OpCode::BLT => BranchType::LessThan,
+            OpCode::BLE => BranchType::LessThanOrEqual,
+            OpCode::BGT => BranchType::GreaterThan,
+            OpCode::BGE => BranchType::GreaterThanOrEqual,
+            _ => panic!("Invalid opcode '{:?}' for branch instruction.", op_code),
+        };
+
+        return BranchInstruction {
+            branch_type,
+            source_register_1,
+            source_register_2,
+            byte_code_index,
         };
     }
 
@@ -448,69 +382,20 @@ impl ControlUnit {
         // Consume OUT opcode.
         self.advance();
 
-        // Consume the source operand.
-        let source_operand = self.decode_operand(
-            "Failed to determine source operand type for OUT instruction.",
-            "Failed to read source number operand for OUT instruction.",
-            "Failed to read source text operand for OUT instruction.",
-            "Failed to read source register operand for OUT instruction.",
-        );
+        // Consume the source register.
+        let source_register =
+            self.decode_register(false, "Failed to read source register for OUT instruction.");
 
-        return OutputInstruction { source_operand };
+        return OutputInstruction { source_register };
     }
 
-    fn decode_load(&mut self) -> LoadInstruction {
-        // Consume LOAD opcode.
-        self.advance();
+    pub fn load_byte_code(&mut self, byte_code: Vec<[u8; 4]>) {
+        self.memory.load(byte_code);
 
-        // Consume the destination register.
-        let destination_register = self.decode_register(
-            false,
-            "Failed to read destination register for LOAD instruction.",
-        );
-
-        // Consume file path operand.
-        let file_path = match self.decode_operand(
-            "Failed to determine operand type for LOAD instruction.",
-            "Failed to read number for LOAD instruction.",
-            "Failed to read text for LOAD instruction.",
-            "Failed to read source register for LOAD instruction.",
-        ) {
-            Operand::Text(text) => text,
-            _ => panic!("LOAD instruction requires a text operand for the file path."),
-        };
-
-        return LoadInstruction {
-            destination_register,
-            file_path,
-        };
-    }
-
-    fn decode_op_code(&mut self) -> Instruction {
-        let be_bytes = match self.current_be_bytes {
-            Some(be_bytes) => be_bytes,
-            None => panic!("No current bytecode to determine opcode."),
-        };
-        let op_code = match OpCode::from_be_bytes(be_bytes) {
-            Ok(op_code) => op_code,
-            Err(error) => panic!("{} Byte: {:?}", error, be_bytes),
-        };
-
-        return match op_code {
-            OpCode::MOV => Instruction::Move(self.decode_move()),
-            OpCode::ADD => Instruction::Add(self.decode_addition()),
-            OpCode::SUB => Instruction::Sub(self.decode_subtract()),
-            OpCode::MUL => Instruction::Mul(self.decode_multiply()),
-            OpCode::DIV => Instruction::Div(self.decode_divide()),
-            OpCode::SIM => Instruction::Similarity(self.decode_similarity()),
-            OpCode::JEQ => Instruction::JumpCompare(self.decode_jump_compare(op_code)),
-            OpCode::JLT => Instruction::JumpCompare(self.decode_jump_compare(op_code)),
-            OpCode::JLE => Instruction::JumpCompare(self.decode_jump_compare(op_code)),
-            OpCode::JGT => Instruction::JumpCompare(self.decode_jump_compare(op_code)),
-            OpCode::JGE => Instruction::JumpCompare(self.decode_jump_compare(op_code)),
-            OpCode::OUT => Instruction::Output(self.decode_output()),
-            OpCode::LOAD => Instruction::Load(self.decode_load()),
-        };
+        // Reset instruction pointer and byte code tracking.
+        self.registers.set_instruction_pointer(0);
+        self.previous_be_bytes = None;
+        self.current_be_bytes = Some(self.peek().to_owned());
     }
 
     pub fn fetch_and_decode(&mut self) -> Option<Instruction> {
@@ -518,234 +403,302 @@ impl ControlUnit {
             return None;
         }
 
-        // Initialise current bytecode.
-        self.current_be_bytes = Some(
-            self.memory
-                .read(self.registers.get_instruction_pointer())
-                .clone(),
-        );
+        let current_be_bytes = match self.current_be_bytes {
+            Some(be_bytes) => be_bytes,
+            None => panic!(
+                "No current byte code to fetch and decode. Instruction pointer value: {}.",
+                self.registers.get_instruction_pointer()
+            ),
+        };
+        let op_code = match OpCode::from_be_bytes(current_be_bytes) {
+            Ok(op_code) => op_code,
+            Err(error) => panic!(
+                "Failed to decode opcode from byte code. Error: {}. Byte code: {:?}.",
+                error, current_be_bytes
+            ),
+        };
+        let instruction = match op_code {
+            OpCode::LI => Instruction::LoadImmediate(self.decode_load_immediate()),
+            OpCode::LF => Instruction::LoadFile(self.decode_load_file()),
+            OpCode::MV => Instruction::Move(self.decode_move()),
+            OpCode::ADD => Instruction::Arithmetic(self.decode_arithmetic(OpCode::ADD)),
+            OpCode::SUB => Instruction::Arithmetic(self.decode_arithmetic(OpCode::SUB)),
+            OpCode::MUL => Instruction::Arithmetic(self.decode_arithmetic(OpCode::MUL)),
+            OpCode::DIV => Instruction::Arithmetic(self.decode_arithmetic(OpCode::DIV)),
+            OpCode::SIM => Instruction::Arithmetic(self.decode_arithmetic(OpCode::SIM)),
+            OpCode::BEQ => Instruction::Branch(self.decode_branch(op_code)),
+            OpCode::BLT => Instruction::Branch(self.decode_branch(op_code)),
+            OpCode::BLE => Instruction::Branch(self.decode_branch(op_code)),
+            OpCode::BGT => Instruction::Branch(self.decode_branch(op_code)),
+            OpCode::BGE => Instruction::Branch(self.decode_branch(op_code)),
+            OpCode::OUT => Instruction::Output(self.decode_output()),
+        };
 
-        return Some(self.decode_op_code());
+        return Some(instruction);
     }
 
-    fn get_value(&self, operand: &Operand) -> Value {
-        return match operand {
-            Operand::Number(number) => Value::Number(number.clone()),
-            Operand::Text(text) => Value::Text(text.clone()),
-            Operand::Register(register_number) => {
-                let value = self.registers.get_register(register_number).clone();
-
-                if value == Value::None {
-                    panic!(
-                        "Failed to get value from uninitialised register r{}.",
-                        register_number
-                    );
-                }
-
-                return value;
-            }
+    fn execute_load_immediate(&mut self, instruction: &LoadImmediateInstruction, debug: bool) {
+        let value = match &instruction.value {
+            Immediate::Text(text) => Value::Text(text.to_string()),
+            Immediate::Number(number) => Value::Number(*number),
         };
+
+        match self
+            .registers
+            .set_register(instruction.destination_register, &value)
+        {
+            Ok(_) => (),
+            Err(error) => panic!(
+                "Failed to set register for LI instruction. Error: {}",
+                error
+            ),
+        };
+
+        if debug {
+            println!(
+                "Executed LI: r{} = \"{:?}\"",
+                instruction.destination_register,
+                self.registers
+                    .get_register(instruction.destination_register)
+            );
+        }
+    }
+
+    fn execute_load_file(&mut self, instruction: &LoadFileInstruction, debug: bool) {
+        let file_contents = match read_to_string(&instruction.value) {
+            Ok(value) => value,
+            Err(error) => panic!("Run failed. Error: {}", error),
+        };
+
+        match self.registers.set_register(
+            instruction.destination_register,
+            &Value::Text(file_contents),
+        ) {
+            Ok(_) => (),
+            Err(error) => panic!(
+                "Failed to set register for LF instruction. Error: {}",
+                error
+            ),
+        };
+
+        if debug {
+            println!(
+                "Executed LF: r{} = \"{:?}\"",
+                instruction.destination_register,
+                self.registers
+                    .get_register(instruction.destination_register)
+            );
+        }
     }
 
     fn execute_move(&mut self, instruction: &MoveInstruction, debug: bool) {
-        let value = self.get_value(&instruction.value);
-        self.registers
-            .set_register(&instruction.destination_register, value);
+        let value = match self.registers.get_register(instruction.source_register) {
+            Ok(value) => value.to_owned(),
+            Err(error) => panic!("Failed to execute MOV instruction. Error: {}", error),
+        };
+
+        match self
+            .registers
+            .set_register(instruction.destination_register, &value)
+        {
+            Ok(_) => (),
+            Err(error) => panic!(
+                "Failed to set register for MOV instruction. Error: {}",
+                error
+            ),
+        };
 
         if debug {
             println!(
                 "Executed MOV: r{} = \"{:?}\"",
                 instruction.destination_register,
                 self.registers
-                    .get_register(&instruction.destination_register)
+                    .get_register(instruction.destination_register)
             );
         }
     }
 
-    fn execute_add(&mut self, instruction: &AddInstruction, debug: bool) {
-        let value_a = self.get_value(&instruction.first_operand);
-        let value_b = self.get_value(&instruction.second_operand);
-
-        let result = self.semantic_logic_unit.addition(&value_a, &value_b);
-
-        self.registers
-            .set_register(&instruction.destination_register, Value::Text(result));
-
-        if debug {
-            println!(
-                "Executed ADD: {:?} + {:?} -> r{} = \"{:?}\"",
-                value_a,
-                value_b,
-                instruction.destination_register,
-                self.registers
-                    .get_register(&instruction.destination_register)
-            );
-        }
-    }
-
-    fn execute_subtract(&mut self, instruction: &SubInstruction, debug: bool) {
-        let value_a = self.get_value(&instruction.first_operand);
-        let value_b = self.get_value(&instruction.second_operand);
-
-        let result = self.semantic_logic_unit.subtract(&value_a, &value_b);
-
-        self.registers
-            .set_register(&instruction.destination_register, Value::Text(result));
-
-        if debug {
-            println!(
-                "Executed SUB: {:?} - {:?} -> r{} = \"{:?}\"",
-                value_a,
-                value_b,
-                instruction.destination_register,
-                self.registers
-                    .get_register(&instruction.destination_register)
-            );
-        }
-    }
-
-    fn execute_multiply(&mut self, instruction: &MulInstruction, debug: bool) {
-        let first_operand_value = self.get_value(&instruction.first_operand);
-        let second_operand_value = self.get_value(&instruction.second_operand);
-
-        let result = self
-            .semantic_logic_unit
-            .multiply(&first_operand_value, &second_operand_value);
-
-        self.registers
-            .set_register(&instruction.destination_register, Value::Text(result));
-
-        if debug {
-            println!(
-                "Executed MUL: {:?} * {:?} -> r{} = \"{:?}\"",
-                first_operand_value,
-                second_operand_value,
-                instruction.destination_register,
-                self.registers
-                    .get_register(&instruction.destination_register)
-            );
-        }
-    }
-
-    fn execute_divide(&mut self, instruction: &DivInstruction, debug: bool) {
-        let first_operand_value = self.get_value(&instruction.first_operand);
-        let second_operand_value = self.get_value(&instruction.second_operand);
-
-        let result = self
-            .semantic_logic_unit
-            .divide(&first_operand_value, &second_operand_value);
-
-        self.registers
-            .set_register(&instruction.destination_register, Value::Text(result));
-
-        if debug {
-            println!(
-                "Executed DIV: {:?} / {:?} -> r{} = \"{:?}\"",
-                first_operand_value,
-                second_operand_value,
-                instruction.destination_register,
-                self.registers
-                    .get_register(&instruction.destination_register)
-            );
-        }
-    }
-
-    fn execute_similarity(&mut self, instruction: &SimilarityInstruction, debug: bool) {
-        let value_a = self.get_value(&instruction.first_operand);
-        let value_b = self.get_value(&instruction.second_operand);
-
-        let score = self.semantic_logic_unit.similarity(&value_a, &value_b);
-
-        self.registers
-            .set_register(&instruction.destination_register, Value::Number(score));
-
-        if debug {
-            println!(
-                "Executed SIM: {:?} ~ {:?} -> r{} = \"{:?}\"",
-                value_a,
-                value_b,
-                instruction.destination_register,
-                self.registers
-                    .get_register(&instruction.destination_register)
-            );
-        }
-    }
-
-    fn execute_jump_compare(&mut self, instruction: &JumpCompareInstruction, debug: bool) {
-        let value_a = match self.get_value(&instruction.first_operand) {
-            Value::Number(num) => num,
-            _ => panic!(
-                "{:?} instruction requires numeric operands.",
-                instruction.comparison_type
+    fn execute_arithmetic(&mut self, instruction: &ArithmeticInstruction, debug: bool) {
+        let value_a = match self.registers.get_register(instruction.source_register_1) {
+            Ok(value) => value,
+            Err(error) => panic!(
+                "Failed to execute {:?} instruction. Error: {}",
+                instruction.arithmetic_type, error
             ),
         };
-        let value_b = match self.get_value(&instruction.second_operand) {
-            Value::Number(num) => num,
-            _ => panic!(
-                "{:?} instruction requires numeric operands.",
-                instruction.comparison_type
+        let value_b = match self.registers.get_register(instruction.source_register_2) {
+            Ok(value) => value,
+            Err(error) => panic!(
+                "Failed to execute {:?} instruction. Error: {}",
+                instruction.arithmetic_type, error
             ),
         };
-        let address = instruction.bytecode_jump_index.clone();
-        let is_true = match instruction.comparison_type {
-            ComparisonType::Equal => value_a == value_b,
-            ComparisonType::LessThan => value_a < value_b,
-            ComparisonType::LessThanOrEqual => value_a <= value_b,
-            ComparisonType::GreaterThan => value_a > value_b,
-            ComparisonType::GreaterThanOrEqual => value_a >= value_b,
+
+        let result = match instruction.arithmetic_type {
+            ArithmeticType::Add => match self.semantic_logic_unit.addition(value_a, value_b) {
+                Ok(result) => Value::Text(result),
+                Err(error) => panic!(
+                    "Failed to perform {:?}. Error: {}",
+                    instruction.arithmetic_type, error
+                ),
+            },
+            ArithmeticType::Sub => match self.semantic_logic_unit.subtract(value_a, value_b) {
+                Ok(result) => Value::Text(result),
+                Err(error) => panic!(
+                    "Failed to perform {:?}. Error: {}",
+                    instruction.arithmetic_type, error
+                ),
+            },
+            ArithmeticType::Mul => match self.semantic_logic_unit.multiply(value_a, value_b) {
+                Ok(result) => Value::Text(result),
+                Err(error) => panic!(
+                    "Failed to perform {:?}. Error: {}",
+                    instruction.arithmetic_type, error
+                ),
+            },
+            ArithmeticType::Div => match self.semantic_logic_unit.divide(value_a, value_b) {
+                Ok(result) => Value::Text(result),
+                Err(error) => panic!(
+                    "Failed to perform {:?}. Error: {}",
+                    instruction.arithmetic_type, error
+                ),
+            },
+            ArithmeticType::Similarity => {
+                match self.semantic_logic_unit.similarity(value_a, value_b) {
+                    Ok(result) => Value::Number(result),
+                    Err(error) => panic!(
+                        "Failed to perform {:?}. Error: {}",
+                        instruction.arithmetic_type, error
+                    ),
+                }
+            }
+        };
+
+        if debug {
+            println!(
+                "Executed {:?}: {:?} + {:?} -> r{} = \"{:?}\"",
+                instruction.arithmetic_type,
+                value_a,
+                value_b,
+                instruction.destination_register,
+                result
+            );
+        }
+
+        match self
+            .registers
+            .set_register(instruction.destination_register, &result)
+        {
+            Ok(_) => {}
+            Err(error) => panic!(
+                "Failed to set register for {:?} instruction. Error: {}",
+                instruction.arithmetic_type, error
+            ),
+        };
+    }
+
+    fn execute_branch(&mut self, instruction: &BranchInstruction, debug: bool) {
+        let value_a = match self.registers.get_register(instruction.source_register_1) {
+            Ok(value) => match value {
+                Value::Number(number) => *number,
+                _ => panic!(
+                    "{:?} instruction requires numeric operands.",
+                    instruction.branch_type
+                ),
+            },
+            Err(error) => panic!("Failed to execute branch instruction. Error: {}", error),
+        };
+        let value_b = match self.registers.get_register(instruction.source_register_2) {
+            Ok(value) => match value {
+                Value::Number(number) => *number,
+                _ => panic!(
+                    "{:?} instruction requires numeric operands.",
+                    instruction.branch_type
+                ),
+            },
+            Err(error) => panic!("Failed to execute branch instruction. Error: {}", error),
+        };
+        let address = instruction.byte_code_index;
+        let is_true = match instruction.branch_type {
+            BranchType::Equal => value_a == value_b,
+            BranchType::LessThan => value_a < value_b,
+            BranchType::LessThanOrEqual => value_a <= value_b,
+            BranchType::GreaterThan => value_a > value_b,
+            BranchType::GreaterThanOrEqual => value_a >= value_b,
         };
 
         if is_true {
             let address = match usize::try_from(address) {
                 Ok(address) => address,
                 Err(_) => panic!(
-                    "Failed to jump to bytecode index {}. Address exceeds {}.",
+                    "Failed to convert address to usize for branch instruction. Address value: {}. Address value must be between 0 and {}.",
                     address,
                     usize::MAX
                 ),
             };
+
             self.registers.set_instruction_pointer(address);
+            self.current_be_bytes = Some(self.peek().to_owned());
         }
 
         if debug {
-            match instruction.comparison_type {
-                ComparisonType::Equal => {
+            match instruction.branch_type {
+                BranchType::Equal => {
                     println!(
-                        "Executed JEQ: {:?} == {:?} -> {}, {}",
-                        value_a, value_b, is_true, instruction.bytecode_jump_index
+                        "Executed {:?}: {:?} == {:?} -> {}, {}",
+                        instruction.branch_type,
+                        value_a,
+                        value_b,
+                        is_true,
+                        instruction.byte_code_index
                     );
                 }
-                ComparisonType::LessThan => {
+                BranchType::LessThan => {
                     println!(
-                        "Executed JLT: {:?} < {:?} -> {}, {}",
-                        value_a, value_b, is_true, instruction.bytecode_jump_index
+                        "Executed {:?}: {:?} < {:?} -> {}, {}",
+                        instruction.branch_type,
+                        value_a,
+                        value_b,
+                        is_true,
+                        instruction.byte_code_index
                     );
                 }
-                ComparisonType::LessThanOrEqual => {
+                BranchType::LessThanOrEqual => {
                     println!(
-                        "Executed JLE: {:?} <= {:?} -> {}, {}",
-                        value_a, value_b, is_true, instruction.bytecode_jump_index
+                        "Executed {:?}: {:?} <= {:?} -> {}, {}",
+                        instruction.branch_type,
+                        value_a,
+                        value_b,
+                        is_true,
+                        instruction.byte_code_index
                     );
                 }
-                ComparisonType::GreaterThan => {
+                BranchType::GreaterThan => {
                     println!(
-                        "Executed JGT: {:?} > {:?} -> {}, {}",
-                        value_a, value_b, is_true, instruction.bytecode_jump_index
+                        "Executed {:?}: {:?} > {:?} -> {}, {}",
+                        instruction.branch_type,
+                        value_a,
+                        value_b,
+                        is_true,
+                        instruction.byte_code_index
                     );
                 }
-                ComparisonType::GreaterThanOrEqual => println!(
-                    "Executed JGE: {:?} >= {:?} -> {}, {}",
-                    value_a, value_b, is_true, instruction.bytecode_jump_index
+                BranchType::GreaterThanOrEqual => println!(
+                    "Executed {:?}: {:?} >= {:?} -> {}, {}",
+                    instruction.branch_type, value_a, value_b, is_true, instruction.byte_code_index
                 ),
             }
         }
     }
 
     fn execute_output(&mut self, instruction: &OutputInstruction, debug: bool) {
-        let value_a = match self.get_value(&instruction.source_operand) {
-            Value::Number(num) => num.to_string(),
-            Value::Text(text) => text,
-            _ => panic!("OUT instruction requires text or number operands."),
+        let value_a = match self.registers.get_register(instruction.source_register) {
+            Ok(value) => match value {
+                Value::Text(text) => text.to_string(),
+                Value::Number(number) => number.to_string(),
+                _ => panic!("OUT instruction requires text or number operands."),
+            },
+            Err(error) => panic!("Failed to execute OUT instruction. Error: {}", error),
         };
 
         if debug {
@@ -755,38 +708,16 @@ impl ControlUnit {
         }
     }
 
-    fn execute_load(&mut self, instruction: &LoadInstruction, debug: bool) {
-        let file_contents = match read_to_string(&instruction.file_path) {
-            Ok(value) => value,
-            Err(error) => panic!("Run failed. Error: {}", error),
-        };
-
-        self.registers.set_register(
-            &instruction.destination_register,
-            Value::Text(file_contents),
-        );
-
-        if debug {
-            println!(
-                "Executed LOAD: r{} = \"{:?}\"",
-                instruction.destination_register,
-                self.registers
-                    .get_register(&instruction.destination_register)
-            );
-        }
-    }
-
     pub fn execute(&mut self, instruction: &Instruction, debug: bool) {
         match instruction {
+            Instruction::LoadImmediate(instruction) => {
+                self.execute_load_immediate(instruction, debug)
+            }
+            Instruction::LoadFile(instruction) => self.execute_load_file(instruction, debug),
             Instruction::Move(instruction) => self.execute_move(instruction, debug),
-            Instruction::Add(instruction) => self.execute_add(instruction, debug),
-            Instruction::Sub(instruction) => self.execute_subtract(instruction, debug),
-            Instruction::Mul(instruction) => self.execute_multiply(instruction, debug),
-            Instruction::Div(instruction) => self.execute_divide(instruction, debug),
-            Instruction::Similarity(instruction) => self.execute_similarity(instruction, debug),
-            Instruction::JumpCompare(instruction) => self.execute_jump_compare(instruction, debug),
+            Instruction::Arithmetic(instruction) => self.execute_arithmetic(instruction, debug),
+            Instruction::Branch(instruction) => self.execute_branch(instruction, debug),
             Instruction::Output(instruction) => self.execute_output(instruction, debug),
-            Instruction::Load(instruction) => self.execute_load(instruction, debug),
         }
     }
 }

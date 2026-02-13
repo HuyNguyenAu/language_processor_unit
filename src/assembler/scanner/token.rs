@@ -9,19 +9,20 @@ pub enum TokenType {
     NUMBER,
 
     // Keywords.
-    LOAD,
-    MOV,
+    LI,
+    LF,
+    MV,
     ADD,
     SUB,
     MUL,
     DIV,
     SIM,
     LABEL,
-    JEQ,
-    JLT,
-    JLE,
-    JGT,
-    JGE,
+    BEQ,
+    BLT,
+    BLE,
+    BGT,
+    BGE,
     OUT,
 
     // Misc.

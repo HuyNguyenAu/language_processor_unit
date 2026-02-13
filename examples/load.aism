@@ -1,14 +1,15 @@
  ; This program loads an external file and compares the two sentences for similarity.
 
         ; Initialisation
-        load r1, "examples/data/load.txt"
-        mov r2, "My friends and I enjoy playing soccer together."
-        mov r4, "The sentences are similar enough."
+        lf x1, "examples/data/load.txt"
+        li x2, "My friends and I enjoy playing soccer together."
+        li x3, 80
+        li x4, "The sentences are similar enough."
 
         ; Execution
-        sim r1, r2, r3
-        jgt r3, 80, end
-        mov r4, "The sentences are not similar."
+        sim x5, x1, x2
+        bgt x5, x3, end
+        li x4, "The sentences are not similar."
 
         ; Output
-end:    out r4
+end:    out x4

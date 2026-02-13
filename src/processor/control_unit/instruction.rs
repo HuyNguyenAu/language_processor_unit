@@ -1,7 +1,42 @@
-use crate::assembler::operand::Operand;
+use crate::assembler::immediate::Immediate;
 
 #[derive(Debug)]
-pub enum ComparisonType {
+pub struct LoadImmediateInstruction {
+    pub destination_register: u32,
+    pub value: Immediate,
+}
+
+#[derive(Debug)]
+pub struct LoadFileInstruction {
+    pub destination_register: u32,
+    pub value: String,
+}
+
+#[derive(Debug)]
+pub struct MoveInstruction {
+    pub destination_register: u32,
+    pub source_register: u32,
+}
+
+#[derive(Debug)]
+pub enum ArithmeticType {
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Similarity,
+}
+
+#[derive(Debug)]
+pub struct ArithmeticInstruction {
+    pub arithmetic_type: ArithmeticType,
+    pub destination_register: u32,
+    pub source_register_1: u32,
+    pub source_register_2: u32,
+}
+
+#[derive(Debug)]
+pub enum BranchType {
     LessThan,
     LessThanOrEqual,
     GreaterThan,
@@ -9,65 +44,25 @@ pub enum ComparisonType {
     Equal,
 }
 
-pub struct MoveInstruction {
-    pub destination_register: u32,
-    pub value: Operand,
+#[derive(Debug)]
+pub struct BranchInstruction {
+    pub branch_type: BranchType,
+    pub source_register_1: u32,
+    pub source_register_2: u32,
+    pub byte_code_index: u32,
 }
 
-pub struct AddInstruction {
-    pub destination_register: u32,
-    pub first_operand: Operand,
-    pub second_operand: Operand,
-}
-
-pub struct SubInstruction {
-    pub destination_register: u32,
-    pub first_operand: Operand,
-    pub second_operand: Operand,
-}
-
-pub struct MulInstruction {
-    pub destination_register: u32,
-    pub first_operand: Operand,
-    pub second_operand: Operand,
-}
-
-pub struct DivInstruction {
-    pub destination_register: u32,
-    pub first_operand: Operand,
-    pub second_operand: Operand,
-}
-
-pub struct SimilarityInstruction {
-    pub destination_register: u32,
-    pub first_operand: Operand,
-    pub second_operand: Operand,
-}
-
-pub struct JumpCompareInstruction {
-    pub comparison_type: ComparisonType,
-    pub bytecode_jump_index: u32,
-    pub first_operand: Operand,
-    pub second_operand: Operand,
-}
-
+#[derive(Debug)]
 pub struct OutputInstruction {
-    pub source_operand: Operand,
+    pub source_register: u32,
 }
 
-pub struct LoadInstruction {
-    pub destination_register: u32,
-    pub file_path: String,
-}
-
+#[derive(Debug)]
 pub enum Instruction {
+    LoadImmediate(LoadImmediateInstruction),
+    LoadFile(LoadFileInstruction),
     Move(MoveInstruction),
-    Add(AddInstruction),
-    Sub(SubInstruction),
-    Mul(MulInstruction),
-    Div(DivInstruction),
-    Similarity(SimilarityInstruction),
-    JumpCompare(JumpCompareInstruction),
+    Arithmetic(ArithmeticInstruction),
+    Branch(BranchInstruction),
     Output(OutputInstruction),
-    Load(LoadInstruction),
 }

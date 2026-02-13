@@ -312,6 +312,7 @@ impl Assembler {
 
         self.emit_op_code_bytecode(OpCode::LI);
         self.emit_register_bytecode(destination_register);
+        
         match self.emit_immediate_bytecode(&immediate) {
             Ok(()) => (),
             Err(message) => {

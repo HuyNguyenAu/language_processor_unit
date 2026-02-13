@@ -17,11 +17,13 @@ pub struct OpenAIChatCompletionRequest {
     #[serde(rename = "messages")]
     pub messages: Vec<OpenAIChatCompletionRequestText>,
     #[serde(rename = "temperature")]
-    pub temperature: f32,
+    pub temperature: Option<f32>,
     #[serde(rename = "top_p")]
-    pub top_p: f32,
+    pub top_p: Option<f32>,
+    #[serde(rename = "min_p")]
+    pub min_p: Option<f32>,
     #[serde(rename = "frequency_penalty")]
-    pub presence_penalty: f32,
+    pub presence_penalty: Option<f32>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

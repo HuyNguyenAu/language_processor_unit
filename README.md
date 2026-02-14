@@ -7,7 +7,9 @@ Imagine a simple processor that has the following components:
 - Semantic Logic Unit (SLU)
 - Control Unit (CU)
 
-Instead of a traditional Arithmetic Logic Unit (ALU) that performs arithmetic and logical operations on binary data, this processor uses an Large Language Model (LLM) as its SLU to process multi-modal data such as text, images, and audio. The CU would be responsible for fetching instructions, decoding them, and controlling the flow of data between the memory, registers, and the SLU.
+Instead of a traditional Arithmetic Logic Unit (ALU) that performs arithmetic and logical operations on binary data, this processor uses an Large Language Model (LLM) as its SLU to process multi-modal data such as text, images, and audio.
+
+We shift from processing values to processing meanings.
 
 In this frame, we could think of prompts as micro-code instructions that guide the SLU on how to process the data. The SLU would take the input data from the registers, process it according to the instructions, and then store the output back in the registers or memory.
 
@@ -48,7 +50,7 @@ This is an experimental project to explore the idea of a cognitive processor uni
 - `rs` - source register
 - `value` - can be an immediate value (e.g., a string or number)
 
-# Instruction Set
+# Semantic Instruction Set
 
 Available instructions in the assembly language:
 
@@ -59,7 +61,7 @@ Available instructions in the assembly language:
 | MV          | Copy Register                   | `mv rd, rs`                |
 | ADD         | Add                             | `add rd, rs1, rs2`         |
 | SUB         | Subtract                        | `sub rd, rs1, rs2`         |
-| MUL         | Multiply                        | `mul rd, rs1, rs2`         |
+| INF         | Inference                       | `inf rd, rs1, rs2`         |
 | DIV         | Divide                          | `div rd, rs1, rs2`         |
 | SIM         | Similarity                      | `sim rd, rs1, rs2`         |
 | LABEL       | Label                           | `label_name:`              |
@@ -77,17 +79,20 @@ The processor has 32 general-purpose registers, named X1 to X32. These registers
 # Quick Start
 
 Clone the repository:
+
 ```bash
 git clone https://github.com/HuyNguyenAu/cognitive_processor_unit.git
 cd cognitive_processor_unit
 ```
 
 Start the LLama.cpp server:
+
 ```bash
 ./llama-server --embeddings --pooling mean -m path/to/your/model.bin
 ```
 
 Build the example program:
+
 ```bash
 cargo run build examples/simple.aism
 ```

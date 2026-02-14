@@ -1,22 +1,27 @@
-use crate::processor::control_unit::{
-    registers::Value,
-    semantic_logic_unit::{
-        microcode::Microcode,
-        openai::{
-            OpenAIClient,
-            chat_completion_models::{
-                OpenAIChatCompletionRequest, OpenAIChatCompletionRequestText,
+use crate::{
+    assembler::opcode::OpCode,
+    processor::control_unit::{
+        registers::Value,
+        semantic_logic_unit::{
+            micro_prompt::MicroPrompt,
+            openai::{
+                OpenAIClient,
+                chat_completion_models::{
+                    OpenAIChatCompletionRequest, OpenAIChatCompletionRequestText,
+                },
+                embeddings_models::OpenAIEmbeddingsRequest,
+                model_config::ModelConfig,
             },
-            embeddings_models::OpenAIEmbeddingsRequest, model_config::ModelConfig,
         },
     },
 };
 
-mod microcode;
+mod micro_prompt;
 mod openai;
 
 pub struct SemanticLogicUnit {
-    micro_code: Microcode,
+    system_prompt: &'static str,
+    micro_prompt: MicroPrompt,
     openai_client: OpenAIClient,
     text_model: ModelConfig,
     embeddings_model: ModelConfig,
@@ -24,12 +29,12 @@ pub struct SemanticLogicUnit {
 
 impl SemanticLogicUnit {
     pub fn new() -> Self {
-        return SemanticLogicUnit {
-            micro_code: Microcode::new(),
+        return Self {
+            system_prompt: "Output ONLY the answer. No intro. No fluff. No punctuation unless required. Answer with a single word if appropriate, otherwise a single sentence.",
+            micro_prompt: MicroPrompt::new(),
             openai_client: OpenAIClient::new(),
             text_model: ModelConfig {
                 model: "LFM2-2.6B-Q5_K_M",
-                role: Some("user"),
                 stream: false,
                 temperature: Some(0.3),
                 top_p: None,
@@ -39,7 +44,6 @@ impl SemanticLogicUnit {
             },
             embeddings_model: ModelConfig {
                 model: "Qwen3-Embedding-0.6B-Q4_1-imat",
-                role: None,
                 stream: false,
                 temperature: None,
                 top_p: None,
@@ -58,14 +62,16 @@ impl SemanticLogicUnit {
         let request = OpenAIChatCompletionRequest {
             model: self.text_model.model.to_string(),
             stream: self.text_model.stream,
-            messages: vec![OpenAIChatCompletionRequestText {
-                role: self
-                    .text_model
-                    .role
-                    .expect("Role is required for chat completion.")
-                    .to_string(),
-                content: content.to_string(),
-            }],
+            messages: vec![
+                OpenAIChatCompletionRequestText {
+                    role: "system".to_string(),
+                    content: self.system_prompt.to_string(),
+                },
+                OpenAIChatCompletionRequestText {
+                    role: "user".to_string(),
+                    content: content.to_string(),
+                },
+            ],
             temperature: self.text_model.temperature,
             top_p: self.text_model.top_p,
             min_p: self.text_model.min_p,
@@ -119,99 +125,34 @@ impl SemanticLogicUnit {
         };
     }
 
-    pub fn addition(&self, value_a: &Value, value_b: &Value) -> Result<String, String> {
+    fn cosine_similarity(&self, value_a: &Value, value_b: &Value) -> Result<u32, String> {
         let value_a = match value_a {
             Value::Text(text) => text,
-            _ => return Err("Addition requires text value.".to_string()),
+            _ => return Err(format!("{:?} requires text value.", OpCode::SIM)),
         };
         let value_b = match value_b {
             Value::Text(text) => text,
-            _ => return Err("Addition requires text value.".to_string()),
+            _ => return Err(format!("{:?} requires text value.", OpCode::SIM)),
         };
 
-        let content = self.micro_code.addition(value_a, value_b);
-
-        return match &self.chat(content.as_str()) {
-            Ok(choice) => Ok(choice.to_lowercase()),
-            Err(error) => Err(format!("Failed to perform addition. Error: {}", error)),
-        };
-    }
-
-    pub fn subtract(&self, value_a: &Value, value_b: &Value) -> Result<String, String> {
-        let value_a = match value_a {
-            Value::Text(text) => text,
-            _ => return Err("Subtraction requires text value.".to_string()),
-        };
-        let value_b = match value_b {
-            Value::Text(text) => text,
-            _ => return Err("Subtraction requires text value.".to_string()),
-        };
-
-        let content = self.micro_code.subtract(value_a, value_b);
-
-        return match &self.chat(content.as_str()) {
-            Ok(choice) => Ok(choice.to_lowercase()),
-            Err(error) => Err(format!("Failed to perform subtraction. Error: {}", error)),
-        };
-    }
-
-    pub fn multiply(&self, value_a: &Value, value_b: &Value) -> Result<String, String> {
-        let value_a = match value_a {
-            Value::Text(text) => text,
-            _ => return Err("Multiplication requires text value.".to_string()),
-        };
-        let value_b = match value_b {
-            Value::Text(text) => text,
-            _ => return Err("Multiplication requires text value.".to_string()),
-        };
-
-        let content = self.micro_code.multiply(value_a, value_b);
-
-        return match &self.chat(content.as_str()) {
-            Ok(choice) => Ok(choice.to_lowercase()),
-            Err(error) => Err(format!(
-                "Failed to perform multiplication. Error: {}",
-                error
-            )),
-        };
-    }
-
-    pub fn divide(&self, value_a: &Value, value_b: &Value) -> Result<String, String> {
-        let value_a = match value_a {
-            Value::Text(text) => text,
-            _ => return Err("Division requires text value.".to_string()),
-        };
-        let value_b = match value_b {
-            Value::Text(text) => text,
-            _ => return Err("Division requires text value.".to_string()),
-        };
-
-        let content = self.micro_code.divide(value_a, value_b);
-
-        return match &self.chat(content.as_str()) {
-            Ok(choice) => Ok(choice.to_lowercase()),
-            Err(error) => Err(format!("Failed to perform division. Error: {}", error)),
-        };
-    }
-
-    pub fn similarity(&self, value_a: &Value, value_b: &Value) -> Result<u32, String> {
-        let value_a = match value_a {
-            Value::Text(text) => text,
-            _ => return Err("Similarity requires text value.".to_string()),
-        };
-        let value_b = match value_b {
-            Value::Text(text) => text,
-            _ => return Err("Similarity requires text value.".to_string()),
-        };
-
-        let value_a_embeddings = match self.embeddings(value_a) {
+        let value_a_embeddings = match self.embeddings(&value_a) {
             Ok(embedding) => embedding,
-            Err(error) => return Err(format!("Failed to get first embedding. Error: {}", error)),
+            Err(error) => {
+                return Err(format!(
+                    "Failed to get embedding for {}. Error: {}",
+                    value_a, error
+                ));
+            }
         };
 
-        let value_b_embeddings = match self.embeddings(value_b) {
+        let value_b_embeddings = match self.embeddings(&value_b) {
             Ok(embedding) => embedding,
-            Err(error) => return Err(format!("Failed to get second embedding. Error: {}", error)),
+            Err(error) => {
+                return Err(format!(
+                    "Failed to get embedding for {}. Error: {}",
+                    value_b, error
+                ));
+            }
         };
 
         // Compute cosine similarity.
@@ -227,4 +168,70 @@ impl SemanticLogicUnit {
 
         return Ok(percentage_similarity.round() as u32);
     }
+
+    fn execute(&self, opcode: &OpCode, value_a: &Value, value_b: &Value) -> Result<String, String> {
+        let value_a = match value_a {
+            Value::Text(text) => text,
+            _ => return Err(format!("{:?} requires text value.", opcode)),
+        };
+        let value_b = match value_b {
+            Value::Text(text) => text,
+            _ => return Err(format!("{:?} requires text value.", opcode)),
+        };
+        let prompt = match self.micro_prompt.search(opcode, value_a, value_b) {
+            Ok(prompt) => prompt,
+            Err(error) => {
+                return Err(format!(
+                    "Failed to generate micro prompt for {:?}. Error: {}",
+                    opcode, error
+                ));
+            }
+        };
+
+        return match &self.chat(prompt.as_str()) {
+            Ok(choice) => Ok(choice.to_lowercase()),
+            Err(error) => Err(format!("Failed to perform {:?}. Error: {}", opcode, error)),
+        };
+    }
+
+    pub fn run(&self, opcode: &OpCode, value_a: &Value, value_b: &Value) -> Result<Value, String> {
+        return match opcode {
+            OpCode::SIM => self.cosine_similarity(value_a, value_b).map(Value::Number),
+            _ => self.execute(opcode, value_a, value_b).map(Value::Text),
+        };
+    }
+
+    // pub fn equivalent(&self, value_a: &Value, value_b: &Value) -> Result<u32, String> {
+    //     let value_a = match value_a {
+    //         Value::Text(text) => text,
+    //         _ => return Err("Equivalent requires text value.".to_string()),
+    //     };
+    //     let value_b = match value_b {
+    //         Value::Text(text) => text,
+    //         _ => return Err("Equivalent requires text value.".to_string()),
+    //     };
+    //     let prompt = match self.micro_prompt.search(&OpCode::ADD, value_a, value_b) {
+    //         Ok(prompt) => prompt,
+    //         Err(error) => {
+    //             return Err(format!(
+    //                 "Failed to generate micro prompt for division. Error: {}",
+    //                 error
+    //             ));
+    //         }
+    //     };
+    //     let label = match &self.chat(prompt.as_str()) {
+    //         Ok(choice) => choice.to_lowercase(),
+    //         Err(error) => {
+    //             return Err(format!(
+    //                 "Failed to perform equivalence check. Error: {}",
+    //                 error
+    //             ));
+    //         }
+    //     };
+
+    //     return match ["identical", "synonymous", "related"].contains(&label.as_str()) {
+    //         true => Ok(100),
+    //         false => Ok(0),
+    //     };
+    // }
 }

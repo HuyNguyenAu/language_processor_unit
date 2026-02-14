@@ -1,6 +1,5 @@
 pub struct ModelConfig {
     pub model: &'static str,
-    pub role: Option<&'static str>,
     pub stream: bool,
     pub temperature: Option<f32>,
     pub top_p: Option<f32>,

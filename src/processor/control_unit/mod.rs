@@ -7,7 +7,7 @@ use crate::{
     },
     processor::control_unit::{
         instruction::{
-            ArithmeticInstruction, ArithmeticType, BranchInstruction, BranchType, Instruction,
+            SemanticInstruction, SemanticType, BranchInstruction, BranchType, Instruction,
             LoadFileInstruction, LoadImmediateInstruction, MoveInstruction, OutputInstruction,
         },
         memory_unit::MemoryUnit,
@@ -282,8 +282,8 @@ impl ControlUnit {
         };
     }
 
-    fn decode_arithmetic(&mut self, op_code: OpCode) -> ArithmeticInstruction {
-        // Consume arithmetic opcode.
+    fn decode_semantic(&mut self, op_code: OpCode) -> SemanticInstruction {
+        // Consume semantic opcode.
         self.decode_op_code(
             &op_code,
             format!("Failed to decode {:?} opcode.", op_code).as_str(),
@@ -319,17 +319,17 @@ impl ControlUnit {
             .as_str(),
         );
 
-        let arithmetic_type = match op_code {
-            OpCode::ADD => ArithmeticType::Add,
-            OpCode::SUB => ArithmeticType::Sub,
-            OpCode::MUL => ArithmeticType::Mul,
-            OpCode::DIV => ArithmeticType::Div,
-            OpCode::SIM => ArithmeticType::Similarity,
-            _ => panic!("Invalid opcode '{:?}' for arithmetic instruction.", op_code),
+        let semantic_type = match op_code {
+            OpCode::ADD => SemanticType::Add,
+            OpCode::SUB => SemanticType::Sub,
+            OpCode::INF => SemanticType::Mul,
+            OpCode::DIV => SemanticType::Div,
+            OpCode::SIM => SemanticType::Sim,
+            _ => panic!("Invalid opcode '{:?}' for semantic instruction.", op_code),
         };
 
-        return ArithmeticInstruction {
-            arithmetic_type,
+        return SemanticInstruction {
+            semantic_type,
             destination_register,
             source_register_1,
             source_register_2,
@@ -421,11 +421,11 @@ impl ControlUnit {
             OpCode::LI => Instruction::LoadImmediate(self.decode_load_immediate()),
             OpCode::LF => Instruction::LoadFile(self.decode_load_file()),
             OpCode::MV => Instruction::Move(self.decode_move()),
-            OpCode::ADD => Instruction::Arithmetic(self.decode_arithmetic(OpCode::ADD)),
-            OpCode::SUB => Instruction::Arithmetic(self.decode_arithmetic(OpCode::SUB)),
-            OpCode::MUL => Instruction::Arithmetic(self.decode_arithmetic(OpCode::MUL)),
-            OpCode::DIV => Instruction::Arithmetic(self.decode_arithmetic(OpCode::DIV)),
-            OpCode::SIM => Instruction::Arithmetic(self.decode_arithmetic(OpCode::SIM)),
+            OpCode::ADD => Instruction::Semantic(self.decode_semantic(OpCode::ADD)),
+            OpCode::SUB => Instruction::Semantic(self.decode_semantic(OpCode::SUB)),
+            OpCode::INF => Instruction::Semantic(self.decode_semantic(OpCode::INF)),
+            OpCode::DIV => Instruction::Semantic(self.decode_semantic(OpCode::DIV)),
+            OpCode::SIM => Instruction::Semantic(self.decode_semantic(OpCode::SIM)),
             OpCode::BEQ => Instruction::Branch(self.decode_branch(op_code)),
             OpCode::BLT => Instruction::Branch(self.decode_branch(op_code)),
             OpCode::BLE => Instruction::Branch(self.decode_branch(op_code)),
@@ -518,57 +518,65 @@ impl ControlUnit {
         }
     }
 
-    fn execute_arithmetic(&mut self, instruction: &ArithmeticInstruction, debug: bool) {
+    fn execute_semantic(&mut self, instruction: &SemanticInstruction, debug: bool) {
         let value_a = match self.registers.get_register(instruction.source_register_1) {
             Ok(value) => value,
             Err(error) => panic!(
                 "Failed to execute {:?} instruction. Error: {}",
-                instruction.arithmetic_type, error
+                instruction.semantic_type, error
             ),
         };
         let value_b = match self.registers.get_register(instruction.source_register_2) {
             Ok(value) => value,
             Err(error) => panic!(
                 "Failed to execute {:?} instruction. Error: {}",
-                instruction.arithmetic_type, error
+                instruction.semantic_type, error
             ),
         };
 
-        let result = match instruction.arithmetic_type {
-            ArithmeticType::Add => match self.semantic_logic_unit.addition(value_a, value_b) {
-                Ok(result) => Value::Text(result),
-                Err(error) => panic!(
-                    "Failed to perform {:?}. Error: {}",
-                    instruction.arithmetic_type, error
-                ),
-            },
-            ArithmeticType::Sub => match self.semantic_logic_unit.subtract(value_a, value_b) {
-                Ok(result) => Value::Text(result),
-                Err(error) => panic!(
-                    "Failed to perform {:?}. Error: {}",
-                    instruction.arithmetic_type, error
-                ),
-            },
-            ArithmeticType::Mul => match self.semantic_logic_unit.multiply(value_a, value_b) {
-                Ok(result) => Value::Text(result),
-                Err(error) => panic!(
-                    "Failed to perform {:?}. Error: {}",
-                    instruction.arithmetic_type, error
-                ),
-            },
-            ArithmeticType::Div => match self.semantic_logic_unit.divide(value_a, value_b) {
-                Ok(result) => Value::Text(result),
-                Err(error) => panic!(
-                    "Failed to perform {:?}. Error: {}",
-                    instruction.arithmetic_type, error
-                ),
-            },
-            ArithmeticType::Similarity => {
-                match self.semantic_logic_unit.similarity(value_a, value_b) {
-                    Ok(result) => Value::Number(result),
+        let result = match instruction.semantic_type {
+            SemanticType::Add => {
+                match self.semantic_logic_unit.run(&OpCode::ADD, value_a, value_b) {
+                    Ok(result) => result,
                     Err(error) => panic!(
                         "Failed to perform {:?}. Error: {}",
-                        instruction.arithmetic_type, error
+                        instruction.semantic_type, error
+                    ),
+                }
+            }
+            SemanticType::Sub => {
+                match self.semantic_logic_unit.run(&OpCode::SUB, value_a, value_b) {
+                    Ok(result) => result,
+                    Err(error) => panic!(
+                        "Failed to perform {:?}. Error: {}",
+                        instruction.semantic_type, error
+                    ),
+                }
+            }
+            SemanticType::Mul => {
+                match self.semantic_logic_unit.run(&OpCode::INF, value_a, value_b) {
+                    Ok(result) => result,
+                    Err(error) => panic!(
+                        "Failed to perform {:?}. Error: {}",
+                        instruction.semantic_type, error
+                    ),
+                }
+            }
+            SemanticType::Div => {
+                match self.semantic_logic_unit.run(&OpCode::DIV, value_a, value_b) {
+                    Ok(result) => result,
+                    Err(error) => panic!(
+                        "Failed to perform {:?}. Error: {}",
+                        instruction.semantic_type, error
+                    ),
+                }
+            }
+            SemanticType::Sim => {
+                match self.semantic_logic_unit.run(&OpCode::SIM, value_a, value_b) {
+                    Ok(result) => result,
+                    Err(error) => panic!(
+                        "Failed to perform {:?}. Error: {}",
+                        instruction.semantic_type, error
                     ),
                 }
             }
@@ -576,9 +584,16 @@ impl ControlUnit {
 
         if debug {
             println!(
-                "Executed {:?}: {:?} + {:?} -> r{} = \"{:?}\"",
-                instruction.arithmetic_type,
+                "Executed {:?}: {:?} {} {:?} -> r{} = \"{:?}\"",
+                instruction.semantic_type,
                 value_a,
+                match instruction.semantic_type {
+                    SemanticType::Add => "+",
+                    SemanticType::Sub => "-",
+                    SemanticType::Mul => "*",
+                    SemanticType::Div => "/",
+                    SemanticType::Sim => "~",
+                },
                 value_b,
                 instruction.destination_register,
                 result
@@ -592,7 +607,7 @@ impl ControlUnit {
             Ok(_) => {}
             Err(error) => panic!(
                 "Failed to set register for {:?} instruction. Error: {}",
-                instruction.arithmetic_type, error
+                instruction.semantic_type, error
             ),
         };
     }
@@ -715,7 +730,7 @@ impl ControlUnit {
             }
             Instruction::LoadFile(instruction) => self.execute_load_file(instruction, debug),
             Instruction::Move(instruction) => self.execute_move(instruction, debug),
-            Instruction::Arithmetic(instruction) => self.execute_arithmetic(instruction, debug),
+            Instruction::Semantic(instruction) => self.execute_semantic(instruction, debug),
             Instruction::Branch(instruction) => self.execute_branch(instruction, debug),
             Instruction::Output(instruction) => self.execute_output(instruction, debug),
         }

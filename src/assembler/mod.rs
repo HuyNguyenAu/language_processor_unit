@@ -428,7 +428,7 @@ impl Assembler {
             .insert(key, jump_destination_byte_code_index);
     }
 
-    fn arithmetic(&mut self, token_type: &TokenType) {
+    fn semantic(&mut self, token_type: &TokenType) {
         self.consume(
             token_type,
             format!("Expected '{:?}' keyword.", token_type).as_str(),
@@ -437,11 +437,11 @@ impl Assembler {
         let opcode = match token_type {
             TokenType::ADD => OpCode::ADD,
             TokenType::SUB => OpCode::SUB,
-            TokenType::MUL => OpCode::MUL,
+            TokenType::INF => OpCode::INF,
             TokenType::DIV => OpCode::DIV,
             TokenType::SIM => OpCode::SIM,
             _ => {
-                self.error_at_previous("Invalid arithmetic instruction.");
+                self.error_at_previous("Invalid semantic instruction.");
                 return;
             }
         };
@@ -625,11 +625,11 @@ impl Assembler {
                     TokenType::LI => self.load_immediate(),
                     TokenType::LF => self.load_file(),
                     TokenType::MV => self.move_value(),
-                    TokenType::ADD => self.arithmetic(&TokenType::ADD),
-                    TokenType::SUB => self.arithmetic(&TokenType::SUB),
-                    TokenType::MUL => self.arithmetic(&TokenType::MUL),
-                    TokenType::DIV => self.arithmetic(&TokenType::DIV),
-                    TokenType::SIM => self.arithmetic(&TokenType::SIM),
+                    TokenType::ADD => self.semantic(&TokenType::ADD),
+                    TokenType::SUB => self.semantic(&TokenType::SUB),
+                    TokenType::INF => self.semantic(&TokenType::INF),
+                    TokenType::DIV => self.semantic(&TokenType::DIV),
+                    TokenType::SIM => self.semantic(&TokenType::SIM),
                     TokenType::LABEL => self.label(),
                     TokenType::BEQ => self.branch(&TokenType::BEQ),
                     TokenType::BLT => self.branch(&TokenType::BLT),

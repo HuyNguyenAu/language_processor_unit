@@ -145,7 +145,7 @@ impl Scanner {
             "mv" => self.make_token(TokenType::MV),
             "add" => self.make_token(TokenType::ADD),
             "sub" => self.make_token(TokenType::SUB),
-            "mul" => self.make_token(TokenType::MUL),
+            "inf" => self.make_token(TokenType::INF),
             "div" => self.make_token(TokenType::DIV),
             "sim" => self.make_token(TokenType::SIM),
             "beq" => self.make_token(TokenType::BEQ),

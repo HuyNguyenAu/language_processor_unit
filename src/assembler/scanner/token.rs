@@ -14,7 +14,7 @@ pub enum TokenType {
     MV,
     ADD,
     SUB,
-    MUL,
+    INF,
     DIV,
     SIM,
     LABEL,

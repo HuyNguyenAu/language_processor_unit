@@ -2,16 +2,13 @@ use crate::{
     assembler::opcode::OpCode,
     processor::control_unit::{
         registers::Value,
-        semantic_logic_unit::{
-            micro_prompt::MicroPrompt,
-            openai::{
-                OpenAIClient,
-                chat_completion_models::{
-                    OpenAIChatCompletionRequest, OpenAIChatCompletionRequestText,
-                },
-                embeddings_models::OpenAIEmbeddingsRequest,
-                model_config::ModelConfig,
+        semantic_logic_unit::openai::{
+            OpenAIClient,
+            chat_completion_models::{
+                OpenAIChatCompletionRequest, OpenAIChatCompletionRequestText,
             },
+            embeddings_models::OpenAIEmbeddingsRequest,
+            model_config::ModelConfig,
         },
     },
 };
@@ -21,7 +18,6 @@ mod openai;
 
 pub struct SemanticLogicUnit {
     system_prompt: &'static str,
-    micro_prompt: MicroPrompt,
     openai_client: OpenAIClient,
     text_model: ModelConfig,
     embeddings_model: ModelConfig,
@@ -31,7 +27,6 @@ impl SemanticLogicUnit {
     pub fn new() -> Self {
         return Self {
             system_prompt: "Output ONLY the answer. No intro. No fluff. No punctuation unless required. Answer with a single word if appropriate, otherwise a single sentence.",
-            micro_prompt: MicroPrompt::new(),
             openai_client: OpenAIClient::new(),
             text_model: ModelConfig {
                 model: "LFM2-2.6B-Q5_K_M",
@@ -178,7 +173,7 @@ impl SemanticLogicUnit {
             Value::Text(text) => text,
             _ => return Err(format!("{:?} requires text value.", opcode)),
         };
-        let prompt = match self.micro_prompt.search(opcode, value_a, value_b) {
+        let prompt = match micro_prompt::search(opcode, value_a, value_b) {
             Ok(prompt) => prompt,
             Err(error) => {
                 return Err(format!(
@@ -188,50 +183,50 @@ impl SemanticLogicUnit {
             }
         };
 
-        return match &self.chat(prompt.as_str()) {
+        let value = match &self.chat(prompt.as_str()) {
             Ok(choice) => Ok(choice.to_lowercase()),
             Err(error) => Err(format!("Failed to perform {:?}. Error: {}", opcode, error)),
+        };
+
+        return value;
+    }
+
+    fn boolean(&self, opcode: &OpCode, value: &str) -> Result<u32, String> {
+        let true_values = match micro_prompt::true_values(opcode) {
+            Ok(values) => values,
+            Err(error) => {
+                return Err(format!(
+                    "Failed to get true values for {:?}. Error: {}",
+                    opcode, error
+                ));
+            }
+        };
+
+        return match true_values.contains(&value.to_uppercase().as_str()) {
+            true => Ok(100),
+            false => Ok(0),
         };
     }
 
     pub fn run(&self, opcode: &OpCode, value_a: &Value, value_b: &Value) -> Result<Value, String> {
-        return match opcode {
-            OpCode::SIM => self.cosine_similarity(value_a, value_b).map(Value::Number),
-            _ => self.execute(opcode, value_a, value_b).map(Value::Text),
-        };
+        if matches!(opcode, OpCode::EQV | OpCode::INT | OpCode::HAL) {
+            let value = match self.execute(opcode, value_a, value_b) {
+                Ok(value) => value,
+                Err(error) => {
+                    return Err(format!(
+                        "Failed to execute {:?} for boolean operation. Error: {}",
+                        opcode, error
+                    ));
+                }
+            };
+
+            return self.boolean(opcode, &value).map(Value::Number);
+        }
+
+        if opcode == &OpCode::SIM {
+            return self.cosine_similarity(value_a, value_b).map(Value::Number);
+        }
+
+        return self.execute(opcode, value_a, value_b).map(Value::Text);
     }
-
-    // pub fn equivalent(&self, value_a: &Value, value_b: &Value) -> Result<u32, String> {
-    //     let value_a = match value_a {
-    //         Value::Text(text) => text,
-    //         _ => return Err("Equivalent requires text value.".to_string()),
-    //     };
-    //     let value_b = match value_b {
-    //         Value::Text(text) => text,
-    //         _ => return Err("Equivalent requires text value.".to_string()),
-    //     };
-    //     let prompt = match self.micro_prompt.search(&OpCode::ADD, value_a, value_b) {
-    //         Ok(prompt) => prompt,
-    //         Err(error) => {
-    //             return Err(format!(
-    //                 "Failed to generate micro prompt for division. Error: {}",
-    //                 error
-    //             ));
-    //         }
-    //     };
-    //     let label = match &self.chat(prompt.as_str()) {
-    //         Ok(choice) => choice.to_lowercase(),
-    //         Err(error) => {
-    //             return Err(format!(
-    //                 "Failed to perform equivalence check. Error: {}",
-    //                 error
-    //             ));
-    //         }
-    //     };
-
-    //     return match ["identical", "synonymous", "related"].contains(&label.as_str()) {
-    //         true => Ok(100),
-    //         false => Ok(0),
-    //     };
-    // }
 }

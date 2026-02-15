@@ -10,14 +10,17 @@ INT X4, X1, X2                                              ; Check if the contr
 BGE X4, X3, PASS                                            ; If score >= 85, jump to PASS
 LI X32, "FAIL"                                              ; The result if the contract is not compliant                                
 
-; Fault Localization (The "Deep Dive")
+; Fault Localization
 LI X6, "Why does the contract fail to mention data consent?"; Set the question for fault localization
-
 INF X8, X1, X6                                              ; Identify which section(s) fail to mention data consent
 
+LI X6, "What specific GDPR Article 6 criteria are not met?" ; Set the question for identifying specific criteria not met
+INF X9, X1, X6                                              ; Identify which specific GDPR Article 6 criteria
+
 ; Output Results
-LI X9, "VIOLATION FOUND:"
-OUT X9                                                      ; Output the violation message
+LI X10, "VIOLATION FOUND:"
+OUT X10                                                     ; Output the violation message
+OUT X9                                                      ; Output the specific GDPR Article 6 criteria not met
 OUT X8                                                      ; Output the section(s) that fail to mention data consent
 
 PASS:

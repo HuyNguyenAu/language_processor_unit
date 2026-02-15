@@ -17,7 +17,7 @@ Client inventory lists
 
 Customer delivery addresses and contact phone numbers
 
-Section 3: Data Usage (The Compliance "Grey Area")
+Section 3: Data Usage
 The Provider reserves the right to use all collected data to train internal machine learning models to improve overall service efficiency for all current and future clients. Data may be shared with third-party advertising partners to optimize logistics-related marketing "ecosystems."
 
 Section 4: Data Retention

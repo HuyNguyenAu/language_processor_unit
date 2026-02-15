@@ -13,7 +13,7 @@ We shift from processing values to processing meanings.
 
 In this frame, we could think of prompts as micro-code instructions that guide the LLU on how to process the data. The LLU would take the input data from the registers, process it according to the prompts, and then store the output back in the registers.
 
-# Micro Prompts
+## Micro Prompts
 
 The idea is simple, break down complex prompts into fundermental units of operations called micro-prompts that perform primitives operations on the data. Each micro-prompt would be designed to perform a specific operation for each instruction in the instruction set, and these can run sequentially to perform more complex operations.
 
@@ -47,13 +47,13 @@ This enables us to write code that can handle messy, subjective, or unstructured
 
 This is an experimental project to explore the idea of a language processor unit that treats multi-modal data as primitive data types, which could potentially lead to new ways of programming and interacting with data.
 
-# Instruction Terminology
+## Instruction Terminology
 
 - `rd` - destination register
 - `rs` - source register
 - `value` - can be an immediate value (e.g., a string or number)
 
-# Instruction Set
+## Instruction Set
 
 The instruction set is closely inspired by RISC-V assembly language:
 
@@ -78,11 +78,11 @@ The instruction set is closely inspired by RISC-V assembly language:
 | BGE         | Branch if Greater Than or Equal | `bge rs1, rs2, label_name` |
 | OUT         | Output                          | `out rs`                   |
 
-# Registers
+## Registers
 
 There are 32 general-purpose registers, named X1 to X32. These registers can hold text, images, or audio data (currently only text is supported).
 
-# Quick Start
+## Quick Start
 
 Clone the repository:
 
@@ -109,7 +109,7 @@ Run the example program:
 cargo run run data/build/simple.caism
 ```
 
-# Acknowledgements
+## Acknowledgements
 
 This project was inspired by the following works:
 

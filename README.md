@@ -61,8 +61,11 @@ Available instructions in the assembly language:
 | MV          | Copy Register                   | `mv rd, rs`                |
 | ADD         | Add                             | `add rd, rs1, rs2`         |
 | SUB         | Subtract                        | `sub rd, rs1, rs2`         |
+| DIV         | Division                        | `div rd, rs1, rs2`         |
 | INF         | Inference                       | `inf rd, rs1, rs2`         |
-| DIV         | Divide                          | `div rd, rs1, rs2`         |
+| EQV         | Equivalence                     | `eqv rd, rs1, rs2`         |
+| INT         | Intention                       | `int rd, rs1, rs2`         |
+| HAL         | Hallucination                   | `hal rd, rs`               |
 | SIM         | Similarity                      | `sim rd, rs1, rs2`         |
 | LABEL       | Label                           | `label_name:`              |
 | BEQ         | Branch if Equal                 | `beq rs1, rs2, label_name` |

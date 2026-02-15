@@ -2,7 +2,7 @@ use crate::{
     assembler::opcode::OpCode,
     processor::control_unit::{
         registers::Value,
-        semantic_logic_unit::openai::{
+        language_logic_unit::openai::{
             OpenAIClient,
             chat_completion_models::{
                 OpenAIChatCompletionRequest, OpenAIChatCompletionRequestText,
@@ -16,14 +16,14 @@ use crate::{
 mod micro_prompt;
 mod openai;
 
-pub struct SemanticLogicUnit {
+pub struct LanguageLogicUnit {
     system_prompt: &'static str,
     openai_client: OpenAIClient,
     text_model: ModelConfig,
     embeddings_model: ModelConfig,
 }
 
-impl SemanticLogicUnit {
+impl LanguageLogicUnit {
     pub fn new() -> Self {
         return Self {
             system_prompt: "Output ONLY the answer. No intro. No fluff. No punctuation unless required. Answer with a single word if appropriate, otherwise a single sentence.",

@@ -13,19 +13,19 @@ use crate::{
         },
         memory_unit::MemoryUnit,
         registers::{Registers, Value},
-        semantic_logic_unit::SemanticLogicUnit,
+        language_logic_unit::LanguageLogicUnit,
     },
 };
 
 mod instruction;
 mod memory_unit;
 mod registers;
-mod semantic_logic_unit;
+mod language_logic_unit;
 
 pub struct ControlUnit {
     memory: MemoryUnit,
     registers: Registers,
-    semantic_logic_unit: SemanticLogicUnit,
+    language_logic_unit: LanguageLogicUnit,
 
     previous_be_bytes: Option<[u8; 4]>,
     current_be_bytes: Option<[u8; 4]>,
@@ -36,7 +36,7 @@ impl ControlUnit {
         ControlUnit {
             memory: MemoryUnit::new(),
             registers: Registers::new(),
-            semantic_logic_unit: SemanticLogicUnit::new(),
+            language_logic_unit: LanguageLogicUnit::new(),
             previous_be_bytes: None,
             current_be_bytes: None,
         }
@@ -598,7 +598,7 @@ impl ControlUnit {
 
         let result = match instruction.semantic_type {
             SemanticType::ADD => {
-                match self.semantic_logic_unit.run(&OpCode::ADD, value_a, value_b) {
+                match self.language_logic_unit.run(&OpCode::ADD, value_a, value_b) {
                     Ok(result) => result,
                     Err(error) => panic!(
                         "Failed to perform {:?}. Error: {}",
@@ -607,7 +607,7 @@ impl ControlUnit {
                 }
             }
             SemanticType::SUB => {
-                match self.semantic_logic_unit.run(&OpCode::SUB, value_a, value_b) {
+                match self.language_logic_unit.run(&OpCode::SUB, value_a, value_b) {
                     Ok(result) => result,
                     Err(error) => panic!(
                         "Failed to perform {:?}. Error: {}",
@@ -616,7 +616,7 @@ impl ControlUnit {
                 }
             }
             SemanticType::MUL => {
-                match self.semantic_logic_unit.run(&OpCode::MUL, value_a, value_b) {
+                match self.language_logic_unit.run(&OpCode::MUL, value_a, value_b) {
                     Ok(result) => result,
                     Err(error) => panic!(
                         "Failed to perform {:?}. Error: {}",
@@ -625,7 +625,7 @@ impl ControlUnit {
                 }
             }
             SemanticType::DIV => {
-                match self.semantic_logic_unit.run(&OpCode::DIV, value_a, value_b) {
+                match self.language_logic_unit.run(&OpCode::DIV, value_a, value_b) {
                     Ok(result) => result,
                     Err(error) => panic!(
                         "Failed to perform {:?}. Error: {}",
@@ -634,7 +634,7 @@ impl ControlUnit {
                 }
             }
             SemanticType::INF => {
-                match self.semantic_logic_unit.run(&OpCode::INF, value_a, value_b) {
+                match self.language_logic_unit.run(&OpCode::INF, value_a, value_b) {
                     Ok(result) => result,
                     Err(error) => panic!(
                         "Failed to perform {:?}. Error: {}",
@@ -692,7 +692,7 @@ impl ControlUnit {
 
         let result = match instruction.heuristic_type {
             HeuristicType::EQV => {
-                match self.semantic_logic_unit.run(&OpCode::EQV, value_a, value_b) {
+                match self.language_logic_unit.run(&OpCode::EQV, value_a, value_b) {
                     Ok(result) => result,
                     Err(error) => panic!(
                         "Failed to perform {:?}. Error: {}",
@@ -701,7 +701,7 @@ impl ControlUnit {
                 }
             }
             HeuristicType::INT => {
-                match self.semantic_logic_unit.run(&OpCode::INT, value_a, value_b) {
+                match self.language_logic_unit.run(&OpCode::INT, value_a, value_b) {
                     Ok(result) => result,
                     Err(error) => panic!(
                         "Failed to perform {:?}. Error: {}",
@@ -710,7 +710,7 @@ impl ControlUnit {
                 }
             }
             HeuristicType::HAL => {
-                match self.semantic_logic_unit.run(&OpCode::HAL, value_a, value_b) {
+                match self.language_logic_unit.run(&OpCode::HAL, value_a, value_b) {
                     Ok(result) => result,
                     Err(error) => panic!(
                         "Failed to perform {:?}. Error: {}",
@@ -719,7 +719,7 @@ impl ControlUnit {
                 }
             }
             HeuristicType::SIM => {
-                match self.semantic_logic_unit.run(&OpCode::SIM, value_a, value_b) {
+                match self.language_logic_unit.run(&OpCode::SIM, value_a, value_b) {
                     Ok(result) => result,
                     Err(error) => panic!(
                         "Failed to perform {:?}. Error: {}",

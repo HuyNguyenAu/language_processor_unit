@@ -8,21 +8,29 @@ pub enum TokenType {
     STRING,
     NUMBER,
 
-    // Keywords.
+    // Data movement keywords.
     LI,
     LF,
     MV,
+    // Semantic operations keywords.
     ADD,
     SUB,
-    INF,
+    MUL,
     DIV,
+    INF,
+    // Heuristic operations keywords.
+    EQV,
+    INT,
+    HAL,
     SIM,
-    LABEL,
+    // Control flow keywords.
     BEQ,
-    BLT,
     BLE,
-    BGT,
+    BLT,
     BGE,
+    BGT,
+    LABEL,
+    // I/O keywords.
     OUT,
 
     // Misc.

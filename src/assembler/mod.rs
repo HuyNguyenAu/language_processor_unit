@@ -161,7 +161,7 @@ impl Assembler {
         let lexeme = self.previous_lexeme();
 
         // Ensure the lexeme starts with "x".
-        if !lexeme.starts_with("x") {
+        if !lexeme.to_lowercase().starts_with("x") {
             return Err(format!(
                 "Invalid register format: '{}'. Expected format: 'xN' where N is a number between 1 and 32.",
                 lexeme
@@ -178,7 +178,7 @@ impl Assembler {
             }
         };
 
-        if register_number < 1 || register_number > 32 {
+        if register_number < 1 && register_number > 32 {
             return Err(format!(
                 "Register number out of range: '{}'. Expected format: 'xN' where N is a number between 1 and 32.",
                 register_number

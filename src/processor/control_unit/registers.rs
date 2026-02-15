@@ -29,7 +29,7 @@ impl Registers {
             }
         };
 
-        if register_number - 1 > 32 {
+        if register_number < 1 && register_number > 32 {
             return Err(format!(
                 "Invalid register number: {}. Valid register numbers are 1-32.",
                 register_number
@@ -56,15 +56,15 @@ impl Registers {
             }
         };
 
-        if register_number < 1 || register_number > 32 {
+        if register_number < 1 && register_number > 32 {
             return Err(format!(
                 "Invalid register number: {}. Valid register numbers are 1-32.",
                 register_number
             ));
         }
 
-        match register_number {
-            0..31 => self.general_purpose_registers[register_number - 1] = value.to_owned(),
+        match register_number - 1 {
+            0..=31 => self.general_purpose_registers[register_number - 1] = value.to_owned(),
             _ => {
                 return Err(format!(
                     "Invalid register number: {}. Valid register numbers are 1-32.",

@@ -1,0 +1,27 @@
+Document: msa_draft_v2.pdf
+Title: Master Service Agreement (Draft)
+Parties: TechFlow Solutions Inc. ("Provider") and Global Logistics Corp ("Client")
+Date: October 12, 2025
+
+Section 1: Scope of Services
+Provider agrees to provide cloud-based logistics tracking and AI-driven route optimization to the Client. All data processed shall be hosted on Provider’s proprietary server clusters located in North America.
+
+Section 2: Data Collection and Processing
+The Provider will collect, store, and process the following data categories:
+
+User geolocation (Real-time)
+
+Driver biometric identifiers for authentication
+
+Client inventory lists
+
+Customer delivery addresses and contact phone numbers
+
+Section 3: Data Usage (The Compliance "Grey Area")
+The Provider reserves the right to use all collected data to train internal machine learning models to improve overall service efficiency for all current and future clients. Data may be shared with third-party advertising partners to optimize logistics-related marketing "ecosystems."
+
+Section 4: Data Retention
+All data is stored indefinitely to ensure historical accuracy of route optimization models, unless a specific written request for deletion is submitted by a high-ranking officer of the Client.
+
+Section 5: Liability
+Provider's total liability for any data breach or service interruption shall not exceed the amount paid by the Client in the three (3) months preceding the incident.

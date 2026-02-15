@@ -458,8 +458,9 @@ impl Assembler {
             // Semantic operations.
             TokenType::ADD => OpCode::ADD,
             TokenType::SUB => OpCode::SUB,
-            TokenType::INF => OpCode::INF,
+            TokenType::MUL => OpCode::MUL,
             TokenType::DIV => OpCode::DIV,
+            TokenType::INF => OpCode::INF,
             // Heuristic operations.
             TokenType::EQV => OpCode::EQV,
             TokenType::INT => OpCode::INT,

@@ -1,23 +1,27 @@
-# Cognitive Processor Unit
+# Language Processor Unit
 
 Imagine a simple processor that has the following components:
 
 - Memory
 - Registers
-- Semantic Logic Unit (SLU)
+- Language Logic Unit (LLU)
 - Control Unit (CU)
 
-Instead of a traditional Arithmetic Logic Unit (ALU) that performs arithmetic and logical operations on binary data, this processor uses an Large Language Model (LLM) as its SLU to process multi-modal data such as text, images, and audio.
+Instead of a traditional Arithmetic Logic Unit (ALU) that performs arithmetic and logical operations on binary data, this processor uses an Large Language Model (LLM) to process multi-modal data such as text, images, and audio.
 
 We shift from processing values to processing meanings.
 
-In this frame, we could think of prompts as micro-code instructions that guide the SLU on how to process the data. The SLU would take the input data from the registers, process it according to the instructions, and then store the output back in the registers or memory.
+In this frame, we could think of prompts as micro-code instructions that guide the LLU on how to process the data. The LLU would take the input data from the registers, process it according to the prompts, and then store the output back in the registers.
 
-The instruction set is closely inspired by RISC-V assembly language, but with a focus on operations that are relevant to multi-modal data processing. For example, instead of traditional arithmetic operations, we have a `SIM` instruction that computes the similarity between two pieces of data. This greatly simplifies the code of the assembler and processor, which allows us to focus on the fun parts!
+# Micro Prompts
+
+The idea is simple, break down complex prompts into fundermental units of operations called micro-prompts that perform primitives operations on the data. Each micro-prompt would be designed to perform a specific operation for each instruction in the instruction set, and these can run sequentially to perform more complex operations.
+
+**In the future, we could develop a more comprehensive library of micro-prompts where the LPU can learn and search for the most appropriate micro-prompt to use for each instruction based on the data and the context.**
 
 ## Why?
 
-The goal of this project was to try to explore the following idea:
+The goal of this project was to try to explore the following ideas:
 
 > What would it be like to code in a language that treats multi-model data as if it were primitive data types?
 
@@ -37,12 +41,11 @@ Imagine being able to write code like this:
 END:    OUT X4                          ; Output the result.
 ```
 
-This is an experimental project to explore the idea of a cognitive processor unit that treats multi-modal data as primitive data types, which could potentially lead to new ways of programming and interacting with data.
+> What new paradigms of programming and interacting with data could emerge from this approach?
 
-# Requirements
+This enables us to write code that can handle messy, subjective, or unstructured data, where traditional coding approaches would need much more complex code to do the same thing.
 
-- [Rust](https://rust-lang.org/) minimum version 1.93.0
-- [LLama.cpp](https://github.com/ggml-org/llama.cpp) server with minimum release tag b7843
+This is an experimental project to explore the idea of a language processor unit that treats multi-modal data as primitive data types, which could potentially lead to new ways of programming and interacting with data.
 
 # Instruction Terminology
 
@@ -50,9 +53,9 @@ This is an experimental project to explore the idea of a cognitive processor uni
 - `rs` - source register
 - `value` - can be an immediate value (e.g., a string or number)
 
-# Semantic Instruction Set
+# Instruction Set
 
-Available instructions in the assembly language:
+The instruction set is closely inspired by RISC-V assembly language:
 
 | Instruction | Description                     | Use                        |
 | ----------- | ------------------------------- | -------------------------- |
@@ -77,7 +80,7 @@ Available instructions in the assembly language:
 
 # Registers
 
-The processor has 32 general-purpose registers, named X1 to X32. These registers can hold text, images, or audio data.
+There are 32 general-purpose registers, named X1 to X32. These registers can hold text, images, or audio data (currently only text is supported).
 
 # Quick Start
 

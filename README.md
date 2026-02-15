@@ -51,32 +51,34 @@ This is an experimental project to explore the idea of a language processor unit
 
 - `rd` - destination register
 - `rs` - source register
-- `value` - can be an immediate value (e.g., a string or number)
+- `imm` - immediate value can be a string or a number
+- `label_name` - a label used for branching
 
 ## Instruction Set
 
 The instruction set is closely inspired by RISC-V assembly language:
 
-| Instruction | Description                     | Use                        |
-| ----------- | ------------------------------- | -------------------------- |
-| LI          | Load Immediate                  | `li rd, imm`               |
-| LF          | Load File                       | `lf rd, "file_path"`       |
-| MV          | Copy Register                   | `mv rd, rs`                |
-| ADD         | Add                             | `add rd, rs1, rs2`         |
-| SUB         | Subtract                        | `sub rd, rs1, rs2`         |
-| DIV         | Division                        | `div rd, rs1, rs2`         |
-| INF         | Inference                       | `inf rd, rs1, rs2`         |
-| EQV         | Equivalence                     | `eqv rd, rs1, rs2`         |
-| INT         | Intention                       | `int rd, rs1, rs2`         |
-| HAL         | Hallucination                   | `hal rd, rs`               |
-| SIM         | Similarity                      | `sim rd, rs1, rs2`         |
-| LABEL       | Label                           | `label_name:`              |
-| BEQ         | Branch if Equal                 | `beq rs1, rs2, label_name` |
-| BLT         | Branch if Less Than             | `blt rs1, rs2, label_name` |
-| BLE         | Branch if Less Than or Equal    | `ble rs1, rs2, label_name` |
-| BGT         | Branch if Greater Than          | `bgt rs1, rs2, label_name` |
-| BGE         | Branch if Greater Than or Equal | `bge rs1, rs2, label_name` |
-| OUT         | Output                          | `out rs`                   |
+| Instruction | Description                          | Use                        |
+| ----------- | ------------------------------------ | -------------------------- |
+| LI          | Load immediate into rd               | `li rd, imm`               |
+| LF          | Load file into rd                    | `lf rd, "file_path"`       |
+| MV          | Copy rs into rd                      | `mv rd, rs`                |
+| ADD         | Merge rs1 and rs2                    | `add rd, rs1, rs2`         |
+| SUB         | Remove rs2 from rs1                  | `sub rd, rs1, rs2`         |
+| MUL         | Magnify rs1 by rs2                   | `mul rd, rs1, rs2`         |
+| DIV         | Deconstruct rs1 into units of rs2    | `div rd, rs1, rs2`         |
+| INF         | Predict by rs2 given rs1             | `inf rd, rs1, rs2`         |
+| EQV         | Is rs1 equivalent to rs2             | `eqv rd, rs1, rs2`         |
+| INT         | Is rs1 aligned with rs2              | `int rd, rs1, rs2`         |
+| HAL         | Is rs a hallucination                | `hal rd, rs`               |
+| SIM         | Cosine similarity of rs1 and rs2     | `sim rd, rs1, rs2`         |
+| LABEL       | Define a label                       | `label_name:`              |
+| BEQ         | Go to label if Equal                 | `beq rs1, rs2, label_name` |
+| BLT         | Go to label if Less Than             | `blt rs1, rs2, label_name` |
+| BLE         | Go to label if Less Than or Equal    | `ble rs1, rs2, label_name` |
+| BGT         | Go to label if Greater Than          | `bgt rs1, rs2, label_name` |
+| BGE         | Go to label if Greater Than or Equal | `bge rs1, rs2, label_name` |
+| OUT         | Print the value of a register        | `out rs`                   |
 
 ## Registers
 

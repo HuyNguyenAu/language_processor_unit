@@ -163,7 +163,7 @@ impl Assembler {
         // Ensure the lexeme starts with "x".
         if !lexeme.starts_with("x") {
             return Err(format!(
-                "Invalid register format: '{}'. Expected format: 'xN' where N is a number between 0 and 32.",
+                "Invalid register format: '{}'. Expected format: 'xN' where N is a number between 1 and 32.",
                 lexeme
             ));
         }
@@ -172,16 +172,16 @@ impl Assembler {
             Ok(value) => value,
             Err(_) => {
                 return Err(format!(
-                    "Failed to parse register number from lexeme '{}'. Expected format: 'xN' where N is a number between 0 and 32.",
+                    "Failed to parse register number from lexeme '{}'. Expected format: 'xN' where N is a number between 1 and 32.",
                     lexeme
                 ));
             }
         };
 
-        if register_number > 32 {
+        if register_number < 1 || register_number > 32 {
             return Err(format!(
-                "Register number out of range: '{}'. Expected format: 'xN' where N is a number between 0 and 32.",
-                lexeme
+                "Register number out of range: '{}'. Expected format: 'xN' where N is a number between 1 and 32.",
+                register_number
             ));
         }
 

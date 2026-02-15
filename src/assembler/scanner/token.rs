@@ -38,6 +38,32 @@ pub enum TokenType {
     ERROR,
 }
 
+pub static TOKEN_TYPE_MAPPING: [(TokenType, &'static str); 18] = [
+    // Data movement.
+    (TokenType::LI, "li"),
+    (TokenType::LF, "lf"),
+    (TokenType::MV, "mv"),
+    // Semantic operations.
+    (TokenType::ADD, "add"),
+    (TokenType::SUB, "sub"),
+    (TokenType::MUL, "mul"),
+    (TokenType::DIV, "div"),
+    (TokenType::INF, "inf"),
+    // Heuristic operations.
+    (TokenType::EQV, "eqv"),
+    (TokenType::INT, "int"),
+    (TokenType::HAL, "hal"),
+    (TokenType::SIM, "sim"),
+    // Control flow.
+    (TokenType::BEQ, "beq"),
+    (TokenType::BLT, "blt"),
+    (TokenType::BLE, "ble"),
+    (TokenType::BGE, "bge"),
+    (TokenType::BGT, "bgt"),
+    // I/O.
+    (TokenType::OUT, "out"),
+];
+
 #[derive(Clone, Debug)]
 pub struct Token {
     token_type: TokenType,

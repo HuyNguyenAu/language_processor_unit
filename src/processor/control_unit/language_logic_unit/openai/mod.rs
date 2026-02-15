@@ -1,6 +1,6 @@
 use reqwest::blocking::Client;
 
-use crate::processor::control_unit::semantic_logic_unit::openai::{
+use crate::processor::control_unit::language_logic_unit::openai::{
     chat_completion_models::{OpenAIChatCompletionRequest, OpenAIChatCompletionResponse},
     embeddings_models::{OpenAIEmbeddingsRequest, OpenAIEmbeddingsResponse},
 };

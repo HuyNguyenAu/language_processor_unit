@@ -498,28 +498,24 @@ impl Assembler {
             }
         };
 
-        let single_source_register = matches!(token_type, TokenType::HAL);
-        let mut source_register_2 = 0;
-
-        if !single_source_register {
+        let source_register_2 = if matches!(token_type, TokenType::HAL) {
+            0 // Use a dummy register for the second source register since HAL only takes one source register.
+        } else {
             self.consume(&TokenType::COMMA, "Expected ',' after source register 1.");
 
-            source_register_2 = match self.register("Expected source register 2 after ','.") {
+            match self.register("Expected source register 2 after ','.") {
                 Ok(register) => register,
                 Err(message) => {
                     self.error_at_current(&message);
                     return;
                 }
-            };
-        }
+            }
+        };
 
         self.emit_op_code_bytecode(opcode);
         self.emit_register_bytecode(destination_register);
         self.emit_register_bytecode(source_register_1);
-
-        if !single_source_register {
-            self.emit_register_bytecode(source_register_2);
-        }
+        self.emit_register_bytecode(source_register_2);
 
         self.advance_stack_level();
     }

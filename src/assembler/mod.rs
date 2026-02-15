@@ -244,7 +244,15 @@ impl Assembler {
     }
 
     fn emit_op_code_bytecode(&mut self, op_code: OpCode) {
-        self.byte_code.push(OpCode::to_be_bytes(&op_code));
+        let op_code_be_bytes = match op_code.to_be_bytes() {
+            Ok(bytes) => bytes,
+            Err(message) => {
+                self.error_at_current(&message);
+                return;
+            }
+        };
+
+        self.byte_code.push(op_code_be_bytes);
     }
 
     fn emit_register_bytecode(&mut self, register: u32) {
@@ -254,8 +262,14 @@ impl Assembler {
     fn emit_immediate_bytecode(&mut self, immediate: &Immediate) -> Result<(), String> {
         match immediate {
             Immediate::Number(value) => {
-                self.byte_code
-                    .push(ImmediateType::to_be_bytes(&ImmediateType::NUMBER));
+                let immediate_type_be_bytes = match ImmediateType::NUMBER.to_be_bytes() {
+                    Ok(bytes) => bytes,
+                    Err(message) => {
+                        self.error_at_current(&message);
+                        return Err(message.to_string());
+                    }
+                };
+                self.byte_code.push(immediate_type_be_bytes);
 
                 self.byte_code.push(1u32.to_be_bytes());
                 self.byte_code.push(value.to_be_bytes());
@@ -275,9 +289,15 @@ impl Assembler {
                         ));
                     }
                 };
+                let immediate_type_be_bytes = match ImmediateType::TEXT.to_be_bytes() {
+                    Ok(bytes) => bytes,
+                    Err(message) => {
+                        self.error_at_current(&message);
+                        return Err(message.to_string());
+                    }
+                };
 
-                self.byte_code
-                    .push(ImmediateType::to_be_bytes(&ImmediateType::TEXT));
+                self.byte_code.push(immediate_type_be_bytes);
                 self.byte_code.push((value_be_bytes_length).to_be_bytes()); // Length in 4-byte characters.
                 self.byte_code.extend(value_be_bytes);
             }
@@ -312,7 +332,7 @@ impl Assembler {
 
         self.emit_op_code_bytecode(OpCode::LI);
         self.emit_register_bytecode(destination_register);
-        
+
         match self.emit_immediate_bytecode(&immediate) {
             Ok(()) => (),
             Err(message) => {
@@ -346,7 +366,7 @@ impl Assembler {
 
         self.emit_op_code_bytecode(OpCode::LF);
         self.emit_register_bytecode(destination_register);
-      
+
         match self.emit_immediate_bytecode(&Immediate::Text(file_path)) {
             Ok(()) => (),
             Err(message) => {
@@ -428,20 +448,26 @@ impl Assembler {
             .insert(key, jump_destination_byte_code_index);
     }
 
-    fn arithmetic(&mut self, token_type: &TokenType) {
+    fn semantic_heuristic(&mut self, token_type: &TokenType) {
         self.consume(
             token_type,
             format!("Expected '{:?}' keyword.", token_type).as_str(),
         );
 
         let opcode = match token_type {
+            // Semantic operations.
             TokenType::ADD => OpCode::ADD,
             TokenType::SUB => OpCode::SUB,
             TokenType::MUL => OpCode::MUL,
             TokenType::DIV => OpCode::DIV,
+            TokenType::INF => OpCode::INF,
+            // Heuristic operations.
+            TokenType::EQV => OpCode::EQV,
+            TokenType::INT => OpCode::INT,
+            TokenType::HAL => OpCode::HAL,
             TokenType::SIM => OpCode::SIM,
             _ => {
-                self.error_at_previous("Invalid arithmetic instruction.");
+                self.error_at_previous("Invalid semantic instruction.");
                 return;
             }
         };
@@ -473,13 +499,17 @@ impl Assembler {
             }
         };
 
-        self.consume(&TokenType::COMMA, "Expected ',' after source register 1.");
+        let source_register_2 = if matches!(token_type, TokenType::HAL) {
+            0 // Use a dummy register for the second source register since HAL only takes one source register.
+        } else {
+            self.consume(&TokenType::COMMA, "Expected ',' after source register 1.");
 
-        let source_register_2 = match self.register("Expected source register 2 after ','.") {
-            Ok(register) => register,
-            Err(message) => {
-                self.error_at_current(&message);
-                return;
+            match self.register("Expected source register 2 after ','.") {
+                Ok(register) => register,
+                Err(message) => {
+                    self.error_at_current(&message);
+                    return;
+                }
             }
         };
 
@@ -622,21 +652,31 @@ impl Assembler {
         while !self.panic_mode {
             if let Some(current_token) = &self.current {
                 match current_token.token_type() {
+                    // Data movement.
                     TokenType::LI => self.load_immediate(),
                     TokenType::LF => self.load_file(),
                     TokenType::MV => self.move_value(),
-                    TokenType::ADD => self.arithmetic(&TokenType::ADD),
-                    TokenType::SUB => self.arithmetic(&TokenType::SUB),
-                    TokenType::MUL => self.arithmetic(&TokenType::MUL),
-                    TokenType::DIV => self.arithmetic(&TokenType::DIV),
-                    TokenType::SIM => self.arithmetic(&TokenType::SIM),
-                    TokenType::LABEL => self.label(),
+                    // Semantic operations.
+                    TokenType::ADD => self.semantic_heuristic(&TokenType::ADD),
+                    TokenType::SUB => self.semantic_heuristic(&TokenType::SUB),
+                    TokenType::MUL => self.semantic_heuristic(&TokenType::MUL),
+                    TokenType::DIV => self.semantic_heuristic(&TokenType::DIV),
+                    TokenType::INF => self.semantic_heuristic(&TokenType::INF),
+                    // Heuristic operations.
+                    TokenType::EQV => self.semantic_heuristic(&TokenType::EQV),
+                    TokenType::INT => self.semantic_heuristic(&TokenType::INT),
+                    TokenType::HAL => self.semantic_heuristic(&TokenType::HAL),
+                    TokenType::SIM => self.semantic_heuristic(&TokenType::SIM),
+                    // Control flow.
                     TokenType::BEQ => self.branch(&TokenType::BEQ),
                     TokenType::BLT => self.branch(&TokenType::BLT),
                     TokenType::BLE => self.branch(&TokenType::BLE),
                     TokenType::BGT => self.branch(&TokenType::BGT),
                     TokenType::BGE => self.branch(&TokenType::BGE),
+                    TokenType::LABEL => self.label(),
+                    // I/O.
                     TokenType::OUT => self.output(),
+                    // Miscellaneous.
                     TokenType::EOF => break,
                     _ => self.error_at_current("Unexpected keyword."),
                 }

@@ -45,6 +45,18 @@ impl OpenAIClient {
             Ok(response) => response,
             Err(error) => return Err(format!("Failed to send chat request. Error: {}", error)),
         };
+
+        if !response.status().is_success() {
+            return Err(format!(
+                "Chat request failed with status code: {}. Response Text: {}",
+                response.status(),
+                match response.text() {
+                    Ok(text) => text,
+                    Err(error) => format!("Failed to read error response text. Error: {}", error),
+                }
+            ));
+        }
+
         let text = match response.text() {
             Ok(text) => text,
             Err(error) => {

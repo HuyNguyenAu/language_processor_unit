@@ -1,3 +1,6 @@
+; This program tells a story set in a cyberpunk city at night, with jazz music playing in the background and neon lights illuminating the scene.
+; It combines these elements to create a vivid narrative experience.
+
 ; Initialisation
 li x1, "A story set in a cyberpunk city at night"
 li x2, "Jazz music playing in the background"

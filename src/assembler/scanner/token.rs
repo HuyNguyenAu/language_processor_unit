@@ -8,27 +8,61 @@ pub enum TokenType {
     STRING,
     NUMBER,
 
-    // Keywords.
+    // Data movement keywords.
     LI,
     LF,
     MV,
+    // Semantic operations keywords.
     ADD,
     SUB,
     MUL,
     DIV,
+    INF,
+    // Heuristic operations keywords.
+    EQV,
+    INT,
+    HAL,
     SIM,
-    LABEL,
+    // Control flow keywords.
     BEQ,
-    BLT,
     BLE,
-    BGT,
+    BLT,
     BGE,
+    BGT,
+    LABEL,
+    // I/O keywords.
     OUT,
 
     // Misc.
     EOF,
     ERROR,
 }
+
+pub static TOKEN_TYPE_MAPPING: [(TokenType, &'static str); 18] = [
+    // Data movement.
+    (TokenType::LI, "li"),
+    (TokenType::LF, "lf"),
+    (TokenType::MV, "mv"),
+    // Semantic operations.
+    (TokenType::ADD, "add"),
+    (TokenType::SUB, "sub"),
+    (TokenType::MUL, "mul"),
+    (TokenType::DIV, "div"),
+    (TokenType::INF, "inf"),
+    // Heuristic operations.
+    (TokenType::EQV, "eqv"),
+    (TokenType::INT, "int"),
+    (TokenType::HAL, "hal"),
+    (TokenType::SIM, "sim"),
+    // Control flow.
+    (TokenType::BEQ, "beq"),
+    (TokenType::BLT, "blt"),
+    (TokenType::BLE, "ble"),
+    (TokenType::BGE, "bge"),
+    (TokenType::BGT, "bgt"),
+    // I/O.
+    (TokenType::OUT, "out"),
+];
 
 #[derive(Clone, Debug)]
 pub struct Token {

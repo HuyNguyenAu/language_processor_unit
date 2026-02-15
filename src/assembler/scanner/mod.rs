@@ -1,4 +1,4 @@
-use crate::assembler::scanner::token::{Token, TokenType};
+use crate::assembler::scanner::token::{TOKEN_TYPE_MAPPING, Token, TokenType};
 
 pub mod token;
 
@@ -139,22 +139,13 @@ impl Scanner {
             return self.label();
         }
 
-        return match identifier.to_lowercase().as_str() {
-            "li" => self.make_token(TokenType::LI),
-            "lf" => self.make_token(TokenType::LF),
-            "mv" => self.make_token(TokenType::MV),
-            "add" => self.make_token(TokenType::ADD),
-            "sub" => self.make_token(TokenType::SUB),
-            "mul" => self.make_token(TokenType::MUL),
-            "div" => self.make_token(TokenType::DIV),
-            "sim" => self.make_token(TokenType::SIM),
-            "beq" => self.make_token(TokenType::BEQ),
-            "ble" => self.make_token(TokenType::BLE),
-            "blt" => self.make_token(TokenType::BLT),
-            "bge" => self.make_token(TokenType::BGE),
-            "bgt" => self.make_token(TokenType::BGT),
-            "out" => self.make_token(TokenType::OUT),
-            _ => self.make_token(TokenType::IDENTIFIER),
+        let matched_token = TOKEN_TYPE_MAPPING
+            .iter()
+            .find(|(_, name)| *name == identifier.to_lowercase());
+
+        return match matched_token {
+            Some((token_type, _)) => self.make_token(token_type.clone()),
+            None => self.make_token(TokenType::IDENTIFIER),
         };
     }
 

@@ -19,17 +19,33 @@ pub struct MoveInstruction {
 }
 
 #[derive(Debug)]
-pub enum ArithmeticType {
-    Add,
-    Sub,
-    Mul,
-    Div,
-    Similarity,
+pub enum SemanticType {
+    ADD,
+    SUB,
+    MUL,
+    DIV,
+    INF,
 }
 
 #[derive(Debug)]
-pub struct ArithmeticInstruction {
-    pub arithmetic_type: ArithmeticType,
+pub struct SemanticInstruction {
+    pub semantic_type: SemanticType,
+    pub destination_register: u32,
+    pub source_register_1: u32,
+    pub source_register_2: u32,
+}
+
+#[derive(Debug)]
+pub enum HeuristicType {
+    EQV,
+    INT,
+    HAL,
+    SIM,
+}
+
+#[derive(Debug)]
+pub struct HeuristicInstruction {
+    pub heuristic_type: HeuristicType,
     pub destination_register: u32,
     pub source_register_1: u32,
     pub source_register_2: u32,
@@ -37,11 +53,11 @@ pub struct ArithmeticInstruction {
 
 #[derive(Debug)]
 pub enum BranchType {
-    LessThan,
-    LessThanOrEqual,
-    GreaterThan,
-    GreaterThanOrEqual,
-    Equal,
+    EQ,
+    LE,
+    LT,
+    GE,
+    GT,
 }
 
 #[derive(Debug)]
@@ -62,7 +78,8 @@ pub enum Instruction {
     LoadImmediate(LoadImmediateInstruction),
     LoadFile(LoadFileInstruction),
     Move(MoveInstruction),
-    Arithmetic(ArithmeticInstruction),
+    Semantic(SemanticInstruction),
+    Heuristic(HeuristicInstruction),
     Branch(BranchInstruction),
     Output(OutputInstruction),
 }

@@ -7,8 +7,9 @@ use crate::{
     },
     processor::control_unit::{
         instruction::{
-            ArithmeticInstruction, ArithmeticType, BranchInstruction, BranchType, Instruction,
+            BranchInstruction, BranchType, HeuristicInstruction, HeuristicType, Instruction,
             LoadFileInstruction, LoadImmediateInstruction, MoveInstruction, OutputInstruction,
+            SemanticInstruction, SemanticType,
         },
         memory_unit::MemoryUnit,
         registers::{Registers, Value},
@@ -282,8 +283,8 @@ impl ControlUnit {
         };
     }
 
-    fn decode_arithmetic(&mut self, op_code: OpCode) -> ArithmeticInstruction {
-        // Consume arithmetic opcode.
+    fn decode_semantic(&mut self, op_code: OpCode) -> SemanticInstruction {
+        // Consume semantic opcode.
         self.decode_op_code(
             &op_code,
             format!("Failed to decode {:?} opcode.", op_code).as_str(),
@@ -319,17 +320,69 @@ impl ControlUnit {
             .as_str(),
         );
 
-        let arithmetic_type = match op_code {
-            OpCode::ADD => ArithmeticType::Add,
-            OpCode::SUB => ArithmeticType::Sub,
-            OpCode::MUL => ArithmeticType::Mul,
-            OpCode::DIV => ArithmeticType::Div,
-            OpCode::SIM => ArithmeticType::Similarity,
-            _ => panic!("Invalid opcode '{:?}' for arithmetic instruction.", op_code),
+        let semantic_type = match op_code {
+            OpCode::ADD => SemanticType::ADD,
+            OpCode::SUB => SemanticType::SUB,
+            OpCode::MUL => SemanticType::MUL,
+            OpCode::DIV => SemanticType::DIV,
+            OpCode::INF => SemanticType::INF,
+            _ => panic!("Invalid opcode '{:?}' for semantic instruction.", op_code),
         };
 
-        return ArithmeticInstruction {
-            arithmetic_type,
+        return SemanticInstruction {
+            semantic_type,
+            destination_register,
+            source_register_1,
+            source_register_2,
+        };
+    }
+
+    fn decode_heuristic(&mut self, op_code: OpCode) -> HeuristicInstruction {
+        // Consume heuristic opcode.
+        self.decode_op_code(
+            &op_code,
+            format!("Failed to decode {:?} opcode.", op_code).as_str(),
+        );
+
+        // Consume the destination register.
+        let destination_register = self.decode_register(
+            false,
+            format!(
+                "Failed to read destination register for {:?} instruction.",
+                op_code
+            )
+            .as_str(),
+        );
+
+        // Consume the source register 1.
+        let source_register_1 = self.decode_register(
+            false,
+            format!(
+                "Failed to read source register 1 for {:?} instruction.",
+                op_code
+            )
+            .as_str(),
+        );
+
+        let source_register_2 = self.decode_register(
+            false,
+            format!(
+                "Failed to read source register 2 for {:?} instruction.",
+                op_code
+            )
+            .as_str(),
+        );
+
+        let heuristic_type = match op_code {
+            OpCode::EQV => HeuristicType::EQV,
+            OpCode::INT => HeuristicType::INT,
+            OpCode::HAL => HeuristicType::HAL,
+            OpCode::SIM => HeuristicType::SIM,
+            _ => panic!("Invalid opcode '{:?}' for heuristic instruction.", op_code),
+        };
+
+        return HeuristicInstruction {
+            heuristic_type,
             destination_register,
             source_register_1,
             source_register_2,
@@ -362,11 +415,11 @@ impl ControlUnit {
         );
 
         let branch_type = match op_code {
-            OpCode::BEQ => BranchType::Equal,
-            OpCode::BLT => BranchType::LessThan,
-            OpCode::BLE => BranchType::LessThanOrEqual,
-            OpCode::BGT => BranchType::GreaterThan,
-            OpCode::BGE => BranchType::GreaterThanOrEqual,
+            OpCode::BEQ => BranchType::EQ,
+            OpCode::BLT => BranchType::LT,
+            OpCode::BLE => BranchType::LE,
+            OpCode::BGT => BranchType::GT,
+            OpCode::BGE => BranchType::GE,
             _ => panic!("Invalid opcode '{:?}' for branch instruction.", op_code),
         };
 
@@ -418,19 +471,28 @@ impl ControlUnit {
             ),
         };
         let instruction = match op_code {
+            // Data movement instructions.
             OpCode::LI => Instruction::LoadImmediate(self.decode_load_immediate()),
             OpCode::LF => Instruction::LoadFile(self.decode_load_file()),
             OpCode::MV => Instruction::Move(self.decode_move()),
-            OpCode::ADD => Instruction::Arithmetic(self.decode_arithmetic(OpCode::ADD)),
-            OpCode::SUB => Instruction::Arithmetic(self.decode_arithmetic(OpCode::SUB)),
-            OpCode::MUL => Instruction::Arithmetic(self.decode_arithmetic(OpCode::MUL)),
-            OpCode::DIV => Instruction::Arithmetic(self.decode_arithmetic(OpCode::DIV)),
-            OpCode::SIM => Instruction::Arithmetic(self.decode_arithmetic(OpCode::SIM)),
+            // Semantic instructions.
+            OpCode::ADD => Instruction::Semantic(self.decode_semantic(OpCode::ADD)),
+            OpCode::SUB => Instruction::Semantic(self.decode_semantic(OpCode::SUB)),
+            OpCode::MUL => Instruction::Semantic(self.decode_semantic(OpCode::MUL)),
+            OpCode::DIV => Instruction::Semantic(self.decode_semantic(OpCode::DIV)),
+            OpCode::INF => Instruction::Semantic(self.decode_semantic(OpCode::INF)),
+            // Heuristic instructions.
+            OpCode::EQV => Instruction::Heuristic(self.decode_heuristic(OpCode::EQV)),
+            OpCode::INT => Instruction::Heuristic(self.decode_heuristic(OpCode::INT)),
+            OpCode::HAL => Instruction::Heuristic(self.decode_heuristic(OpCode::HAL)),
+            OpCode::SIM => Instruction::Heuristic(self.decode_heuristic(OpCode::SIM)),
+            // Branch instructions.
             OpCode::BEQ => Instruction::Branch(self.decode_branch(op_code)),
             OpCode::BLT => Instruction::Branch(self.decode_branch(op_code)),
             OpCode::BLE => Instruction::Branch(self.decode_branch(op_code)),
             OpCode::BGT => Instruction::Branch(self.decode_branch(op_code)),
             OpCode::BGE => Instruction::Branch(self.decode_branch(op_code)),
+            // I/O instructions.
             OpCode::OUT => Instruction::Output(self.decode_output()),
         };
 
@@ -518,57 +580,65 @@ impl ControlUnit {
         }
     }
 
-    fn execute_arithmetic(&mut self, instruction: &ArithmeticInstruction, debug: bool) {
+    fn execute_semantic(&mut self, instruction: &SemanticInstruction, debug: bool) {
         let value_a = match self.registers.get_register(instruction.source_register_1) {
             Ok(value) => value,
             Err(error) => panic!(
                 "Failed to execute {:?} instruction. Error: {}",
-                instruction.arithmetic_type, error
+                instruction.semantic_type, error
             ),
         };
         let value_b = match self.registers.get_register(instruction.source_register_2) {
             Ok(value) => value,
             Err(error) => panic!(
                 "Failed to execute {:?} instruction. Error: {}",
-                instruction.arithmetic_type, error
+                instruction.semantic_type, error
             ),
         };
 
-        let result = match instruction.arithmetic_type {
-            ArithmeticType::Add => match self.semantic_logic_unit.addition(value_a, value_b) {
-                Ok(result) => Value::Text(result),
-                Err(error) => panic!(
-                    "Failed to perform {:?}. Error: {}",
-                    instruction.arithmetic_type, error
-                ),
-            },
-            ArithmeticType::Sub => match self.semantic_logic_unit.subtract(value_a, value_b) {
-                Ok(result) => Value::Text(result),
-                Err(error) => panic!(
-                    "Failed to perform {:?}. Error: {}",
-                    instruction.arithmetic_type, error
-                ),
-            },
-            ArithmeticType::Mul => match self.semantic_logic_unit.multiply(value_a, value_b) {
-                Ok(result) => Value::Text(result),
-                Err(error) => panic!(
-                    "Failed to perform {:?}. Error: {}",
-                    instruction.arithmetic_type, error
-                ),
-            },
-            ArithmeticType::Div => match self.semantic_logic_unit.divide(value_a, value_b) {
-                Ok(result) => Value::Text(result),
-                Err(error) => panic!(
-                    "Failed to perform {:?}. Error: {}",
-                    instruction.arithmetic_type, error
-                ),
-            },
-            ArithmeticType::Similarity => {
-                match self.semantic_logic_unit.similarity(value_a, value_b) {
-                    Ok(result) => Value::Number(result),
+        let result = match instruction.semantic_type {
+            SemanticType::ADD => {
+                match self.semantic_logic_unit.run(&OpCode::ADD, value_a, value_b) {
+                    Ok(result) => result,
                     Err(error) => panic!(
                         "Failed to perform {:?}. Error: {}",
-                        instruction.arithmetic_type, error
+                        instruction.semantic_type, error
+                    ),
+                }
+            }
+            SemanticType::SUB => {
+                match self.semantic_logic_unit.run(&OpCode::SUB, value_a, value_b) {
+                    Ok(result) => result,
+                    Err(error) => panic!(
+                        "Failed to perform {:?}. Error: {}",
+                        instruction.semantic_type, error
+                    ),
+                }
+            }
+            SemanticType::MUL => {
+                match self.semantic_logic_unit.run(&OpCode::MUL, value_a, value_b) {
+                    Ok(result) => result,
+                    Err(error) => panic!(
+                        "Failed to perform {:?}. Error: {}",
+                        instruction.semantic_type, error
+                    ),
+                }
+            }
+            SemanticType::DIV => {
+                match self.semantic_logic_unit.run(&OpCode::DIV, value_a, value_b) {
+                    Ok(result) => result,
+                    Err(error) => panic!(
+                        "Failed to perform {:?}. Error: {}",
+                        instruction.semantic_type, error
+                    ),
+                }
+            }
+            SemanticType::INF => {
+                match self.semantic_logic_unit.run(&OpCode::INF, value_a, value_b) {
+                    Ok(result) => result,
+                    Err(error) => panic!(
+                        "Failed to perform {:?}. Error: {}",
+                        instruction.semantic_type, error
                     ),
                 }
             }
@@ -576,9 +646,16 @@ impl ControlUnit {
 
         if debug {
             println!(
-                "Executed {:?}: {:?} + {:?} -> r{} = \"{:?}\"",
-                instruction.arithmetic_type,
+                "Executed {:?}: {:?} {} {:?} -> r{} = \"{:?}\"",
+                instruction.semantic_type,
                 value_a,
+                match instruction.semantic_type {
+                    SemanticType::ADD => "+",
+                    SemanticType::SUB => "-",
+                    SemanticType::MUL => "*",
+                    SemanticType::DIV => "/",
+                    SemanticType::INF => "->",
+                },
                 value_b,
                 instruction.destination_register,
                 result
@@ -592,7 +669,91 @@ impl ControlUnit {
             Ok(_) => {}
             Err(error) => panic!(
                 "Failed to set register for {:?} instruction. Error: {}",
-                instruction.arithmetic_type, error
+                instruction.semantic_type, error
+            ),
+        };
+    }
+
+    fn execute_heuristic(&mut self, instruction: &HeuristicInstruction, debug: bool) {
+        let value_a = match self.registers.get_register(instruction.source_register_1) {
+            Ok(value) => value,
+            Err(error) => panic!(
+                "Failed to execute {:?} instruction. Error: {}",
+                instruction.heuristic_type, error
+            ),
+        };
+        let value_b = match self.registers.get_register(instruction.source_register_2) {
+            Ok(value) => value,
+            Err(error) => panic!(
+                "Failed to execute {:?} instruction. Error: {}",
+                instruction.heuristic_type, error
+            ),
+        };
+
+        let result = match instruction.heuristic_type {
+            HeuristicType::EQV => {
+                match self.semantic_logic_unit.run(&OpCode::EQV, value_a, value_b) {
+                    Ok(result) => result,
+                    Err(error) => panic!(
+                        "Failed to perform {:?}. Error: {}",
+                        instruction.heuristic_type, error
+                    ),
+                }
+            }
+            HeuristicType::INT => {
+                match self.semantic_logic_unit.run(&OpCode::INT, value_a, value_b) {
+                    Ok(result) => result,
+                    Err(error) => panic!(
+                        "Failed to perform {:?}. Error: {}",
+                        instruction.heuristic_type, error
+                    ),
+                }
+            }
+            HeuristicType::HAL => {
+                match self.semantic_logic_unit.run(&OpCode::HAL, value_a, value_b) {
+                    Ok(result) => result,
+                    Err(error) => panic!(
+                        "Failed to perform {:?}. Error: {}",
+                        instruction.heuristic_type, error
+                    ),
+                }
+            }
+            HeuristicType::SIM => {
+                match self.semantic_logic_unit.run(&OpCode::SIM, value_a, value_b) {
+                    Ok(result) => result,
+                    Err(error) => panic!(
+                        "Failed to perform {:?}. Error: {}",
+                        instruction.heuristic_type, error
+                    ),
+                }
+            }
+        };
+
+        if debug {
+            println!(
+                "Executed {:?}: {:?} {} {:?} -> r{} = \"{:?}\"",
+                instruction.heuristic_type,
+                value_a,
+                match instruction.heuristic_type {
+                    HeuristicType::EQV => "EQV",
+                    HeuristicType::INT => "INT",
+                    HeuristicType::HAL => "HAL",
+                    HeuristicType::SIM => "SIM",
+                },
+                value_b,
+                instruction.destination_register,
+                result
+            );
+        }
+
+        match self
+            .registers
+            .set_register(instruction.destination_register, &result)
+        {
+            Ok(_) => {}
+            Err(error) => panic!(
+                "Failed to set register for {:?} instruction. Error: {}",
+                instruction.heuristic_type, error
             ),
         };
     }
@@ -620,11 +781,11 @@ impl ControlUnit {
         };
         let address = instruction.byte_code_index;
         let is_true = match instruction.branch_type {
-            BranchType::Equal => value_a == value_b,
-            BranchType::LessThan => value_a < value_b,
-            BranchType::LessThanOrEqual => value_a <= value_b,
-            BranchType::GreaterThan => value_a > value_b,
-            BranchType::GreaterThanOrEqual => value_a >= value_b,
+            BranchType::EQ => value_a == value_b,
+            BranchType::LT => value_a < value_b,
+            BranchType::LE => value_a <= value_b,
+            BranchType::GT => value_a > value_b,
+            BranchType::GE => value_a >= value_b,
         };
 
         if is_true {
@@ -643,7 +804,7 @@ impl ControlUnit {
 
         if debug {
             match instruction.branch_type {
-                BranchType::Equal => {
+                BranchType::EQ => {
                     println!(
                         "Executed {:?}: {:?} == {:?} -> {}, {}",
                         instruction.branch_type,
@@ -653,7 +814,7 @@ impl ControlUnit {
                         instruction.byte_code_index
                     );
                 }
-                BranchType::LessThan => {
+                BranchType::LT => {
                     println!(
                         "Executed {:?}: {:?} < {:?} -> {}, {}",
                         instruction.branch_type,
@@ -663,7 +824,7 @@ impl ControlUnit {
                         instruction.byte_code_index
                     );
                 }
-                BranchType::LessThanOrEqual => {
+                BranchType::LE => {
                     println!(
                         "Executed {:?}: {:?} <= {:?} -> {}, {}",
                         instruction.branch_type,
@@ -673,7 +834,7 @@ impl ControlUnit {
                         instruction.byte_code_index
                     );
                 }
-                BranchType::GreaterThan => {
+                BranchType::GT => {
                     println!(
                         "Executed {:?}: {:?} > {:?} -> {}, {}",
                         instruction.branch_type,
@@ -683,7 +844,7 @@ impl ControlUnit {
                         instruction.byte_code_index
                     );
                 }
-                BranchType::GreaterThanOrEqual => println!(
+                BranchType::GE => println!(
                     "Executed {:?}: {:?} >= {:?} -> {}, {}",
                     instruction.branch_type, value_a, value_b, is_true, instruction.byte_code_index
                 ),
@@ -715,7 +876,8 @@ impl ControlUnit {
             }
             Instruction::LoadFile(instruction) => self.execute_load_file(instruction, debug),
             Instruction::Move(instruction) => self.execute_move(instruction, debug),
-            Instruction::Arithmetic(instruction) => self.execute_arithmetic(instruction, debug),
+            Instruction::Semantic(instruction) => self.execute_semantic(instruction, debug),
+            Instruction::Heuristic(instruction) => self.execute_heuristic(instruction, debug),
             Instruction::Branch(instruction) => self.execute_branch(instruction, debug),
             Instruction::Output(instruction) => self.execute_output(instruction, debug),
         }

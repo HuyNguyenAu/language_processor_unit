@@ -1,0 +1,12 @@
+; This program predicts the outcome of a situation where someone is jogging in
+; the park and encounters a banana peel directly in front of them.
+
+; Initialisation
+li x1,"Jogging in the park"
+li x2, "Banana peel directly in front of you"
+
+; Execution
+inf x4, x1, x2
+
+; Output
+out x4

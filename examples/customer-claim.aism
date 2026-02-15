@@ -1,0 +1,16 @@
+; This example demonstrates how to use the eqv instruction to compare two strings.
+
+                ; Initialisation
+                li x1, "The package arrived, but it looks like it went through a blender."
+                li x2, "Is this a damage claim?"
+                li x3, 100      ; Threshold for damage claim
+                li x4, "Yes"    ; Assume it's a damage claim until proven otherwise
+
+                ; Execution
+                eqv x5, x1, x2
+
+                beq x3, x5, damage_claim
+                li x4, "No" ; Not a damage claim
+
+                ; Output
+damage_claim:   out x4

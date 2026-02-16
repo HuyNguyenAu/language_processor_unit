@@ -36,18 +36,17 @@ impl Scanner {
         return self.current >= self.source.chars().count();
     }
 
-    fn advance(&mut self) -> char {
-        self.current += 1;
-        self.column += 1;
-
-        return self.source.chars().nth(self.current - 1).expect(
-            format!(
+    fn advance(&mut self) {
+        if self.current > self.source.chars().count() {
+            panic!(
                 "Tried to advance past end of source. Source length: {}, current: {}",
                 self.source.chars().count(),
-                self.current - 1
+                self.current
             )
-            .as_str(),
-        );
+        }
+
+        self.current += 1;
+        self.column += 1;
     }
 
     fn peek(&self) -> char {
@@ -205,7 +204,9 @@ impl Scanner {
             return self.make_token(TokenType::EOF);
         }
 
-        let char = self.advance();
+        let char = self.peek();
+
+        self.advance();
 
         if Self::is_alpha(char) {
             return self.identifier();

@@ -18,6 +18,7 @@ pub enum TokenType {
     MUL,
     DIV,
     INF,
+    ADT,
     // Heuristic operations keywords.
     EQV,
     INT,
@@ -38,7 +39,7 @@ pub enum TokenType {
     ERROR,
 }
 
-pub static TOKEN_TYPE_MAPPING: [(TokenType, &'static str); 18] = [
+pub static TOKEN_TYPE_MAPPING: [(TokenType, &'static str); 19] = [
     // Data movement.
     (TokenType::LI, "li"),
     (TokenType::LF, "lf"),
@@ -49,6 +50,7 @@ pub static TOKEN_TYPE_MAPPING: [(TokenType, &'static str); 18] = [
     (TokenType::MUL, "mul"),
     (TokenType::DIV, "div"),
     (TokenType::INF, "inf"),
+    (TokenType::ADT, "adt"),
     // Heuristic operations.
     (TokenType::EQV, "eqv"),
     (TokenType::INT, "int"),

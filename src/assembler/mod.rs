@@ -461,6 +461,7 @@ impl Assembler {
             TokenType::MUL => OpCode::MUL,
             TokenType::DIV => OpCode::DIV,
             TokenType::INF => OpCode::INF,
+            TokenType::ADT => OpCode::ADT,
             // Heuristic operations.
             TokenType::EQV => OpCode::EQV,
             TokenType::INT => OpCode::INT,
@@ -662,6 +663,7 @@ impl Assembler {
                     TokenType::MUL => self.semantic_heuristic(&TokenType::MUL),
                     TokenType::DIV => self.semantic_heuristic(&TokenType::DIV),
                     TokenType::INF => self.semantic_heuristic(&TokenType::INF),
+                    TokenType::ADT => self.semantic_heuristic(&TokenType::ADT),
                     // Heuristic operations.
                     TokenType::EQV => self.semantic_heuristic(&TokenType::EQV),
                     TokenType::INT => self.semantic_heuristic(&TokenType::INT),

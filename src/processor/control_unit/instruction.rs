@@ -25,6 +25,7 @@ pub enum SemanticType {
     MUL,
     DIV,
     INF,
+    ADT,
 }
 
 #[derive(Debug)]

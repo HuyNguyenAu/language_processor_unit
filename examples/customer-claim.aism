@@ -1,16 +1,18 @@
-; This example demonstrates how to use the eqv instruction to compare two strings.
+; -- - Customer Claim Assessment ---
+; Objective: Determine if a customer's claim about a damaged package is valid.
 
-                ; Initialisation
-                li x1, "The package arrived, but it looks like it went through a blender."
-                li x2, "Is this a damage claim?"
-                li x3, 100      ; Threshold for damage claim
-                li x4, "Yes"    ; Assume it's a damage claim until proven otherwise
+; Initialisation
+LI X1, "The package arrived, but it looks like it went through a blender."
+LI X2, "Is this a damage claim?"
+LI X3, 100              ; Threshold for damage claim
+LI X4, "Yes"            ; Assume it's a damage claim until proven otherwise
 
-                ; Execution
-                eqv x5, x1, x2
+; Execution
+EQV X5, X1, X2          ; Check if the customer's statement (X1) matches the damage claim question (X2)
 
-                beq x3, x5, damage_claim
-                li x4, "No" ; Not a damage claim
+BEQ X3, X5, VALID
+LI X4, "No" ; Not a damage claim
 
-                ; Output
-damage_claim:   out x4
+; Output
+VALID:
+OUT X4

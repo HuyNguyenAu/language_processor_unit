@@ -24,9 +24,11 @@ pub enum OpCode {
     BGT,
     // I/O.
     OUT,
+    // Misc.
+    EXIT,
 }
 
-static OP_CODE_MAPPING: [(OpCode, u32); 19] = [
+static OP_CODE_MAPPING: [(OpCode, u32); 20] = [
     // Data movement.
     (OpCode::LI, 0x00),
     (OpCode::LF, 0x01),
@@ -51,6 +53,8 @@ static OP_CODE_MAPPING: [(OpCode, u32); 19] = [
     (OpCode::BGT, 0x11),
     // I/O.
     (OpCode::OUT, 0x12),
+    // Misc.
+    (OpCode::EXIT, 0xFF),
 ];
 
 impl OpCode {

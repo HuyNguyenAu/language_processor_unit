@@ -37,9 +37,10 @@ pub enum TokenType {
     // Misc.
     EOF,
     ERROR,
+    EXIT,
 }
 
-pub static TOKEN_TYPE_MAPPING: [(TokenType, &'static str); 19] = [
+pub static TOKEN_TYPE_MAPPING: [(TokenType, &'static str); 20] = [
     // Data movement.
     (TokenType::LI, "li"),
     (TokenType::LF, "lf"),
@@ -64,6 +65,8 @@ pub static TOKEN_TYPE_MAPPING: [(TokenType, &'static str); 19] = [
     (TokenType::BGT, "bgt"),
     // I/O.
     (TokenType::OUT, "out"),
+    // Misc.
+    (TokenType::EXIT, "exit"),
 ];
 
 #[derive(Clone, Debug)]

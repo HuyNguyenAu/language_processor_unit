@@ -75,6 +75,9 @@ pub struct OutputInstruction {
 }
 
 #[derive(Debug)]
+pub struct ExitInstruction;
+
+#[derive(Debug)]
 pub enum Instruction {
     LoadImmediate(LoadImmediateInstruction),
     LoadFile(LoadFileInstruction),
@@ -83,4 +86,5 @@ pub enum Instruction {
     Heuristic(HeuristicInstruction),
     Branch(BranchInstruction),
     Output(OutputInstruction),
+    Exit(ExitInstruction),
 }

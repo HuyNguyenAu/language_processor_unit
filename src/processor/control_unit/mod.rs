@@ -7,9 +7,9 @@ use crate::{
     },
     processor::control_unit::{
         instruction::{
-            BranchInstruction, BranchType, HeuristicInstruction, HeuristicType, Instruction,
-            LoadFileInstruction, LoadImmediateInstruction, MoveInstruction, OutputInstruction,
-            SemanticInstruction, SemanticType,
+            BranchInstruction, BranchType, ExitInstruction, HeuristicInstruction, HeuristicType,
+            Instruction, LoadFileInstruction, LoadImmediateInstruction, MoveInstruction,
+            OutputInstruction, SemanticInstruction, SemanticType,
         },
         language_logic_unit::LanguageLogicUnit,
         memory_unit::MemoryUnit,
@@ -149,7 +149,10 @@ impl ControlUnit {
 
         let register_be_bytes = match self.current_be_bytes {
             Some(be_bytes) => be_bytes,
-            None => panic!("{}", message),
+            None => panic!(
+                "Expected register byte code, but no current byte code found. {}",
+                message
+            ),
         };
 
         if !self.is_at_end() {
@@ -443,6 +446,13 @@ impl ControlUnit {
         return OutputInstruction { source_register };
     }
 
+    fn decode_exit(&mut self) -> ExitInstruction {
+        // Consume EXIT opcode.
+        self.decode_op_code(&OpCode::EXIT, "Failed to decode EXIT opcode.");
+
+        return ExitInstruction;
+    }
+
     pub fn load_byte_code(&mut self, byte_code: Vec<[u8; 4]>) {
         self.memory.load(byte_code);
 
@@ -496,6 +506,8 @@ impl ControlUnit {
             OpCode::BGE => Instruction::Branch(self.decode_branch(op_code)),
             // I/O instructions.
             OpCode::OUT => Instruction::Output(self.decode_output()),
+            // Misc instructions.
+            OpCode::EXIT => Instruction::Exit(self.decode_exit()),
         };
 
         return Some(instruction);
@@ -817,6 +829,15 @@ impl ControlUnit {
         }
     }
 
+    fn execute_exit(&mut self, _instruction: &ExitInstruction, debug: bool) {
+        if debug {
+            println!("Executed EXIT: Halting execution.");
+        }
+
+        // Set instruction pointer to memory length to indicate end of execution.
+        self.registers.set_instruction_pointer(self.memory.length());
+    }
+
     pub fn execute(&mut self, instruction: &Instruction, debug: bool) {
         match instruction {
             Instruction::LoadImmediate(instruction) => {
@@ -828,6 +849,7 @@ impl ControlUnit {
             Instruction::Heuristic(instruction) => self.execute_heuristic(instruction, debug),
             Instruction::Branch(instruction) => self.execute_branch(instruction, debug),
             Instruction::Output(instruction) => self.execute_output(instruction, debug),
+            Instruction::Exit(instruction) => self.execute_exit(instruction, debug),
         }
     }
 }

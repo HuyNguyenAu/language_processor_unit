@@ -647,6 +647,14 @@ impl Assembler {
         self.advance_stack_level();
     }
 
+    fn exit(&mut self) {
+        self.consume(&TokenType::EXIT, "Expected 'exit' keyword.");
+
+        self.emit_op_code_bytecode(OpCode::EXIT);
+
+        self.advance_stack_level();
+    }
+
     pub fn assemble(&mut self) -> Result<Vec<u8>, &'static str> {
         self.advance();
 
@@ -678,7 +686,8 @@ impl Assembler {
                     TokenType::LABEL => self.label(),
                     // I/O.
                     TokenType::OUT => self.output(),
-                    // Miscellaneous.
+                    // Misc.
+                    TokenType::EXIT => self.exit(),
                     TokenType::EOF => break,
                     _ => self.error_at_current("Unexpected keyword."),
                 }

@@ -68,6 +68,7 @@ The instruction set is closely inspired by RISC-V assembly language:
 | MUL         | Magnify rs1 by rs2                         | `mul rd, rs1, rs2`         |
 | DIV         | Deconstruct rs1 into units of rs2          | `div rd, rs1, rs2`         |
 | INF         | Predict by rs2 given rs1                   | `inf rd, rs1, rs2`         |
+| ADT         | Analyse rs1 against rs2                    | `adt rd, rs1, rs2`         |
 | EQV         | Is rs1 equivalent to rs2                   | `eqv rd, rs1, rs2`         |
 | INT         | Is rs1 aligned with rs2                    | `int rd, rs1, rs2`         |
 | HAL         | Is rs a hallucination                      | `hal rd, rs`               |

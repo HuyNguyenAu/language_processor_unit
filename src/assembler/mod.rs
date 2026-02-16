@@ -178,7 +178,7 @@ impl Assembler {
             }
         };
 
-        if register_number < 1 && register_number > 32 {
+        if register_number < 1 || register_number > 32 {
             return Err(format!(
                 "Register number out of range: '{}'. Expected format: 'xN' where N is a number between 1 and 32.",
                 register_number

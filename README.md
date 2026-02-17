@@ -104,10 +104,10 @@ The instruction set is closely inspired by RISC-V assembly language:
 | DIV         | Deconstruct rs1 into units of rs2 and store the result in rd                                | `div rd, rs1, rs2`         |
 | INF         | Predict what will happen to rs1 given rs2 and store the result in rd                        | `inf rd, rs1, rs2`         |
 | ADT         | Find why rs1 is not compliant with rs2 and store the result in rd                           | `adt rd, rs1, rs2`         |
-| EQV         | Is rs1 equivalent to rs2? Store 0 if true, 100 if false in rd                               | `eqv rd, rs1, rs2`         |
-| INT         | Is rs1 aligned with rs2? Store 0 if true, 100 if false in rd                                | `int rd, rs1, rs2`         |
-| HAL         | Is rs a hallucination? Store 0 if false, 100 if true in rd                                  | `hal rd, rs`               |
-| SIM         | Cosine similarity of rs1 and rs2. Store 0 if identical to 100 if completely different in rd | `sim rd, rs1, rs2`         |
+| EQV         | Is rs1 equivalent to rs2? Store 100 if true, 0 if false in rd                               | `eqv rd, rs1, rs2`         |
+| INT         | Is rs1 aligned with rs2? Store 100 if true, 0 if false in rd                                | `int rd, rs1, rs2`         |
+| HAL         | Is rs a hallucination? Store 100 if false, 0 if true in rd                                  | `hal rd, rs`               |
+| SIM         | Cosine similarity of rs1 and rs2. Store 100 if identical, else 0 in rd                      | `sim rd, rs1, rs2`         |
 | LABEL       | Define a label. Required for branching instructions                                         | `label_name:`              |
 | BEQ         | Go to label if rs1 = rs2                                                                    | `beq rs1, rs2, label_name` |
 | BLT         | Go to label if rs1 < rs2                                                                    | `blt rs1, rs2, label_name` |

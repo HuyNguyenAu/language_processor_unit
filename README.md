@@ -31,23 +31,23 @@ START:
     ; The Cognitive Operation
     APP X4, X2, X3 ; Apply the user's complaint and goal to generate a new state for the room.
 
-    ; Predict the new state of X1 (Sensors) given X2 (Complaint) and X3 (Goal).
+    ; Predict the new state of X1 (Sensors) given X4 (Complaint + Goal).
     ; The LLU calculates: "Sterile" (Cold/White) -> Needs Warmer Temp + Warmer Light.
-    INF X4, X1, X2                  
+    INF X5, X1, X4                  
     
-    ; X4 now holds the generated JSON: {temp: 22C, lights: 2700K, music: "LoFi Jazz"}
+    ; X5 now holds the generated JSON: {temp: 22C, lights: 2700K, music: "LoFi Jazz"}
 
     ; Safety Guardrail
-    ; Ensure that the generated state (X4) is aligned with safety rules (X5).
-    LI  X5, "Constraint: Max Temp 23C. No Music if time > 11PM."
-    INT X6, X4, X5                  ; X6 stores 100 if safe, 0 if unsafe.
+    ; Ensure that the generated state (X5) is aligned with safety rules (X6).
+    LI  X6, "Constraint: Max Temp 23C. No Music if time > 11PM."
+    INT X7, X5, X6                  ; X7 stores 100 if safe, 0 if unsafe.
 
     ; Branching Logic
-    LI  X7, 0
-    BGT X6, X7, HANDLER             ; If aligns with intention, jump to error handler
+    LI  X8, 0
+    BGT X7, X8, HANDLER             ; If aligns with intention, jump to error handler
     
     ; Execute
-    OUT X4                          ; Send new config to IoT Hub
+    OUT X5                          ; Send new config to IoT Hub
     EXIT
 
 HANDLER:

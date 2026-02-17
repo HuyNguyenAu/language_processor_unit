@@ -17,7 +17,7 @@ The goal of this project was to try to explore the following ideas:
 Imagine being able to write code like this:
 
 ```
-; PROGRAM: VIBE_CONTROLLER.LPU
+; PROGRAM: VIBE_CONTROLLER.aasm
 ; Objective: Adjust room environment based on subjective user vibe.
 
 START:

@@ -1,17 +1,18 @@
 ; -- - Customer Claim Assessment ---
 ; Objective: Determine if a customer's claim about a damaged package is valid.
+; Expectation: The system should classify the claim as valid based on the customer's statement.
 
 ; Initialisation
 LI X1, "The package arrived, but it looks like it went through a blender."
 LI X2, "Is this a damage claim?"
-LI X3, 100              ; Threshold for damage claim
-LI X4, "Yes"            ; Assume it's a damage claim until proven otherwise
+LI X3, 100                          ; Threshold for damage claim
+LI X4, "CUSTOMER CLAIM: VALID"      ; Assume it's a damage claim until proven otherwise
 
 ; Execution
-EQV X5, X1, X2          ; Check if the customer's statement (X1) matches the damage claim question (X2)
+EQV X5, X1, X2                      ; Check if the customer's statement (X1) matches the damage claim question (X2)
 
 BEQ X3, X5, VALID
-LI X4, "No" ; Not a damage claim
+LI X4, "CUSTOMER CLAIM: INVALID"    ; If it doesn't match, it's not a damage claim
 
 ; Output
 VALID:

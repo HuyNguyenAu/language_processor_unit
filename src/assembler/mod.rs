@@ -161,9 +161,9 @@ impl Assembler {
         let lexeme = self.previous_lexeme();
 
         // Ensure the lexeme starts with "x".
-        if !lexeme.starts_with("x") {
+        if !lexeme.to_lowercase().starts_with("x") {
             return Err(format!(
-                "Invalid register format: '{}'. Expected format: 'xN' where N is a number between 0 and 32.",
+                "Invalid register format: '{}'. Expected format: 'xN' where N is a number between 1 and 32.",
                 lexeme
             ));
         }
@@ -172,16 +172,16 @@ impl Assembler {
             Ok(value) => value,
             Err(_) => {
                 return Err(format!(
-                    "Failed to parse register number from lexeme '{}'. Expected format: 'xN' where N is a number between 0 and 32.",
+                    "Failed to parse register number from lexeme '{}'. Expected format: 'xN' where N is a number between 1 and 32.",
                     lexeme
                 ));
             }
         };
 
-        if register_number > 32 {
+        if register_number < 1 || register_number > 32 {
             return Err(format!(
-                "Register number out of range: '{}'. Expected format: 'xN' where N is a number between 0 and 32.",
-                lexeme
+                "Register number out of range: '{}'. Expected format: 'xN' where N is a number between 1 and 32.",
+                register_number
             ));
         }
 
@@ -461,6 +461,7 @@ impl Assembler {
             TokenType::MUL => OpCode::MUL,
             TokenType::DIV => OpCode::DIV,
             TokenType::INF => OpCode::INF,
+            TokenType::ADT => OpCode::ADT,
             // Heuristic operations.
             TokenType::EQV => OpCode::EQV,
             TokenType::INT => OpCode::INT,
@@ -646,6 +647,14 @@ impl Assembler {
         self.advance_stack_level();
     }
 
+    fn exit(&mut self) {
+        self.consume(&TokenType::EXIT, "Expected 'exit' keyword.");
+
+        self.emit_op_code_bytecode(OpCode::EXIT);
+
+        self.advance_stack_level();
+    }
+
     pub fn assemble(&mut self) -> Result<Vec<u8>, &'static str> {
         self.advance();
 
@@ -662,6 +671,7 @@ impl Assembler {
                     TokenType::MUL => self.semantic_heuristic(&TokenType::MUL),
                     TokenType::DIV => self.semantic_heuristic(&TokenType::DIV),
                     TokenType::INF => self.semantic_heuristic(&TokenType::INF),
+                    TokenType::ADT => self.semantic_heuristic(&TokenType::ADT),
                     // Heuristic operations.
                     TokenType::EQV => self.semantic_heuristic(&TokenType::EQV),
                     TokenType::INT => self.semantic_heuristic(&TokenType::INT),
@@ -676,7 +686,8 @@ impl Assembler {
                     TokenType::LABEL => self.label(),
                     // I/O.
                     TokenType::OUT => self.output(),
-                    // Miscellaneous.
+                    // Misc.
+                    TokenType::EXIT => self.exit(),
                     TokenType::EOF => break,
                     _ => self.error_at_current("Unexpected keyword."),
                 }

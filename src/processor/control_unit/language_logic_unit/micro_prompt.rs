@@ -32,6 +32,10 @@ pub fn search(opcode: &OpCode, value_a: &str, value_b: &str) -> Result<String, &
             "Identify the pattern, sequence, or narrative trajectory in \"{}\". Project this trajectory forward by the amount specified in \"{}\".",
             value_a, value_b
         )),
+        OpCode::ADT => Ok(format!(
+            "Hold the data in \"{}\" against the sacred light of the criteria \"{}\". List any fractures where the data fails to comply.",
+            value_a, value_b
+        )),
         // Heuristic operations.
         OpCode::EQV => Ok(format!(
             "Relation: \"{}\" vs \"{}\". Label: [IDENTICAL, SYNONYMOUS, RELATED, DISPARATE]. Result:",

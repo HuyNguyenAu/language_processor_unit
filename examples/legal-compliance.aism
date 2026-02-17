@@ -1,0 +1,27 @@
+; --- Legal Compliance ---
+; Objective: Assess if a contract draft complies with GDPR Article 6 standards.
+
+LF X1, "examples/data/msa_draft_v2.txt"     ; Load the contract into X1
+LI X2, "examples/data/gdpr_article_6.txt"   ; Load the compliance standard into X2
+LI X3, 85                                   ; Set confidence threshold to 85%
+LI X32, "RESULT: PASS\n"                    ; The result if the contract is compliant
+
+; Initial Alignment Check
+INT X4, X1, X2                              ; Check if the contract 'aligns' with the intent of GDPR Art. 6
+BGE X4, X3, PASS                            ; If score >= 85, jump to PASS
+
+LI X32, "RESULT: FAIL\n"                    ; The result if the contract is not compliant                                
+
+; Fault Localization
+ADT X5, X1, X2                              ; Analyze the contract against GDPR Art. 6 to find specific non-compliant sections
+
+; Output Results
+LI X6, "VIOLATION FOUND:\n"
+OUT X6                                      ; Output the violation header              
+OUT X5                                      ; Output the identified non-compliant sections
+
+LI X6, "\n"                                            
+OUT X6                                      ; Output a newline for better readability
+
+PASS:
+OUT X32                                     ; Output the final compliance result

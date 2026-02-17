@@ -10,6 +10,7 @@ pub enum OpCode {
     MUL,
     DIV,
     INF,
+    ADT,
     // Heuristic operations.
     EQV,
     INT,
@@ -23,9 +24,11 @@ pub enum OpCode {
     BGT,
     // I/O.
     OUT,
+    // Misc.
+    EXIT,
 }
 
-static OP_CODE_MAPPING: [(OpCode, u32); 18] = [
+static OP_CODE_MAPPING: [(OpCode, u32); 20] = [
     // Data movement.
     (OpCode::LI, 0x00),
     (OpCode::LF, 0x01),
@@ -36,19 +39,22 @@ static OP_CODE_MAPPING: [(OpCode, u32); 18] = [
     (OpCode::MUL, 0x05),
     (OpCode::DIV, 0x06),
     (OpCode::INF, 0x07),
+    (OpCode::ADT, 0x08),
     // Heuristic operations.
-    (OpCode::EQV, 0x08),
-    (OpCode::INT, 0x09),
-    (OpCode::HAL, 0x0A),
-    (OpCode::SIM, 0x0B),
+    (OpCode::EQV, 0x09),
+    (OpCode::INT, 0x0A),
+    (OpCode::HAL, 0x0B),
+    (OpCode::SIM, 0x0C),
     // Control flow.
-    (OpCode::BEQ, 0x0C),
-    (OpCode::BLE, 0x0D),
-    (OpCode::BLT, 0x0E),
-    (OpCode::BGE, 0x0F),
-    (OpCode::BGT, 0x10),
+    (OpCode::BEQ, 0x0D),
+    (OpCode::BLE, 0x0E),
+    (OpCode::BLT, 0x0F),
+    (OpCode::BGE, 0x10),
+    (OpCode::BGT, 0x11),
     // I/O.
-    (OpCode::OUT, 0x11),
+    (OpCode::OUT, 0x12),
+    // Misc.
+    (OpCode::EXIT, 0xFF),
 ];
 
 impl OpCode {

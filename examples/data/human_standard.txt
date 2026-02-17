@@ -1,0 +1,22 @@
+The "Sniff Test": Visual & Stylistic Clues
+AI models are statistical predictors, often resulting in writing that is "average" and overly polished.
+
+The "AI Vocabulary": Look for the overuse of specific words that AI models favor heavily:
+
+Verbs: "Delve," "leverage," "navigate," "unlock," "foster," "showcase."
+
+Nouns: "Landscape," "tapestry," "realm," "testament," "nuance," "ecosystem."
+
+Adjectives: "Seamless," "vibrant," "pivotal," "transformative," "crucial."
+
+Lack of "Burstiness": Human writing is messy—we mix very short sentences with long, winding ones. AI writing is monotonous; sentences often have similar length and structure throughout.
+
+The "Wikipedia Voice": The tone is often overly neutral, diplomatic, and polite. It rarely takes a hard stance, uses strong opinions, or displays genuine anger/excitement.
+
+Structural Repetition: AI loves structure. Look for:
+
+Excessive use of bullet points or numbered lists.
+
+Formulaic transitions ("Furthermore," "Moreover," "In conclusion," "It is important to note").
+
+Paragraphs that are all roughly the same physical size.

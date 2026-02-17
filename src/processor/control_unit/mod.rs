@@ -7,20 +7,20 @@ use crate::{
     },
     processor::control_unit::{
         instruction::{
-            BranchInstruction, BranchType, HeuristicInstruction, HeuristicType, Instruction,
-            LoadFileInstruction, LoadImmediateInstruction, MoveInstruction, OutputInstruction,
-            SemanticInstruction, SemanticType,
+            BranchInstruction, BranchType, ExitInstruction, HeuristicInstruction, HeuristicType,
+            Instruction, LoadFileInstruction, LoadImmediateInstruction, MoveInstruction,
+            OutputInstruction, SemanticInstruction, SemanticType,
         },
+        language_logic_unit::LanguageLogicUnit,
         memory_unit::MemoryUnit,
         registers::{Registers, Value},
-        language_logic_unit::LanguageLogicUnit,
     },
 };
 
 mod instruction;
+mod language_logic_unit;
 mod memory_unit;
 mod registers;
-mod language_logic_unit;
 
 pub struct ControlUnit {
     memory: MemoryUnit,
@@ -149,7 +149,10 @@ impl ControlUnit {
 
         let register_be_bytes = match self.current_be_bytes {
             Some(be_bytes) => be_bytes,
-            None => panic!("{}", message),
+            None => panic!(
+                "Expected register byte code, but no current byte code found. {}",
+                message
+            ),
         };
 
         if !self.is_at_end() {
@@ -326,6 +329,7 @@ impl ControlUnit {
             OpCode::MUL => SemanticType::MUL,
             OpCode::DIV => SemanticType::DIV,
             OpCode::INF => SemanticType::INF,
+            OpCode::ADT => SemanticType::ADT,
             _ => panic!("Invalid opcode '{:?}' for semantic instruction.", op_code),
         };
 
@@ -442,6 +446,13 @@ impl ControlUnit {
         return OutputInstruction { source_register };
     }
 
+    fn decode_exit(&mut self) -> ExitInstruction {
+        // Consume EXIT opcode.
+        self.decode_op_code(&OpCode::EXIT, "Failed to decode EXIT opcode.");
+
+        return ExitInstruction;
+    }
+
     pub fn load_byte_code(&mut self, byte_code: Vec<[u8; 4]>) {
         self.memory.load(byte_code);
 
@@ -481,6 +492,7 @@ impl ControlUnit {
             OpCode::MUL => Instruction::Semantic(self.decode_semantic(OpCode::MUL)),
             OpCode::DIV => Instruction::Semantic(self.decode_semantic(OpCode::DIV)),
             OpCode::INF => Instruction::Semantic(self.decode_semantic(OpCode::INF)),
+            OpCode::ADT => Instruction::Semantic(self.decode_semantic(OpCode::ADT)),
             // Heuristic instructions.
             OpCode::EQV => Instruction::Heuristic(self.decode_heuristic(OpCode::EQV)),
             OpCode::INT => Instruction::Heuristic(self.decode_heuristic(OpCode::INT)),
@@ -494,6 +506,8 @@ impl ControlUnit {
             OpCode::BGE => Instruction::Branch(self.decode_branch(op_code)),
             // I/O instructions.
             OpCode::OUT => Instruction::Output(self.decode_output()),
+            // Misc instructions.
+            OpCode::EXIT => Instruction::Exit(self.decode_exit()),
         };
 
         return Some(instruction);
@@ -596,52 +610,21 @@ impl ControlUnit {
             ),
         };
 
-        let result = match instruction.semantic_type {
-            SemanticType::ADD => {
-                match self.language_logic_unit.run(&OpCode::ADD, value_a, value_b) {
-                    Ok(result) => result,
-                    Err(error) => panic!(
-                        "Failed to perform {:?}. Error: {}",
-                        instruction.semantic_type, error
-                    ),
-                }
-            }
-            SemanticType::SUB => {
-                match self.language_logic_unit.run(&OpCode::SUB, value_a, value_b) {
-                    Ok(result) => result,
-                    Err(error) => panic!(
-                        "Failed to perform {:?}. Error: {}",
-                        instruction.semantic_type, error
-                    ),
-                }
-            }
-            SemanticType::MUL => {
-                match self.language_logic_unit.run(&OpCode::MUL, value_a, value_b) {
-                    Ok(result) => result,
-                    Err(error) => panic!(
-                        "Failed to perform {:?}. Error: {}",
-                        instruction.semantic_type, error
-                    ),
-                }
-            }
-            SemanticType::DIV => {
-                match self.language_logic_unit.run(&OpCode::DIV, value_a, value_b) {
-                    Ok(result) => result,
-                    Err(error) => panic!(
-                        "Failed to perform {:?}. Error: {}",
-                        instruction.semantic_type, error
-                    ),
-                }
-            }
-            SemanticType::INF => {
-                match self.language_logic_unit.run(&OpCode::INF, value_a, value_b) {
-                    Ok(result) => result,
-                    Err(error) => panic!(
-                        "Failed to perform {:?}. Error: {}",
-                        instruction.semantic_type, error
-                    ),
-                }
-            }
+        let opcode: OpCode = match instruction.semantic_type {
+            SemanticType::ADD => OpCode::ADD,
+            SemanticType::SUB => OpCode::SUB,
+            SemanticType::MUL => OpCode::MUL,
+            SemanticType::DIV => OpCode::DIV,
+            SemanticType::INF => OpCode::INF,
+            SemanticType::ADT => OpCode::ADT,
+        };
+
+        let result = match self.language_logic_unit.run(&opcode, value_a, value_b) {
+            Ok(result) => result,
+            Err(error) => panic!(
+                "Failed to perform {:?}. Error: {}",
+                instruction.semantic_type, error
+            ),
         };
 
         if debug {
@@ -655,6 +638,7 @@ impl ControlUnit {
                     SemanticType::MUL => "*",
                     SemanticType::DIV => "/",
                     SemanticType::INF => "->",
+                    SemanticType::ADT => "<->",
                 },
                 value_b,
                 instruction.destination_register,
@@ -690,43 +674,19 @@ impl ControlUnit {
             ),
         };
 
-        let result = match instruction.heuristic_type {
-            HeuristicType::EQV => {
-                match self.language_logic_unit.run(&OpCode::EQV, value_a, value_b) {
-                    Ok(result) => result,
-                    Err(error) => panic!(
-                        "Failed to perform {:?}. Error: {}",
-                        instruction.heuristic_type, error
-                    ),
-                }
-            }
-            HeuristicType::INT => {
-                match self.language_logic_unit.run(&OpCode::INT, value_a, value_b) {
-                    Ok(result) => result,
-                    Err(error) => panic!(
-                        "Failed to perform {:?}. Error: {}",
-                        instruction.heuristic_type, error
-                    ),
-                }
-            }
-            HeuristicType::HAL => {
-                match self.language_logic_unit.run(&OpCode::HAL, value_a, value_b) {
-                    Ok(result) => result,
-                    Err(error) => panic!(
-                        "Failed to perform {:?}. Error: {}",
-                        instruction.heuristic_type, error
-                    ),
-                }
-            }
-            HeuristicType::SIM => {
-                match self.language_logic_unit.run(&OpCode::SIM, value_a, value_b) {
-                    Ok(result) => result,
-                    Err(error) => panic!(
-                        "Failed to perform {:?}. Error: {}",
-                        instruction.heuristic_type, error
-                    ),
-                }
-            }
+        let opcode: OpCode = match instruction.heuristic_type {
+            HeuristicType::EQV => OpCode::EQV,
+            HeuristicType::INT => OpCode::INT,
+            HeuristicType::HAL => OpCode::HAL,
+            HeuristicType::SIM => OpCode::SIM,
+        };
+
+        let result = match self.language_logic_unit.run(&opcode, value_a, value_b) {
+            Ok(result) => result,
+            Err(error) => panic!(
+                "Failed to perform {:?}. Error: {}",
+                instruction.heuristic_type, error
+            ),
         };
 
         if debug {
@@ -865,8 +825,17 @@ impl ControlUnit {
         if debug {
             println!("Executed OUT: {}", value_a);
         } else {
-            println!("{}", value_a);
+            print!("{}", value_a);
         }
+    }
+
+    fn execute_exit(&mut self, _instruction: &ExitInstruction, debug: bool) {
+        if debug {
+            println!("Executed EXIT: Halting execution.");
+        }
+
+        // Set instruction pointer to memory length to indicate end of execution.
+        self.registers.set_instruction_pointer(self.memory.length());
     }
 
     pub fn execute(&mut self, instruction: &Instruction, debug: bool) {
@@ -880,6 +849,7 @@ impl ControlUnit {
             Instruction::Heuristic(instruction) => self.execute_heuristic(instruction, debug),
             Instruction::Branch(instruction) => self.execute_branch(instruction, debug),
             Instruction::Output(instruction) => self.execute_output(instruction, debug),
+            Instruction::Exit(instruction) => self.execute_exit(instruction, debug),
         }
     }
 }

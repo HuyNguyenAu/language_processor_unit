@@ -18,6 +18,7 @@ pub enum TokenType {
     MUL,
     DIV,
     INF,
+    ADT,
     // Heuristic operations keywords.
     EQV,
     INT,
@@ -36,9 +37,10 @@ pub enum TokenType {
     // Misc.
     EOF,
     ERROR,
+    EXIT,
 }
 
-pub static TOKEN_TYPE_MAPPING: [(TokenType, &'static str); 18] = [
+pub static TOKEN_TYPE_MAPPING: [(TokenType, &'static str); 20] = [
     // Data movement.
     (TokenType::LI, "li"),
     (TokenType::LF, "lf"),
@@ -49,6 +51,7 @@ pub static TOKEN_TYPE_MAPPING: [(TokenType, &'static str); 18] = [
     (TokenType::MUL, "mul"),
     (TokenType::DIV, "div"),
     (TokenType::INF, "inf"),
+    (TokenType::ADT, "adt"),
     // Heuristic operations.
     (TokenType::EQV, "eqv"),
     (TokenType::INT, "int"),
@@ -62,6 +65,8 @@ pub static TOKEN_TYPE_MAPPING: [(TokenType, &'static str); 18] = [
     (TokenType::BGT, "bgt"),
     // I/O.
     (TokenType::OUT, "out"),
+    // Misc.
+    (TokenType::EXIT, "exit"),
 ];
 
 #[derive(Clone, Debug)]

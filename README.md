@@ -145,13 +145,13 @@ Start the LLama.cpp server:
 Build the example program:
 
 ```bash
-cargo run build examples/simple.aism
+cargo run build examples/simple.aasm
 ```
 
 Run the example program:
 
 ```bash
-cargo run run data/build/simple.caism
+cargo run run data/build/simple.lpu
 ```
 
 ## Acknowledgements

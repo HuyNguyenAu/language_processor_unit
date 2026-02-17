@@ -1,51 +1,86 @@
-# Language Processor Unit
+# Assembly Language for Agents
 
-Imagine a simple processor that has the following components:
+Agents are often driven by large monolithic prompts can become unwieldy and difficult to manage as they grow in complexity and size.
 
-- Memory
-- Registers
-- Language Logic Unit (LLU)
-- Control Unit (CU)
+This project explores the idea of breaking down complex prompts into discrete, atomic micro-prompts that can be executed sequentially to perform more complex operations.
 
-Instead of a traditional Arithmetic Logic Unit (ALU) that performs arithmetic and logical operations on binary data, this processor uses an Large Language Model (LLM) to process multi-modal data such as text, images, and audio.
+> The idea is to create a library of micro-prompts which can be dynamically selected based on the context and the data, allowing for agents that can learn and adapt to different situations by selecting the most appropriate micro-prompts for each task.
 
-We shift from processing values to processing meanings.
-
-In this frame, we could think of prompts as micro-code instructions that guide the LLU on how to process the data. The LLU would take the input data from the registers, process it according to the prompts, and then store the output back in the registers.
-
-## Micro Prompts
-
-The idea is simple, break down complex prompts into fundermental units of operations called micro-prompts that perform primitives operations on the data. Each micro-prompt would be designed to perform a specific operation for each instruction in the instruction set, and these can run sequentially to perform more complex operations.
-
-**In the future, we could develop a more comprehensive library of micro-prompts where the LPU can learn and search for the most appropriate micro-prompt to use for each instruction based on the data and the context.**
+The assembly language for agents can be thought of as a middle ground between traditional programming languages and natural language prompts, where we can write code that is more structured and modular than natural language prompts, but still allows us to work with multi-modal data in a way that is more intuitive and flexible than traditional programming languages.
 
 ## Why?
 
 The goal of this project was to try to explore the following ideas:
 
-> What would it be like to code in a language that treats multi-model data as if it were primitive data types?
+> What if there was a future where we could write high level code that translates human intent into low level code for agents to execute systematically?
 
 Imagine being able to write code like this:
 
 ```
-        LI X1, "cat.jpg"                ; Load the input image of a cat into register X1.
-        LI X2, "dog.jpg"                ; Load the target image of a dog into register X2.
-        LI X3, 80                       ; Initialize register X3 with the similarity threshold value of 80.
-        LI X4, "Not a dog."             ; Load the output message into register X4.
+; PROGRAM: VIBE_CONTROLLER.aasm
+; Objective: Adjust room environment based on subjective user vibe.
 
-        SIM X5, X1, X2                  ; Compare X2 to X1 and store the similarity score in X5.
+START:
+    ; Initialise State
+    LF  X1, "room_sensors.json"     ; Load current state: {temp: 18C, lights: 6000K, music: Off}
+    LI  X2, "It feels too sterile." ; Load the user's vague complaint
 
-        BGE X5, X3, END                 ; If similarity score in X5 is greater than or equal to 80, jump to END.
-        LI X4, "Is a dog."              ; Change the output message.
+    ; Load the user's desired vibe
+    LI  X3, "Goal: Warm, inviting, comfortable, relaxed." 
 
-END:    OUT X4                          ; Output the result.
+    ; The Cognitive Operation
+    APP X4, X2, X3 ; Apply the user's complaint and goal to generate a new state for the room.
+
+    ; Predict the new state of X1 (Sensors) given X2 (Complaint) and X3 (Goal).
+    ; The LLU calculates: "Sterile" (Cold/White) -> Needs Warmer Temp + Warmer Light.
+    INF X4, X1, X2                  
+    
+    ; X4 now holds the generated JSON: {temp: 22C, lights: 2700K, music: "LoFi Jazz"}
+
+    ; Safety Guardrail
+    ; Ensure that the generated state (X4) is aligned with safety rules (X5).
+    LI  X5, "Constraint: Max Temp 26C. No Music if time > 11PM."
+    INT X6, X4, X5                  ; X6 stores 100 if safe, 0 if unsafe.
+
+    ; Branching Logic
+    LI  X7, 0
+    BGT X6, X7, HANDLER             ; If audit Score > 0, hump to error handler
+    
+    ; Execute
+    OUT X4                          ; Send new config to IoT Hub
+    EXIT
+
+HANDLER:
+    LI  X8, "{error: 'Request conflicts with safety protocols.'}"
+    OUT X8
 ```
 
 > What new paradigms of programming and interacting with data could emerge from this approach?
 
 This enables us to write code that can handle messy, subjective, or unstructured data, where traditional coding approaches would need much more complex code to do the same thing.
 
-This is an experimental project to explore the idea of a language processor unit that treats multi-modal data as primitive data types, which could potentially lead to new ways of programming and interacting with data.
+## ReAct Agent Loop
+
+Latest best practises for an agent is the ReAct loop. This assembly language formalises the ReAct loop into a structured code. Typically, the agents loop would look something like: `Observation -> Thought -> Action`.
+
+In this assembly language, we can represent this loop as follows:
+
+```
+START:  LF X1, "state.txt"  ; Observation
+        LF X2, "goal.txt"   ; Load the goal
+        LF X3, 100          ; Load the similarity threshold
+        
+        INF X4, X2, X1       ; Reason: Predict next action based on goal + state
+        
+        LI  X5, "DONE"
+        SIM X6, X5, X4       ; Check if action is "DONE"
+        BLT X6, X3, EXIT     ; If similarity to "DONE" is high, exit
+        
+        OUT X3               ; Act: Output the action
+        JMP START            ; Loop back for next observation
+
+EXIT:   OUT "Agent has completed the task." ; Final output
+```
 
 ## Instruction Terminology
 
@@ -86,6 +121,12 @@ The instruction set is closely inspired by RISC-V assembly language:
 
 There are 32 general-purpose registers, named X1 to X32. These registers can hold text, images, or audio data (currently only text is supported).
 
+## Built in Reflection and Guardrails
+
+One difficult aspect of working with agents is getting an agent to reliably critique itself. Here we have instructions such as `ADT` (audit) and `HAL` (hallucination) which are designed to help with this. The `ADT` instruction can be used to find out why a certain output is not compliant with a given criteria, while the `HAL` instruction can be used to check if a certain output is a hallucination.
+
+This turns guardrail prompts from a suggestion into a structural requirement of the code execution.
+
 ## Quick Start
 
 Clone the repository:
@@ -104,13 +145,13 @@ Start the LLama.cpp server:
 Build the example program:
 
 ```bash
-cargo run build examples/simple.aism
+cargo run build examples/simple.aasm
 ```
 
 Run the example program:
 
 ```bash
-cargo run run data/build/simple.caism
+cargo run run data/build/simple.lpu
 ```
 
 ## Acknowledgements

@@ -41,7 +41,7 @@ fn build(file_path: &str, debug: bool) {
         None => panic!("Build failed. Error: Could not determine file stem"),
     };
     let output_file_name = match file_stem.to_str() {
-        Some(value) => format!("{}/{}.caism", constants::BUILD_DIR, value),
+        Some(value) => format!("{}/{}.lpu", constants::BUILD_DIR, value),
         None => panic!("Build failed. Error: Could not convert file stem to string"),
     };
 

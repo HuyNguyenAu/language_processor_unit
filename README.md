@@ -23,7 +23,7 @@ Imagine being able to write code like this:
 START:
     ; Initialise State
     LF  X1, "room_sensors.json"     ; Load current state: {temp: 18C, lights: 6000K, music: Off}
-    LI  X2, "It feels too sterile." ; Load the user's vague complaint
+    LI  X2, "Make it more warm."    ; Load the user's vague complaint
 
     ; Load the user's desired vibe
     LI  X3, "Goal: Warm, inviting, comfortable, relaxed." 
@@ -39,12 +39,12 @@ START:
 
     ; Safety Guardrail
     ; Ensure that the generated state (X4) is aligned with safety rules (X5).
-    LI  X5, "Constraint: Max Temp 26C. No Music if time > 11PM."
+    LI  X5, "Constraint: Max Temp 23C. No Music if time > 11PM."
     INT X6, X4, X5                  ; X6 stores 100 if safe, 0 if unsafe.
 
     ; Branching Logic
     LI  X7, 0
-    BGT X6, X7, HANDLER             ; If audit Score > 0, hump to error handler
+    BGT X6, X7, HANDLER             ; If aligns with intention, jump to error handler
     
     ; Execute
     OUT X4                          ; Send new config to IoT Hub

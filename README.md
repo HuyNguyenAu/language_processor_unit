@@ -80,6 +80,7 @@ The instruction set is closely inspired by RISC-V assembly language:
 | BGT         | Go to label if rs1 > rs2                                                                    | `bgt rs1, rs2, label_name` |
 | BGE         | Go to label if rs1 >= rs2                                                                   | `bge rs1, rs2, label_name` |
 | OUT         | Print the value of rs                                                                       | `out rs`                   |
+| EXIT        | Exit the program                                                                            | `exit`                     |
 
 ## Registers
 

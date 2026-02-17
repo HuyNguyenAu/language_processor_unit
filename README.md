@@ -136,10 +136,14 @@ git clone https://github.com/HuyNguyenAu/cognitive_processor_unit.git
 cd cognitive_processor_unit
 ```
 
+Install [llama.cpp](https://github.com/ggml-org/llama.cpp).
+
+Download [LFM2 2.6B model](https://huggingface.co/LiquidAI/LFM2-2.6B-GGUF).
+
 Start the LLama.cpp server:
 
 ```bash
-./llama-server --embeddings --pooling mean -m path/to/your/model.bin
+./llama-server --embeddings --pooling mean -m C:\llama\models\LFM2-2.6B-Q5_K_M.gguf
 ```
 
 Build the example program:

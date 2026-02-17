@@ -825,7 +825,7 @@ impl ControlUnit {
         if debug {
             println!("Executed OUT: {}", value_a);
         } else {
-            print!("{}", value_a);
+            println!("{}", value_a);
         }
     }
 

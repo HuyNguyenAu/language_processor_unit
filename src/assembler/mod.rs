@@ -469,21 +469,19 @@ impl Assembler {
 
         // Backpatch any uninitialised labels.
         if let Some(uninitialised_labels) = self.uninitialised_labels.remove(&key) {
+            let value: u32 = match jump_destination_byte_code_index.try_into() {
+                Ok(value) => value,
+                Err(_) => {
+                    self.error_at_current(&format!("Failed to convert bytecode index to u32 for backpatching. Bytecode index exceeds {}. Found bytecode index: {}.", u32::MAX, jump_destination_byte_code_index ));
+
+                    return;
+                }
+            };
+
+            let bytes = value.to_be_bytes();
+
             for current_byte_code_index in uninitialised_labels.current_byte_code_indices {
-                let value: u32 = match jump_destination_byte_code_index.try_into() {
-                    Ok(value) => value,
-                    Err(_) => {
-                        self.error_at_current(&format!(
-                            "Failed to convert bytecode index to u32 for backpatching. Bytecode index exceeds {}. Found bytecode index: {}.",
-                            u32::MAX,
-                            jump_destination_byte_code_index
-                        ));
-
-                        return;
-                    }
-                };
-
-                self.byte_code[current_byte_code_index] = value.to_be_bytes();
+                self.byte_code[current_byte_code_index] = bytes;
             }
         }
 

@@ -513,21 +513,23 @@ impl Assembler {
             "Expected ',' after destination register.",
         );
 
-        let source_register_1 = match self.register("Expected source register 1 after ','.") {
-            Ok(register) => register,
+        // Source operands are now parsed as `Immediate` values (can be number, text or register).
+        let immediate_1 = match self.immediate("Expected source immediate 1 after ','.") {
+            Ok(immediate) => immediate,
             Err(message) => {
                 self.error_at_current(&message);
                 return;
             }
         };
 
-        let source_register_2 = if matches!(token_type, TokenType::HAL) {
-            0 // Use a dummy register for the second source register since HAL only takes one source register.
+        let immediate_2 = if matches!(token_type, TokenType::HAL) {
+            // HAL only takes one source operand; use numeric 0 as a dummy immediate.
+            Immediate::Number(0)
         } else {
-            self.consume(&TokenType::COMMA, "Expected ',' after source register 1.");
+            self.consume(&TokenType::COMMA, "Expected ',' after source immediate 1.");
 
-            match self.register("Expected source register 2 after ','.") {
-                Ok(register) => register,
+            match self.immediate("Expected source immediate 2 after ','.") {
+                Ok(immediate) => immediate,
                 Err(message) => {
                     self.error_at_current(&message);
                     return;
@@ -537,8 +539,22 @@ impl Assembler {
 
         self.emit_op_code_bytecode(opcode);
         self.emit_register_bytecode(destination_register);
-        self.emit_register_bytecode(source_register_1);
-        self.emit_register_bytecode(source_register_2);
+
+        match self.emit_immediate_bytecode(&immediate_1) {
+            Ok(()) => (),
+            Err(message) => {
+                self.error_at_current(&message);
+                return;
+            }
+        }
+
+        match self.emit_immediate_bytecode(&immediate_2) {
+            Ok(()) => (),
+            Err(message) => {
+                self.error_at_current(&message);
+                return;
+            }
+        }
 
         self.advance_stack_level();
     }

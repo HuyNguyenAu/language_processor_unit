@@ -306,25 +306,23 @@ impl ControlUnit {
             .as_str(),
         );
 
-        // Consume the source register 1.
-        let source_register_1 = self.decode_register(
-            false,
-            format!(
-                "Failed to read source register 1 for {:?} instruction.",
-                op_code
-            )
-            .as_str(),
+        // Decode first immediate operand.
+        let immediate_1 = self.decode_immediate(
+            "Failed to decode immediate 1 type for semantic instruction.",
+            "Failed to decode number for immediate 1 for semantic instruction.",
+            "Failed to decode text for immediate 1 for semantic instruction.",
         );
 
-        // Consume the source register 2.
-        let source_register_2 = self.decode_register(
-            false,
-            format!(
-                "Failed to read source register 2 for {:?} instruction.",
-                op_code
+        // Decode second immediate operand (HAL uses a dummy numeric 0).
+        let immediate_2 = if matches!(op_code, OpCode::HAL) {
+            Immediate::Number(0)
+        } else {
+            self.decode_immediate(
+                "Failed to decode immediate 2 type for semantic instruction.",
+                "Failed to decode number for immediate 2 for semantic instruction.",
+                "Failed to decode text for immediate 2 for semantic instruction.",
             )
-            .as_str(),
-        );
+        };
 
         let semantic_type = match op_code {
             OpCode::ADD => SemanticType::ADD,
@@ -339,8 +337,8 @@ impl ControlUnit {
         return SemanticInstruction {
             semantic_type,
             destination_register,
-            source_register_1,
-            source_register_2,
+            immediate_1,
+            immediate_2,
         };
     }
 
@@ -605,19 +603,28 @@ impl ControlUnit {
     }
 
     fn execute_semantic(&mut self, instruction: &SemanticInstruction, debug: bool) {
-        let value_a = match self.registers.get_register(instruction.source_register_1) {
-            Ok(value) => value,
-            Err(error) => panic!(
-                "Failed to execute {:?} instruction. Error: {}",
-                instruction.semantic_type, error
-            ),
+        let value_a = match &instruction.immediate_1 {
+            Immediate::Text(text) => Value::Text(text.to_string()),
+            Immediate::Number(number) => Value::Number(*number),
+            Immediate::Register(register) => match self.registers.get_register(*register) {
+                Ok(value) => value.to_owned(),
+                Err(error) => panic!(
+                    "Failed to read source register r{} for semantic instruction. Error: {}",
+                    register, error
+                ),
+            },
         };
-        let value_b = match self.registers.get_register(instruction.source_register_2) {
-            Ok(value) => value,
-            Err(error) => panic!(
-                "Failed to execute {:?} instruction. Error: {}",
-                instruction.semantic_type, error
-            ),
+
+        let value_b = match &instruction.immediate_2 {
+            Immediate::Text(text) => Value::Text(text.to_string()),
+            Immediate::Number(number) => Value::Number(*number),
+            Immediate::Register(register) => match self.registers.get_register(*register) {
+                Ok(value) => value.to_owned(),
+                Err(error) => panic!(
+                    "Failed to read source register r{} for semantic instruction. Error: {}",
+                    register, error
+                ),
+            },
         };
 
         let opcode: OpCode = match instruction.semantic_type {
@@ -629,7 +636,10 @@ impl ControlUnit {
             SemanticType::ADT => OpCode::ADT,
         };
 
-        let result = match self.language_logic_unit.run(&opcode, value_a, value_b) {
+        let result = match self
+            .language_logic_unit
+            .run(&opcode, &value_a, &value_b)
+        {
             Ok(result) => result,
             Err(error) => panic!(
                 "Failed to perform {:?}. Error: {}",

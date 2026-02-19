@@ -71,7 +71,7 @@ pub struct BranchInstruction {
 
 #[derive(Debug)]
 pub struct OutputInstruction {
-    pub source_register: u32,
+    pub immediate: Immediate,
 }
 
 #[derive(Debug)]

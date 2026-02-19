@@ -438,11 +438,14 @@ impl ControlUnit {
         // Consume OUT opcode.
         self.advance();
 
-        // Consume the source register.
-        let source_register =
-            self.decode_register(false, "Failed to read source register for OUT instruction.");
+        // Decode the immediate operand for OUT.
+        let immediate = self.decode_immediate(
+            "Failed to decode immediate type for OUT instruction.",
+            "Failed to decode number for OUT instruction.",
+            "Failed to decode text for OUT instruction.",
+        );
 
-        return OutputInstruction { source_register };
+        return OutputInstruction { immediate };
     }
 
     fn decode_exit(&mut self) -> ExitInstruction {
@@ -848,13 +851,17 @@ impl ControlUnit {
     }
 
     fn execute_output(&mut self, instruction: &OutputInstruction, debug: bool) {
-        let value_a = match self.registers.get_register(instruction.source_register) {
-            Ok(value) => match value {
-                Value::Text(text) => text.to_string(),
-                Value::Number(number) => number.to_string(),
-                _ => panic!("OUT instruction requires text or number operands."),
+        let value_a = match &instruction.immediate {
+            Immediate::Text(text) => text.to_string(),
+            Immediate::Number(n) => n.to_string(),
+            Immediate::Register(r) => match self.registers.get_register(*r) {
+                Ok(value) => match value {
+                    Value::Text(text) => text.to_string(),
+                    Value::Number(number) => number.to_string(),
+                    _ => panic!("OUT instruction requires text or number operands."),
+                },
+                Err(error) => panic!("Failed to execute OUT instruction. Error: {}", error),
             },
-            Err(error) => panic!("Failed to execute OUT instruction. Error: {}", error),
         };
 
         if debug {

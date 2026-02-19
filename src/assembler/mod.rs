@@ -683,8 +683,8 @@ impl Assembler {
     fn output(&mut self) {
         self.consume(&TokenType::OUT, "Expected 'out' keyword.");
 
-        let source_register = match self.register("Expected source register after 'out'.") {
-            Ok(register) => register,
+        let immediate = match self.immediate("Expected immediate after 'out'.") {
+            Ok(immediate) => immediate,
             Err(message) => {
                 self.error_at_current(&message);
                 return;
@@ -692,7 +692,14 @@ impl Assembler {
         };
 
         self.emit_op_code_bytecode(OpCode::OUT);
-        self.emit_register_bytecode(source_register);
+
+        match self.emit_immediate_bytecode(&immediate) {
+            Ok(()) => (),
+            Err(message) => {
+                self.error_at_current(&message);
+                return;
+            }
+        }
 
         self.advance_stack_level();
     }

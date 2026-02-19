@@ -2,10 +2,14 @@
 pub enum ImmediateType {
     TEXT,
     NUMBER,
+    REGISTER,
 }
 
-static IMMEDIATE_TYPE_MAPPING: [(ImmediateType, u32); 2] =
-    [(ImmediateType::NUMBER, 0x00), (ImmediateType::TEXT, 0x01)];
+static IMMEDIATE_TYPE_MAPPING: [(ImmediateType, u32); 3] = [
+    (ImmediateType::NUMBER, 0x00),
+    (ImmediateType::TEXT, 0x01),
+    (ImmediateType::REGISTER, 0x02),
+];
 
 impl ImmediateType {
     pub fn from_be_bytes(be_bytes: [u8; 4]) -> Result<ImmediateType, &'static str> {
@@ -35,4 +39,5 @@ impl ImmediateType {
 pub enum Immediate {
     Text(String),
     Number(u32),
+    Register(u32),
 }

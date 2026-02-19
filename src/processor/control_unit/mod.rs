@@ -213,6 +213,9 @@ impl ControlUnit {
             ImmediateType::NUMBER => {
                 Immediate::Number(self.decode_number(true, value_number_message))
             }
+            ImmediateType::REGISTER => {
+                Immediate::Register(self.decode_register(true, value_number_message))
+            }
             ImmediateType::TEXT => Immediate::Text(self.decode_text(value_text_message)),
         };
     }
@@ -517,6 +520,13 @@ impl ControlUnit {
         let value = match &instruction.value {
             Immediate::Text(text) => Value::Text(text.to_string()),
             Immediate::Number(number) => Value::Number(*number),
+            Immediate::Register(reg) => match self.registers.get_register(*reg) {
+                Ok(v) => v.to_owned(),
+                Err(error) => panic!(
+                    "Failed to read source register r{} for LI instruction. Error: {}",
+                    reg, error
+                ),
+            },
         };
 
         match self

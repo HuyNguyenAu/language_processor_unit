@@ -230,9 +230,17 @@ impl Assembler {
 
                 return Err(format!("Failed to parse immediate number. {}", message));
             }
+            TokenType::IDENTIFIER => {
+                let reg = self.register(message);
+                if let Ok(register) = reg {
+                    return Ok(Immediate::Register(register));
+                }
+
+                return Err(format!("Failed to parse immediate register. {}", message));
+            }
             _ => {
                 return Err(format!(
-                    "Invalid immediate value. Expected number or string. Found token type: {:?}. {}",
+                    "Invalid immediate value. Expected number, string or register. Found token type: {:?}. {}",
                     current_type, message
                 ));
             }
@@ -273,6 +281,19 @@ impl Assembler {
 
                 self.byte_code.push(1u32.to_be_bytes());
                 self.byte_code.push(value.to_be_bytes());
+            }
+            Immediate::Register(reg) => {
+                let immediate_type_be_bytes = match ImmediateType::REGISTER.to_be_bytes() {
+                    Ok(bytes) => bytes,
+                    Err(message) => {
+                        self.error_at_current(&message);
+                        return Err(message.to_string());
+                    }
+                };
+                self.byte_code.push(immediate_type_be_bytes);
+
+                self.byte_code.push(1u32.to_be_bytes());
+                self.byte_code.push(reg.to_be_bytes());
             }
             Immediate::Text(value) => {
                 let value_be_bytes = value

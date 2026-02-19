@@ -267,64 +267,100 @@ impl Assembler {
         self.byte_code.push(register.to_be_bytes());
     }
 
-    fn emit_immediate_bytecode(&mut self, immediate: &Immediate) -> Result<(), String> {
-        match immediate {
-            Immediate::Number(value) => {
-                let immediate_type_be_bytes = match ImmediateType::NUMBER.to_be_bytes() {
-                    Ok(bytes) => bytes,
-                    Err(message) => {
-                        self.error_at_current(&message);
-                        return Err(message.to_string());
-                    }
-                };
-                self.byte_code.push(immediate_type_be_bytes);
-
-                self.byte_code.push(1u32.to_be_bytes());
-                self.byte_code.push(value.to_be_bytes());
-            }
-            Immediate::Register(reg) => {
-                let immediate_type_be_bytes = match ImmediateType::REGISTER.to_be_bytes() {
-                    Ok(bytes) => bytes,
-                    Err(message) => {
-                        self.error_at_current(&message);
-                        return Err(message.to_string());
-                    }
-                };
-                self.byte_code.push(immediate_type_be_bytes);
-
-                self.byte_code.push(1u32.to_be_bytes());
-                self.byte_code.push(reg.to_be_bytes());
-            }
-            Immediate::Text(value) => {
-                let value_be_bytes = value
+    fn emit_immediate_bytecode(&mut self, immediate: &Immediate) {
+        let (immediate_type, value_be_bytes): (ImmediateType, Vec<[u8; 4]>) = match immediate {
+            Immediate::Number(value) => (ImmediateType::NUMBER, vec![value.to_be_bytes()]),
+            Immediate::Register(value) => (ImmediateType::REGISTER, vec![value.to_be_bytes()]),
+            Immediate::Text(value) => (
+                ImmediateType::TEXT,
+                value
                     .bytes()
                     .map(|byte| u32::from(byte).to_be_bytes())
-                    .collect::<Vec<[u8; 4]>>();
-                let value_be_bytes_length: u32 = match value_be_bytes.len().try_into() {
-                    Ok(length) => length,
-                    Err(_) => {
-                        return Err(format!(
-                            "Failed to convert text byte length to u32 for value '{}'. Text byte length exceeds {}.",
-                            value,
-                            u32::MAX
-                        ));
-                    }
-                };
-                let immediate_type_be_bytes = match ImmediateType::TEXT.to_be_bytes() {
-                    Ok(bytes) => bytes,
-                    Err(message) => {
-                        self.error_at_current(&message);
-                        return Err(message.to_string());
-                    }
-                };
+                    .collect::<Vec<[u8; 4]>>(),
+            ),
+        };
 
-                self.byte_code.push(immediate_type_be_bytes);
-                self.byte_code.push((value_be_bytes_length).to_be_bytes()); // Length in 4-byte characters.
-                self.byte_code.extend(value_be_bytes);
+        let immediate_type_be_bytes = match immediate_type.to_be_bytes() {
+            Ok(bytes) => bytes,
+            Err(message) => {
+                self.error_at_current(&message);
+
+                return;
             }
+        };
+
+        self.byte_code.push(immediate_type_be_bytes);
+
+        let value_be_bytes_len: u32 = match value_be_bytes.len().try_into() {
+            Ok(length) => length,
+            _ => {
+                self.error_at_current(&format!(
+                    "Failed to convert immediate byte length to u32. Byte length exceeds {}. Found byte length: {}.",
+                    u32::MAX,
+                    value_be_bytes.len()
+                ));
+
+                return;
+            }
+        };
+
+        self.byte_code.push(value_be_bytes_len.to_be_bytes());
+        self.byte_code.extend(value_be_bytes);
+    }
+
+    fn upsert_uninitialised_label(&mut self, key: u64) -> Result<(), String> {
+        let bytecode_index = self.byte_code.len() - 1;
+
+        if let Some(uninitialised_label) = self.uninitialised_labels.get_mut(&key) {
+            uninitialised_label
+                .current_byte_code_indices
+                .push(bytecode_index);
+        } else {
+            let previous_token = match self.previous.to_owned() {
+                Some(token) => token,
+                None => {
+                    return Err("Failed to get current token for uninitialised label.".to_string());
+                }
+            };
+
+            self.uninitialised_labels.insert(
+                key,
+                UnitialisedLabel {
+                    current_byte_code_indices: vec![bytecode_index],
+                    token: previous_token,
+                },
+            );
         }
 
-        return Ok(());
+        Ok(())
+    }
+
+    fn emit_label_bytecode(&mut self, key: u64) {
+        if let Some(index) = self.byte_code_indices.get(&key) {
+            let value: u32 = match (*index).try_into() {
+                Ok(value) => value,
+                Err(_) => {
+                    self.error_at_current(format!(
+                    "Failed to convert bytecode index to u32 for jump compare. Bytecode index exceeds {}. Found bytecode index: {}.",
+                    u32::MAX,
+                    index
+                ).as_str());
+                    return;
+                }
+            };
+            self.emit_number_bytecode(value);
+        } else {
+            // Placeholder for backpatching.
+            self.emit_number_bytecode(0);
+            // Record the current bytecode index for backpatching later.
+            match self.upsert_uninitialised_label(key) {
+                Ok(()) => (),
+                Err(message) => {
+                    self.error_at_current(&message);
+                    return;
+                }
+            }
+        }
     }
 
     fn load_immediate(&mut self) {
@@ -353,14 +389,7 @@ impl Assembler {
 
         self.emit_op_code_bytecode(OpCode::LI);
         self.emit_register_bytecode(destination_register);
-
-        match self.emit_immediate_bytecode(&immediate) {
-            Ok(()) => (),
-            Err(message) => {
-                self.error_at_current(&message);
-                return;
-            }
-        }
+        self.emit_immediate_bytecode(&immediate);
 
         self.advance_stack_level();
     }
@@ -387,14 +416,7 @@ impl Assembler {
 
         self.emit_op_code_bytecode(OpCode::LF);
         self.emit_register_bytecode(destination_register);
-
-        match self.emit_immediate_bytecode(&Immediate::Text(file_path)) {
-            Ok(()) => (),
-            Err(message) => {
-                self.error_at_current(&message);
-                return;
-            }
-        }
+        self.emit_immediate_bytecode(&Immediate::Text(file_path));
 
         self.advance_stack_level();
     }
@@ -538,51 +560,10 @@ impl Assembler {
 
         self.emit_op_code_bytecode(opcode);
         self.emit_register_bytecode(destination_register);
-
-        match self.emit_immediate_bytecode(&immediate_1) {
-            Ok(()) => (),
-            Err(message) => {
-                self.error_at_current(&message);
-                return;
-            }
-        }
-
-        match self.emit_immediate_bytecode(&immediate_2) {
-            Ok(()) => (),
-            Err(message) => {
-                self.error_at_current(&message);
-                return;
-            }
-        }
+        self.emit_immediate_bytecode(&immediate_1);
+        self.emit_immediate_bytecode(&immediate_2);
 
         self.advance_stack_level();
-    }
-
-    fn upsert_uninitialised_label(&mut self, key: u64) -> Result<(), String> {
-        let bytecode_index = self.byte_code.len() - 1;
-
-        if let Some(uninitialised_label) = self.uninitialised_labels.get_mut(&key) {
-            uninitialised_label
-                .current_byte_code_indices
-                .push(bytecode_index);
-        } else {
-            let previous_token = match self.previous.to_owned() {
-                Some(token) => token,
-                None => {
-                    return Err("Failed to get current token for uninitialised label.".to_string());
-                }
-            };
-
-            self.uninitialised_labels.insert(
-                key,
-                UnitialisedLabel {
-                    current_byte_code_indices: vec![bytecode_index],
-                    token: previous_token,
-                },
-            );
-        }
-
-        Ok(())
     }
 
     fn branch(&mut self, token_type: &TokenType) {
@@ -603,13 +584,9 @@ impl Assembler {
             }
         };
 
-        let immediate_1 = match self.immediate(
-            format!(
-                "Expected immediate 1 after '{:?}' keyword.",
-                token_type
-            )
-            .as_str(),
-        ) {
+        let immediate_1 = match self
+            .immediate(format!("Expected immediate 1 after '{:?}' keyword.", token_type).as_str())
+        {
             Ok(immediate) => immediate,
             Err(message) => {
                 self.error_at_current(&message);
@@ -633,49 +610,9 @@ impl Assembler {
         let key = Self::hash(&label_name);
 
         self.emit_op_code_bytecode(opcode);
-
-        match self.emit_immediate_bytecode(&immediate_1) {
-            Ok(()) => (),
-            Err(message) => {
-                self.error_at_current(&message);
-                return;
-            }
-        }
-
-        match self.emit_immediate_bytecode(&immediate_2) {
-            Ok(()) => (),
-            Err(message) => {
-                self.error_at_current(&message);
-                return;
-            }
-        }
-
-        if let Some(index) = self.byte_code_indices.get(&key) {
-            let value: u32 = match (*index).try_into() {
-                Ok(value) => value,
-                Err(_) => {
-                    self.error_at_current(format!(
-                    "Failed to convert bytecode index to u32 for jump compare. Bytecode index exceeds {}. Found bytecode index: {}.",
-                    u32::MAX,
-                    index
-                ).as_str());
-
-                    return;
-                }
-            };
-            self.emit_number_bytecode(value);
-        } else {
-            // Placeholder for backpatching.
-            self.emit_number_bytecode(0);
-            // Record the current bytecode index for backpatching later.
-            match self.upsert_uninitialised_label(key) {
-                Ok(()) => (),
-                Err(message) => {
-                    self.error_at_current(&message);
-                    return;
-                }
-            }
-        }
+        self.emit_immediate_bytecode(&immediate_1);
+        self.emit_immediate_bytecode(&immediate_2);
+        self.emit_label_bytecode(key);
 
         self.advance_stack_level();
     }
@@ -692,14 +629,7 @@ impl Assembler {
         };
 
         self.emit_op_code_bytecode(OpCode::OUT);
-
-        match self.emit_immediate_bytecode(&immediate) {
-            Ok(()) => (),
-            Err(message) => {
-                self.error_at_current(&message);
-                return;
-            }
-        }
+        self.emit_immediate_bytecode(&immediate);
 
         self.advance_stack_level();
     }

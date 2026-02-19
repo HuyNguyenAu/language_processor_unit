@@ -64,8 +64,8 @@ pub enum BranchType {
 #[derive(Debug)]
 pub struct BranchInstruction {
     pub branch_type: BranchType,
-    pub source_register_1: u32,
-    pub source_register_2: u32,
+    pub immediate_1: Immediate,
+    pub immediate_2: Immediate,
     pub byte_code_index: u32,
 }
 

@@ -513,8 +513,7 @@ impl Assembler {
             "Expected ',' after destination register.",
         );
 
-        // Source operands are now parsed as `Immediate` values (can be number, text or register).
-        let immediate_1 = match self.immediate("Expected source immediate 1 after ','.") {
+        let immediate_1 = match self.immediate("Expected immediate 1 after ','.") {
             Ok(immediate) => immediate,
             Err(message) => {
                 self.error_at_current(&message);
@@ -526,9 +525,9 @@ impl Assembler {
             // HAL only takes one source operand; use numeric 0 as a dummy immediate.
             Immediate::Number(0)
         } else {
-            self.consume(&TokenType::COMMA, "Expected ',' after source immediate 1.");
+            self.consume(&TokenType::COMMA, "Expected ',' after immediate 1.");
 
-            match self.immediate("Expected source immediate 2 after ','.") {
+            match self.immediate("Expected immediate 2 after ','.") {
                 Ok(immediate) => immediate,
                 Err(message) => {
                     self.error_at_current(&message);
@@ -604,38 +603,52 @@ impl Assembler {
             }
         };
 
-        let source_register_1 = match self.register(
+        let immediate_1 = match self.immediate(
             format!(
-                "Expected source register 1 after '{:?}' keyword.",
+                "Expected immediate 1 after '{:?}' keyword.",
                 token_type
             )
             .as_str(),
         ) {
-            Ok(register) => register,
+            Ok(immediate) => immediate,
             Err(message) => {
                 self.error_at_current(&message);
                 return;
             }
         };
 
-        self.consume(&TokenType::COMMA, "Expected ',' after source register 1.");
+        self.consume(&TokenType::COMMA, "Expected ',' after immediate 1.");
 
-        let source_register_2 = match self.register("Expected source register 2 after ','.") {
-            Ok(register) => register,
+        let immediate_2 = match self.immediate("Expected immediate 2 after ','.") {
+            Ok(immediate) => immediate,
             Err(message) => {
                 self.error_at_current(&message);
                 return;
             }
         };
 
-        self.consume(&TokenType::COMMA, "Expected ',' after source register 2.");
+        self.consume(&TokenType::COMMA, "Expected ',' after source immediate 2.");
 
         let label_name = self.identifier("Expected label name after ','.");
         let key = Self::hash(&label_name);
 
         self.emit_op_code_bytecode(opcode);
-        self.emit_register_bytecode(source_register_1);
-        self.emit_register_bytecode(source_register_2);
+
+        match self.emit_immediate_bytecode(&immediate_1) {
+            Ok(()) => (),
+            Err(message) => {
+                self.error_at_current(&message);
+                return;
+            }
+        }
+
+        match self.emit_immediate_bytecode(&immediate_2) {
+            Ok(()) => (),
+            Err(message) => {
+                self.error_at_current(&message);
+                return;
+            }
+        }
 
         if let Some(index) = self.byte_code_indices.get(&key) {
             let value: u32 = match (*index).try_into() {

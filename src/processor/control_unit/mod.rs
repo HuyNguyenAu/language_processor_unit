@@ -393,17 +393,20 @@ impl ControlUnit {
         // Consume branch opcode.
         self.advance();
 
-        // Consume the source register 1.
-        let source_register_1 = self.decode_register(
-            false,
-            "Failed to read source register 1 for branch instruction.",
+        // Decode the first immediate operand.
+        let immediate_1 = self.decode_immediate(
+            "Failed to decode immediate type for branch instruction.",
+            "Failed to decode number for branch instruction.",
+            "Failed to decode text for branch instruction.",
         );
 
-        // Consume the source register 2.
-        let source_register_2 = self.decode_register(
-            false,
-            "Failed to read source register 2 for branch instruction.",
+        // Decode the second immediate operand.
+        let immediate_2 = self.decode_immediate(
+            "Failed to decode immediate type for branch instruction.",
+            "Failed to decode number for branch instruction.",
+            "Failed to decode text for branch instruction.",
         );
+
         // Consume the branch jump index.
         let byte_code_index = self.decode_number(
             false,
@@ -425,8 +428,8 @@ impl ControlUnit {
 
         return BranchInstruction {
             branch_type,
-            source_register_1,
-            source_register_2,
+            immediate_1,
+            immediate_2,
             byte_code_index,
         };
     }
@@ -744,26 +747,33 @@ impl ControlUnit {
     }
 
     fn execute_branch(&mut self, instruction: &BranchInstruction, debug: bool) {
-        let value_a = match self.registers.get_register(instruction.source_register_1) {
-            Ok(value) => match value {
-                Value::Number(number) => *number,
-                _ => panic!(
-                    "{:?} instruction requires numeric operands.",
-                    instruction.branch_type
-                ),
+        // Resolve immediates to numeric u32 values.
+        let value_a: u32 = match &instruction.immediate_1 {
+            Immediate::Number(number) => *number,
+            Immediate::Register(register) => match self.registers.get_register(*register) {
+                Ok(Value::Number(number)) => *number,
+                Ok(_) => panic!("{:?} instruction requires numeric operands.", instruction.branch_type),
+                Err(error) => panic!("Failed to execute branch instruction. Error: {}", error),
             },
-            Err(error) => panic!("Failed to execute branch instruction. Error: {}", error),
+            Immediate::Text(_) => panic!(
+                "{:?} instruction requires numeric operands.",
+                instruction.branch_type
+            ),
         };
-        let value_b = match self.registers.get_register(instruction.source_register_2) {
-            Ok(value) => match value {
-                Value::Number(number) => *number,
-                _ => panic!(
-                    "{:?} instruction requires numeric operands.",
-                    instruction.branch_type
-                ),
+
+        let value_b: u32 = match &instruction.immediate_2 {
+            Immediate::Number(number) => *number,
+            Immediate::Register(register) => match self.registers.get_register(*register) {
+                Ok(Value::Number(number)) => *number,
+                Ok(_) => panic!("{:?} instruction requires numeric operands.", instruction.branch_type),
+                Err(error) => panic!("Failed to execute branch instruction. Error: {}", error),
             },
-            Err(error) => panic!("Failed to execute branch instruction. Error: {}", error),
+            Immediate::Text(_) => panic!(
+                "{:?} instruction requires numeric operands.",
+                instruction.branch_type
+            ),
         };
+
         let address = instruction.byte_code_index;
         let is_true = match instruction.branch_type {
             BranchType::EQ => value_a == value_b,

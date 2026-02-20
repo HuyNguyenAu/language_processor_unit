@@ -14,6 +14,13 @@ impl Processor {
     }
 
     pub fn load(&mut self, data: Vec<u8>) {
+        if data.len() % 4 != 0 {
+            panic!(
+                "Invalid bytecode length: {}. Bytecode must be a multiple of 4 bytes.",
+                data.len()
+            );
+        }
+
         let byte_code: Vec<[u8; 4]> = data
             .chunks(4)
             .map(|chunk| {

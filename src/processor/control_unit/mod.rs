@@ -728,7 +728,7 @@ impl ControlUnit {
                 Ok(value) => match value {
                     Value::Text(text) => text.to_string(),
                     Value::Number(number) => number.to_string(),
-                    _ => panic!("OUT instruction requires text or number operands."),
+                    Value::None => panic!("Output register r{} is empty.", register),
                 },
                 Err(error) => panic!("Failed to execute OUT instruction. Error: {}", error),
             },

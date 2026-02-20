@@ -172,10 +172,12 @@ impl LanguageLogicUnit {
     fn cosine_similarity(&self, value_a: &Value, value_b: &Value) -> Result<u32, String> {
         let value_a = match value_a {
             Value::Text(text) => text,
+            Value::Number(number) => &number.to_string(),
             _ => return Err(format!("{:?} requires text value.", OpCode::Sim)),
         };
         let value_b = match value_b {
             Value::Text(text) => text,
+            Value::Number(number) => &number.to_string(),
             _ => return Err(format!("{:?} requires text value.", OpCode::Sim)),
         };
 

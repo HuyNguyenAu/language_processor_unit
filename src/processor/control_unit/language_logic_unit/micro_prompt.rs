@@ -11,37 +11,37 @@ pub fn search(r_type: &RType, value_a: &str, value_b: &str) -> Result<String, &'
     match r_type {
         // Generative operations.
         RType::Sum => Ok(format!(
-            "Distill {} into its most essential points, focusing specifically on the themes/dimensions requested in {}. Ignore all other data.",
+            "Read \"{}\". Extract only info about \"{}\". Be short. Bullet points only.",
             value_a, value_b
         )),
         RType::Xpn => Ok(format!(
-            "Elaborate on the seed concept {} by applying the specific context or technical depth defined in {}. Maintain logical consistency with the seed.",
+            "Write a detailed report about \"{}\". Use the facts in \"{}\" to add detail. No fluff.",
             value_a, value_b
         )),
         RType::Trn => Ok(format!(
-            "Map the data in {} into the specific structure, schema, or language defined by {}. Ensure 1:1 data integrity. Output only the result.",
+            "Convert \"{}\" into \"{}\" format. Do not add text. Output only the code/data.",
             value_a, value_b
         )),
         // Cognitive operations.
         RType::Cmp => Ok(format!(
-            "Perform a delta analysis between {} and {}. Identify and list unique elements, shared overlaps, and direct contradictions between the two.",
+            "Compare \"{}\" and \"{}\". List what is different. List what is the same.",
             value_a, value_b
         )),
         RType::Syn => Ok(format!(
-            "Integrate the logic/content of {} with the constraints or stylistic requirements of {}. Create a unified output that satisfies both inputs.",
+            "Combine \"{}\" and \"{}\" into one new text. Keep the meaning of both. Be seamless.",
             value_a, value_b
         )),
         RType::Flt => Ok(format!(
-            "Scan {} and extract only the segments that satisfy the criteria defined in {}. Discard all irrelevant or non-matching information.",
+            "Copy-paste only the parts of \"{}\" that mention \"{}\". Delete everything else.",
             value_a, value_b
         )),
         RType::Prd => Ok(format!(
-            "Given the state {}, simulate the consequences of action {}. Describe the immediate resulting environment and any secondary side effects.",
+            "Current state: \"{}\". Action: \"{}\". What happens next? List the result.",
             value_a, value_b
         )),
         // Guardrails operations.
         RType::Vfy => Ok(format!(
-            "Audit {} against the source of truth {}. Identify any claims that are unsupported or false. If 100% accurate, return 'Verified'.",
+            "Check \"{}\" against \"{}\". List any lies or errors. If none, say \"Verified\".",
             value_a, value_b
         )),
         _ => Err("Unsupported r_type for micro prompt generation."),

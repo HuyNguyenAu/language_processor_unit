@@ -99,14 +99,11 @@ impl Assembler {
     fn advance(&mut self) {
         self.previous = self.current.clone();
 
-        loop {
-            let token = self.scanner.scan_token();
+        let token = self.scanner.scan_token();
+        self.current = Some(token.clone());
 
-            if token.token_type() == &TokenType::Error {
-                self.error_at_current("Failed to advance to next token due to scanning error.");
-            }
-
-            self.current = Some(token);
+        if token.token_type() == &TokenType::Error {
+            self.error_at_current("Failed to advance to next token due to scanning error.");
         }
     }
 

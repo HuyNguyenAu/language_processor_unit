@@ -1,72 +1,72 @@
 #[derive(Debug, PartialEq, Clone)]
 pub enum TokenType {
     // Single-character.
-    COMMA,
+    Comma,
 
     // Literals.
-    IDENTIFIER,
-    STRING,
-    NUMBER,
+    Identifier,
+    String,
+    Number,
 
     // Data movement keywords.
-    LI,
-    LF,
-    MV,
+    Li,
+    Lf,
+    Mv,
     // Semantic operations keywords.
-    ADD,
-    SUB,
-    MUL,
-    DIV,
-    INF,
-    ADT,
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Inf,
+    Adt,
     // Heuristic operations keywords.
-    EQV,
-    INT,
-    HAL,
-    SIM,
+    Eqv,
+    Int,
+    Hal,
+    Sim,
     // Control flow keywords.
-    BEQ,
-    BLE,
-    BLT,
-    BGE,
-    BGT,
-    LABEL,
+    Beq,
+    Ble,
+    Blt,
+    Bge,
+    Bgt,
+    Label,
     // I/O keywords.
-    OUT,
+    Out,
 
     // Misc.
-    EOF,
-    ERROR,
-    EXIT,
+    Eof,
+    Error,
+    Exit,
 }
 
 pub static TOKEN_TYPE_MAPPING: [(TokenType, &str); 20] = [
     // Data movement.
-    (TokenType::LI, "li"),
-    (TokenType::LF, "lf"),
-    (TokenType::MV, "mv"),
+    (TokenType::Li, "li"),
+    (TokenType::Lf, "lf"),
+    (TokenType::Mv, "mv"),
     // Semantic operations.
-    (TokenType::ADD, "add"),
-    (TokenType::SUB, "sub"),
-    (TokenType::MUL, "mul"),
-    (TokenType::DIV, "div"),
-    (TokenType::INF, "inf"),
-    (TokenType::ADT, "adt"),
+    (TokenType::Add, "add"),
+    (TokenType::Sub, "sub"),
+    (TokenType::Mul, "mul"),
+    (TokenType::Div, "div"),
+    (TokenType::Inf, "inf"),
+    (TokenType::Adt, "adt"),
     // Heuristic operations.
-    (TokenType::EQV, "eqv"),
-    (TokenType::INT, "int"),
-    (TokenType::HAL, "hal"),
-    (TokenType::SIM, "sim"),
+    (TokenType::Eqv, "eqv"),
+    (TokenType::Int, "int"),
+    (TokenType::Hal, "hal"),
+    (TokenType::Sim, "sim"),
     // Control flow.
-    (TokenType::BEQ, "beq"),
-    (TokenType::BLT, "blt"),
-    (TokenType::BLE, "ble"),
-    (TokenType::BGE, "bge"),
-    (TokenType::BGT, "bgt"),
+    (TokenType::Beq, "beq"),
+    (TokenType::Blt, "blt"),
+    (TokenType::Ble, "ble"),
+    (TokenType::Bge, "bge"),
+    (TokenType::Bgt, "bgt"),
     // I/O.
-    (TokenType::OUT, "out"),
+    (TokenType::Out, "out"),
     // Misc.
-    (TokenType::EXIT, "exit"),
+    (TokenType::Exit, "exit"),
 ];
 
 #[derive(Clone, Debug)]

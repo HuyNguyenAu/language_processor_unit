@@ -84,7 +84,7 @@ impl Scanner {
 
     fn make_error(&self, message: &'static str) -> Token {
         Token::new(
-            TokenType::ERROR,
+            TokenType::Error,
             self.start,
             self.current,
             self.line,
@@ -116,7 +116,7 @@ impl Scanner {
     }
 
     fn label(&mut self) -> Token {
-        let token = self.make_token(TokenType::LABEL);
+        let token = self.make_token(TokenType::Label);
 
         // Consume the ':'.
         self.advance();
@@ -144,7 +144,7 @@ impl Scanner {
 
         match matched_token {
             Some((token_type, _)) => self.make_token(token_type.clone()),
-            None => self.make_token(TokenType::IDENTIFIER),
+            None => self.make_token(TokenType::Identifier),
         }
     }
 
@@ -172,7 +172,7 @@ impl Scanner {
             }
         }
 
-        self.make_token(TokenType::NUMBER)
+        self.make_token(TokenType::Number)
     }
 
     fn string(&mut self) -> Token {
@@ -190,7 +190,7 @@ impl Scanner {
         } else {
             // Consume the closing quote.
             self.advance();
-            self.make_token(TokenType::STRING)
+            self.make_token(TokenType::String)
         }
     }
 
@@ -200,7 +200,7 @@ impl Scanner {
         self.start = self.current;
 
         if self.is_at_end() {
-            return self.make_token(TokenType::EOF);
+            return self.make_token(TokenType::Eof);
         }
 
         let ch = self.peek();
@@ -216,7 +216,7 @@ impl Scanner {
 
         match ch {
             // Single-character tokens.
-            ',' => self.make_token(TokenType::COMMA),
+            ',' => self.make_token(TokenType::Comma),
             '"' => self.string(),
             _ => self.make_error("Unexpected character"),
         }

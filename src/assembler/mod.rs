@@ -59,7 +59,7 @@ impl Assembler {
 
         eprint!("[Line {}:{}] Error:", token.line(), token.column());
 
-        if token.token_type() == &TokenType::ERROR
+        if token.token_type() == &TokenType::Error
             && let Some(error) = token.error()
         {
             eprint!(" {}", error);
@@ -103,7 +103,7 @@ impl Assembler {
             let token = self.scanner.scan_token();
             self.current = Some(token);
 
-            if self.current.as_ref().unwrap().token_type() != &TokenType::ERROR {
+            if self.current.as_ref().unwrap().token_type() != &TokenType::Error {
                 return;
             }
 
@@ -132,7 +132,7 @@ impl Assembler {
     }
 
     fn number(&mut self, message: &str) -> Result<u32, String> {
-        self.consume(&TokenType::NUMBER, message);
+        self.consume(&TokenType::Number, message);
 
         match self.previous_lexeme().parse() {
             Ok(value) => Ok(value),
@@ -144,7 +144,7 @@ impl Assembler {
     }
 
     fn register(&mut self, message: &str) -> Result<u32, String> {
-        self.consume(&TokenType::IDENTIFIER, message);
+        self.consume(&TokenType::Identifier, message);
 
         let lexeme = self.previous_lexeme();
 
@@ -177,7 +177,7 @@ impl Assembler {
     }
 
     fn string(&mut self, message: &str) -> String {
-        self.consume(&TokenType::STRING, message);
+        self.consume(&TokenType::String, message);
 
         let lexeme = self.previous_lexeme();
 
@@ -191,7 +191,7 @@ impl Assembler {
     }
 
     fn identifier(&mut self, message: &str) -> &str {
-        self.consume(&TokenType::IDENTIFIER, message);
+        self.consume(&TokenType::Identifier, message);
 
         self.previous_lexeme()
     }
@@ -208,8 +208,8 @@ impl Assembler {
         };
 
         match current_type {
-            TokenType::STRING => Ok(Immediate::Text(self.string(message).to_string())),
-            TokenType::NUMBER => {
+            TokenType::String => Ok(Immediate::Text(self.string(message).to_string())),
+            TokenType::Number => {
                 let number = self.number(message);
 
                 if let Ok(number) = number {
@@ -218,7 +218,7 @@ impl Assembler {
 
                 Err(format!("Failed to parse immediate number. {}", message))
             }
-            TokenType::IDENTIFIER => {
+            TokenType::Identifier => {
                 let reg = self.register(message);
                 if let Ok(register) = reg {
                     return Ok(Immediate::Register(register));
@@ -347,7 +347,7 @@ impl Assembler {
     }
 
     fn load_immediate(&mut self) {
-        self.consume(&TokenType::LI, "Expected 'li' keyword.");
+        self.consume(&TokenType::Li, "Expected 'li' keyword.");
 
         let destination_register = match self.register("Expected destination register.") {
             Ok(register) => register,
@@ -358,7 +358,7 @@ impl Assembler {
         };
 
         self.consume(
-            &TokenType::COMMA,
+            &TokenType::Comma,
             "Expected ',' after destination register.",
         );
 
@@ -376,7 +376,7 @@ impl Assembler {
     }
 
     fn load_file(&mut self) {
-        self.consume(&TokenType::LF, "Expected 'lf' keyword.");
+        self.consume(&TokenType::Lf, "Expected 'lf' keyword.");
 
         let destination_register = match self.register("Expected destination register.") {
             Ok(register) => register,
@@ -387,7 +387,7 @@ impl Assembler {
         };
 
         self.consume(
-            &TokenType::COMMA,
+            &TokenType::Comma,
             "Expected ',' after destination register.",
         );
 
@@ -401,7 +401,7 @@ impl Assembler {
     }
 
     fn move_value(&mut self) {
-        self.consume(&TokenType::MV, "Expected 'mv' keyword.");
+        self.consume(&TokenType::Mv, "Expected 'mv' keyword.");
 
         let destination_register = match self.register("Expected destination register.") {
             Ok(register) => register,
@@ -412,7 +412,7 @@ impl Assembler {
         };
 
         self.consume(
-            &TokenType::COMMA,
+            &TokenType::Comma,
             "Expected ',' after destination register.",
         );
 
@@ -437,7 +437,7 @@ impl Assembler {
     }
 
     fn label(&mut self) {
-        self.consume(&TokenType::LABEL, "Expected label name.");
+        self.consume(&TokenType::Label, "Expected label name.");
 
         let label_name = self.previous_lexeme();
         let value = label_name.trim_end_matches(':');
@@ -474,17 +474,17 @@ impl Assembler {
 
         let opcode = match token_type {
             // Semantic operations.
-            TokenType::ADD => OpCode::ADD,
-            TokenType::SUB => OpCode::SUB,
-            TokenType::MUL => OpCode::MUL,
-            TokenType::DIV => OpCode::DIV,
-            TokenType::INF => OpCode::INF,
-            TokenType::ADT => OpCode::ADT,
+            TokenType::Add => OpCode::ADD,
+            TokenType::Sub => OpCode::SUB,
+            TokenType::Mul => OpCode::MUL,
+            TokenType::Div => OpCode::DIV,
+            TokenType::Inf => OpCode::INF,
+            TokenType::Adt => OpCode::ADT,
             // Heuristic operations.
-            TokenType::EQV => OpCode::EQV,
-            TokenType::INT => OpCode::INT,
-            TokenType::HAL => OpCode::HAL,
-            TokenType::SIM => OpCode::SIM,
+            TokenType::Eqv => OpCode::EQV,
+            TokenType::Int => OpCode::INT,
+            TokenType::Hal => OpCode::HAL,
+            TokenType::Sim => OpCode::SIM,
             _ => {
                 self.error_at_previous("Invalid semantic instruction.");
                 return;
@@ -506,7 +506,7 @@ impl Assembler {
         };
 
         self.consume(
-            &TokenType::COMMA,
+            &TokenType::Comma,
             "Expected ',' after destination register.",
         );
 
@@ -518,11 +518,11 @@ impl Assembler {
             }
         };
 
-        let immediate_2 = if matches!(token_type, TokenType::HAL) {
+        let immediate_2 = if matches!(token_type, TokenType::Hal) {
             // HAL only takes one source operand; use numeric 0 as a dummy immediate.
             Immediate::Number(0)
         } else {
-            self.consume(&TokenType::COMMA, "Expected ',' after immediate 1.");
+            self.consume(&TokenType::Comma, "Expected ',' after immediate 1.");
 
             match self.immediate("Expected immediate 2 after ','.") {
                 Ok(immediate) => immediate,
@@ -546,11 +546,11 @@ impl Assembler {
         );
 
         let opcode = match token_type {
-            TokenType::BEQ => OpCode::BEQ,
-            TokenType::BLT => OpCode::BLT,
-            TokenType::BLE => OpCode::BLE,
-            TokenType::BGT => OpCode::BGT,
-            TokenType::BGE => OpCode::BGE,
+            TokenType::Beq => OpCode::BEQ,
+            TokenType::Blt => OpCode::BLT,
+            TokenType::Ble => OpCode::BLE,
+            TokenType::Bgt => OpCode::BGT,
+            TokenType::Bge => OpCode::BGE,
             _ => {
                 self.error_at_previous("Invalid branch instruction.");
                 return;
@@ -567,7 +567,7 @@ impl Assembler {
             }
         };
 
-        self.consume(&TokenType::COMMA, "Expected ',' after immediate 1.");
+        self.consume(&TokenType::Comma, "Expected ',' after immediate 1.");
 
         let immediate_2 = match self.immediate("Expected immediate 2 after ','.") {
             Ok(immediate) => immediate,
@@ -577,7 +577,7 @@ impl Assembler {
             }
         };
 
-        self.consume(&TokenType::COMMA, "Expected ',' after source immediate 2.");
+        self.consume(&TokenType::Comma, "Expected ',' after source immediate 2.");
 
         let label_name = self.identifier("Expected label name after ','.");
         let key = Self::hash(label_name);
@@ -589,7 +589,7 @@ impl Assembler {
     }
 
     fn output(&mut self) {
-        self.consume(&TokenType::OUT, "Expected 'out' keyword.");
+        self.consume(&TokenType::Out, "Expected 'out' keyword.");
 
         let immediate = match self.immediate("Expected immediate after 'out'.") {
             Ok(immediate) => immediate,
@@ -604,7 +604,7 @@ impl Assembler {
     }
 
     fn exit(&mut self) {
-        self.consume(&TokenType::EXIT, "Expected 'exit' keyword.");
+        self.consume(&TokenType::Exit, "Expected 'exit' keyword.");
 
         self.emit_op_code_bytecode(OpCode::EXIT);
     }
@@ -616,33 +616,33 @@ impl Assembler {
             if let Some(current_token) = &self.current {
                 match current_token.token_type() {
                     // Data movement.
-                    TokenType::LI => self.load_immediate(),
-                    TokenType::LF => self.load_file(),
-                    TokenType::MV => self.move_value(),
+                    TokenType::Li => self.load_immediate(),
+                    TokenType::Lf => self.load_file(),
+                    TokenType::Mv => self.move_value(),
                     // Semantic operations.
-                    TokenType::ADD => self.semantic_heuristic(&TokenType::ADD),
-                    TokenType::SUB => self.semantic_heuristic(&TokenType::SUB),
-                    TokenType::MUL => self.semantic_heuristic(&TokenType::MUL),
-                    TokenType::DIV => self.semantic_heuristic(&TokenType::DIV),
-                    TokenType::INF => self.semantic_heuristic(&TokenType::INF),
-                    TokenType::ADT => self.semantic_heuristic(&TokenType::ADT),
+                    TokenType::Add => self.semantic_heuristic(&TokenType::Add),
+                    TokenType::Sub => self.semantic_heuristic(&TokenType::Sub),
+                    TokenType::Mul => self.semantic_heuristic(&TokenType::Mul),
+                    TokenType::Div => self.semantic_heuristic(&TokenType::Div),
+                    TokenType::Inf => self.semantic_heuristic(&TokenType::Inf),
+                    TokenType::Adt => self.semantic_heuristic(&TokenType::Adt),
                     // Heuristic operations.
-                    TokenType::EQV => self.semantic_heuristic(&TokenType::EQV),
-                    TokenType::INT => self.semantic_heuristic(&TokenType::INT),
-                    TokenType::HAL => self.semantic_heuristic(&TokenType::HAL),
-                    TokenType::SIM => self.semantic_heuristic(&TokenType::SIM),
+                    TokenType::Eqv => self.semantic_heuristic(&TokenType::Eqv),
+                    TokenType::Int => self.semantic_heuristic(&TokenType::Int),
+                    TokenType::Hal => self.semantic_heuristic(&TokenType::Hal),
+                    TokenType::Sim => self.semantic_heuristic(&TokenType::Sim),
                     // Control flow.
-                    TokenType::BEQ => self.branch(&TokenType::BEQ),
-                    TokenType::BLT => self.branch(&TokenType::BLT),
-                    TokenType::BLE => self.branch(&TokenType::BLE),
-                    TokenType::BGT => self.branch(&TokenType::BGT),
-                    TokenType::BGE => self.branch(&TokenType::BGE),
-                    TokenType::LABEL => self.label(),
+                    TokenType::Beq => self.branch(&TokenType::Beq),
+                    TokenType::Blt => self.branch(&TokenType::Blt),
+                    TokenType::Ble => self.branch(&TokenType::Ble),
+                    TokenType::Bgt => self.branch(&TokenType::Bgt),
+                    TokenType::Bge => self.branch(&TokenType::Bge),
+                    TokenType::Label => self.label(),
                     // I/O.
-                    TokenType::OUT => self.output(),
+                    TokenType::Out => self.output(),
                     // Misc.
-                    TokenType::EXIT => self.exit(),
-                    TokenType::EOF => break,
+                    TokenType::Exit => self.exit(),
+                    TokenType::Eof => break,
                     _ => self.error_at_current("Unexpected keyword."),
                 }
             } else {

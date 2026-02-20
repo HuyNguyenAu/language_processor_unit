@@ -8,89 +8,83 @@ pub struct Scanner {
     current: usize,
     line: usize,
     column: usize,
+    source_len: usize,
 }
 
 impl Scanner {
     pub fn new(source: &'static str) -> Self {
+        let source_len = source.len();
+
         Scanner {
             source,
             current: 0,
             start: 0,
             line: 1,
             column: 0,
+            source_len,
         }
     }
 
-    fn is_alpha(char: char) -> bool {
-        return (char >= 'a' && char <= 'z')
-            || (char >= 'A' && char <= 'Z')
-            || char == '_'
-            || char == ':';
+    fn is_alpha(ch: char) -> bool {
+        ch.is_ascii_alphabetic() || ch == '_' || ch == ':'
     }
 
-    fn is_digit(char: char) -> bool {
-        return char >= '0' && char <= '9';
+    fn is_digit(ch: char) -> bool {
+        ch.is_ascii_digit()
     }
 
     fn is_at_end(&self) -> bool {
-        return self.current >= self.source.chars().count();
+        self.current >= self.source_len
     }
 
     fn advance(&mut self) {
-        if self.current > self.source.chars().count() {
+        if self.current >= self.source_len {
             panic!(
                 "Tried to advance past end of source. Source length: {}, current: {}",
-                self.source.chars().count(),
-                self.current
+                self.source_len, self.current
             )
         }
 
-        self.current += 1;
+        self.current += self.peek().len_utf8();
         self.column += 1;
     }
 
     fn peek(&self) -> char {
-        return self.source.chars().nth(self.current).expect(
-            format!(
-                "Tried to peek past end of source. Source length: {}, current: {}",
-                self.source.chars().count(),
-                self.current
-            )
-            .as_str(),
-        );
+        self.source[self.current..]
+            .chars()
+            .next()
+            .unwrap_or_else(|| {
+                panic!(
+                    "Tried to peek past end of source. Source length: {}, current: {}",
+                    self.source_len, self.current
+                )
+            })
     }
 
     fn peek_next(&self) -> char {
-        return self.source.chars().nth(self.current + 1).expect(
-            format!(
-                "Tried to peek next past end of source. Source length: {}, current: {}",
-                self.source.chars().count(),
-                self.current + 1
-            )
-            .as_str(),
-        );
+        self.source[self.current..].chars().nth(1).unwrap_or('\0')
     }
 
     fn make_token(&self, token_type: TokenType) -> Token {
-        return Token::new(
+        Token::new(
             token_type,
             self.start,
             self.current,
             self.line,
             self.column,
             None,
-        );
+        )
     }
 
     fn make_error(&self, message: &'static str) -> Token {
-        return Token::new(
-            TokenType::ERROR,
+        Token::new(
+            TokenType::Error,
             self.start,
             self.current,
             self.line,
             self.column,
             Some(message),
-        );
+        )
     }
 
     fn skip_whitespace(&mut self) {
@@ -116,12 +110,12 @@ impl Scanner {
     }
 
     fn label(&mut self) -> Token {
-        let token = self.make_token(TokenType::LABEL);
+        let token = self.make_token(TokenType::Label);
 
         // Consume the ':'.
         self.advance();
 
-        return token;
+        token
     }
 
     fn identifier(&mut self) -> Token {
@@ -142,10 +136,10 @@ impl Scanner {
             .iter()
             .find(|(_, name)| *name == identifier.to_lowercase());
 
-        return match matched_token {
+        match matched_token {
             Some((token_type, _)) => self.make_token(token_type.clone()),
-            None => self.make_token(TokenType::IDENTIFIER),
-        };
+            None => self.make_token(TokenType::Identifier),
+        }
     }
 
     fn number(&mut self) -> Token {
@@ -172,7 +166,7 @@ impl Scanner {
             }
         }
 
-        return self.make_token(TokenType::NUMBER);
+        self.make_token(TokenType::Number)
     }
 
     fn string(&mut self) -> Token {
@@ -186,13 +180,12 @@ impl Scanner {
         }
 
         if self.is_at_end() {
-            return self.make_error("Unterminated string.");
+            self.make_error("Unterminated string.")
+        } else {
+            // Consume the closing quote.
+            self.advance();
+            self.make_token(TokenType::String)
         }
-
-        // Consume the closing quote.
-        self.advance();
-
-        return self.make_token(TokenType::STRING);
     }
 
     pub fn scan_token(&mut self) -> Token {
@@ -201,26 +194,25 @@ impl Scanner {
         self.start = self.current;
 
         if self.is_at_end() {
-            return self.make_token(TokenType::EOF);
+            return self.make_token(TokenType::Eof);
         }
 
-        let char = self.peek();
-
+        let ch = self.peek();
         self.advance();
 
-        if Self::is_alpha(char) {
+        if Self::is_alpha(ch) {
             return self.identifier();
         }
 
-        if Self::is_digit(char) {
+        if Self::is_digit(ch) {
             return self.number();
         }
 
-        return match char {
+        match ch {
             // Single-character tokens.
-            ',' => self.make_token(TokenType::COMMA),
-            '"' => return self.string(),
-            _ => return self.make_error("Unexpected character"),
-        };
+            ',' => self.make_token(TokenType::Comma),
+            '"' => self.string(),
+            _ => self.make_error("Unexpected character"),
+        }
     }
 }

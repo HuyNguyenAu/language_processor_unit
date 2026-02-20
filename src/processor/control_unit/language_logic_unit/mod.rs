@@ -1,7 +1,6 @@
 use crate::{
     assembler::opcode::OpCode,
     processor::control_unit::{
-        registers::Value,
         language_logic_unit::openai::{
             OpenAIClient,
             chat_completion_models::{
@@ -10,6 +9,7 @@ use crate::{
             embeddings_models::OpenAIEmbeddingsRequest,
             model_config::{ModelConfig, ModelEmbeddingsConfig, ModelTextConfig},
         },
+        registers::Value,
     },
 };
 
@@ -25,7 +25,7 @@ pub struct LanguageLogicUnit {
 
 impl LanguageLogicUnit {
     pub fn new() -> Self {
-        return Self {
+        Self {
             system_prompt: "Output ONLY the answer. No intro. No fluff. No punctuation unless required. Answer with a single word if appropriate, otherwise a single sentence.",
             openai_client: OpenAIClient::new(),
             text_model: ModelConfig::Text(ModelTextConfig {
@@ -61,18 +61,19 @@ impl LanguageLogicUnit {
                     "min_p".to_string(),
                     "xtc".to_string(),
                     "temperature".to_string(),
-                ].to_vec(),
+                ]
+                .to_vec(),
                 timings_per_token: false,
             }),
             embeddings_model: ModelConfig::Embeddings(ModelEmbeddingsConfig {
                 model: "Qwen3-Embedding-0.6B-Q4_1-imat.gguf".to_string(),
                 encoding_format: "float".to_string(),
             }),
-        };
+        }
     }
 
     fn clean_string(&self, value: &str) -> String {
-        return value.trim().replace("\n", "").to_string();
+        value.trim().replace("\n", "").to_string()
     }
 
     fn chat(&self, content: &str) -> Result<String, String> {
@@ -118,29 +119,28 @@ impl LanguageLogicUnit {
             timings_per_token: model.timings_per_token,
         };
 
-        let response = &self.openai_client.create_chat_completion(request);
+        let response = self
+            .openai_client
+            .create_chat_completion(request)
+            .map_err(|error| {
+                format!("Failed to get chat response from client. Error: {}", error)
+            })?;
 
-        let choice = match response {
-            Ok(response) => response.choices.iter().nth(0),
-            Err(error) => {
-                return Err(format!(
-                    "Failed to get chat response from client. Error: {}",
-                    error
-                ));
-            }
-        };
+        let choice = response
+            .choices
+            .first()
+            .ok_or_else(|| "No choices returned from client.".to_string())?;
 
-        return match choice {
-            Some(choice) => Ok(self.clean_string(&choice.message.content)),
-            None => Err("No choices returned from client.".to_string()),
-        };
+        Ok(self.clean_string(&choice.message.content))
     }
 
     fn embeddings(&self, content: &str) -> Result<Vec<f32>, String> {
         let model = match &self.embeddings_model {
             ModelConfig::Embeddings(config) => config,
             _ => {
-                return Err("Embeddings model configuration is required for embeddings.".to_string());
+                return Err(
+                    "Embeddings model configuration is required for embeddings.".to_string()
+                );
             }
         };
 
@@ -150,53 +150,41 @@ impl LanguageLogicUnit {
             encoding_format: model.encoding_format.to_string(),
         };
 
-        let response = &self.openai_client.create_embeddings(request);
-
-        let embeddings = match response {
-            Ok(response) => response.data.iter().nth(0),
-            Err(error) => {
-                return Err(format!(
+        let response = self
+            .openai_client
+            .create_embeddings(request)
+            .map_err(|error| {
+                format!(
                     "Failed to get embeddings response from client. Error: {}",
                     error
-                ));
-            }
-        };
+                )
+            })?;
 
-        return match embeddings {
-            Some(value) => Ok(value.embedding.to_owned()),
-            None => Err("No embeddings returned from client.".to_string()),
-        };
+        let embeddings = response
+            .data
+            .first()
+            .ok_or_else(|| "No embeddings returned from client.".to_string())?;
+
+        Ok(embeddings.embedding.to_owned())
     }
 
     fn cosine_similarity(&self, value_a: &Value, value_b: &Value) -> Result<u32, String> {
         let value_a = match value_a {
             Value::Text(text) => text,
-            _ => return Err(format!("{:?} requires text value.", OpCode::SIM)),
+            _ => return Err(format!("{:?} requires text value.", OpCode::Sim)),
         };
         let value_b = match value_b {
             Value::Text(text) => text,
-            _ => return Err(format!("{:?} requires text value.", OpCode::SIM)),
+            _ => return Err(format!("{:?} requires text value.", OpCode::Sim)),
         };
 
-        let value_a_embeddings = match self.embeddings(&value_a) {
-            Ok(embedding) => embedding,
-            Err(error) => {
-                return Err(format!(
-                    "Failed to get embedding for {}. Error: {}",
-                    value_a, error
-                ));
-            }
-        };
+        let value_a_embeddings = self.embeddings(value_a).map_err(|error| {
+            format!("Failed to get embedding for {}. Error: {}", value_a, error)
+        })?;
 
-        let value_b_embeddings = match self.embeddings(&value_b) {
-            Ok(embedding) => embedding,
-            Err(error) => {
-                return Err(format!(
-                    "Failed to get embedding for {}. Error: {}",
-                    value_b, error
-                ));
-            }
-        };
+        let value_b_embeddings = self.embeddings(value_b).map_err(|error| {
+            format!("Failed to get embedding for {}. Error: {}", value_b, error)
+        })?;
 
         // Compute cosine similarity.
         let dot_product: f32 = value_a_embeddings
@@ -209,7 +197,7 @@ impl LanguageLogicUnit {
         let similarity = dot_product / (x_euclidean_length * y_euclidean_length);
         let percentage_similarity = similarity.clamp(0.0, 1.0) * 100.0;
 
-        return Ok(percentage_similarity.round() as u32);
+        Ok(percentage_similarity.round() as u32)
     }
 
     fn execute(&self, opcode: &OpCode, value_a: &Value, value_b: &Value) -> Result<String, String> {
@@ -221,60 +209,52 @@ impl LanguageLogicUnit {
             Value::Text(text) => text,
             _ => return Err(format!("{:?} requires text value.", opcode)),
         };
-        let prompt = match micro_prompt::search(opcode, value_a, value_b) {
-            Ok(prompt) => prompt,
-            Err(error) => {
-                return Err(format!(
-                    "Failed to generate micro prompt for {:?}. Error: {}",
-                    opcode, error
-                ));
-            }
-        };
 
-        let value = match &self.chat(prompt.as_str()) {
-            Ok(choice) => Ok(choice.to_lowercase()),
-            Err(error) => Err(format!("Failed to perform {:?}. Error: {}", opcode, error)),
-        };
+        let prompt = micro_prompt::search(opcode, value_a, value_b).map_err(|error| {
+            format!(
+                "Failed to generate micro prompt for {:?}. Error: {}",
+                opcode, error
+            )
+        })?;
 
-        return value;
+        let result = self
+            .chat(prompt.as_str())
+            .map_err(|error| format!("Failed to perform {:?}. Error: {}", opcode, error))?;
+
+        Ok(result.to_lowercase())
     }
 
     fn boolean(&self, opcode: &OpCode, value: &str) -> Result<u32, String> {
-        let true_values = match micro_prompt::true_values(opcode) {
-            Ok(values) => values,
-            Err(error) => {
-                return Err(format!(
-                    "Failed to get true values for {:?}. Error: {}",
-                    opcode, error
-                ));
-            }
-        };
+        let true_values = micro_prompt::true_values(opcode).map_err(|error| {
+            format!(
+                "Failed to get true values for {:?}. Error: {}",
+                opcode, error
+            )
+        })?;
 
-        return match true_values.contains(&value.to_uppercase().as_str()) {
-            true => Ok(100),
-            false => Ok(0),
-        };
+        Ok(if true_values.contains(&value.to_uppercase().as_str()) {
+            100
+        } else {
+            0
+        })
     }
 
     pub fn run(&self, opcode: &OpCode, value_a: &Value, value_b: &Value) -> Result<Value, String> {
-        if matches!(opcode, OpCode::EQV | OpCode::INT | OpCode::HAL) {
-            let value = match self.execute(opcode, value_a, value_b) {
-                Ok(value) => value,
-                Err(error) => {
-                    return Err(format!(
-                        "Failed to execute {:?} for boolean operation. Error: {}",
-                        opcode, error
-                    ));
-                }
-            };
+        if matches!(opcode, OpCode::Eqv | OpCode::Int | OpCode::Hal) {
+            let value = self.execute(opcode, value_a, value_b).map_err(|error| {
+                format!(
+                    "Failed to execute {:?} for boolean operation. Error: {}",
+                    opcode, error
+                )
+            })?;
 
             return self.boolean(opcode, &value).map(Value::Number);
         }
 
-        if opcode == &OpCode::SIM {
+        if opcode == &OpCode::Sim {
             return self.cosine_similarity(value_a, value_b).map(Value::Number);
         }
 
-        return self.execute(opcode, value_a, value_b).map(Value::Text);
+        self.execute(opcode, value_a, value_b).map(Value::Text)
     }
 }

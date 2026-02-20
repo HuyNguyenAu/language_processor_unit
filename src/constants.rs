@@ -1,1 +1,1 @@
-pub static BUILD_DIR: &'static str = "build";
+pub static BUILD_DIR: &str = "build";

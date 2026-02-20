@@ -83,7 +83,7 @@ fn main() {
         Some(value) => value,
         None => panic!("No file path provided"),
     };
-    let debug = args.get(3).map_or(false, |arg| arg == "--debug");
+    let debug = args.get(3).is_some_and(|arg| arg == "--debug");
 
     match command.as_str() {
         "build" => build(file_path, debug),

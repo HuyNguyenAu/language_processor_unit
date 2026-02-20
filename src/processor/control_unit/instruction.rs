@@ -20,58 +20,58 @@ pub struct MoveInstruction {
 
 #[derive(Debug)]
 pub enum SemanticType {
-    ADD,
-    SUB,
-    MUL,
-    DIV,
-    INF,
-    ADT,
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Inf,
+    Adt,
 }
 
 #[derive(Debug)]
 pub struct SemanticInstruction {
     pub semantic_type: SemanticType,
     pub destination_register: u32,
-    pub source_register_1: u32,
-    pub source_register_2: u32,
+    pub immediate_1: Immediate,
+    pub immediate_2: Immediate,
 }
 
 #[derive(Debug)]
 pub enum HeuristicType {
-    EQV,
-    INT,
-    HAL,
-    SIM,
+    Eqv,
+    Int,
+    Hal,
+    Sim,
 }
 
 #[derive(Debug)]
 pub struct HeuristicInstruction {
     pub heuristic_type: HeuristicType,
     pub destination_register: u32,
-    pub source_register_1: u32,
-    pub source_register_2: u32,
+    pub immediate_1: Immediate,
+    pub immediate_2: Immediate,
 }
 
 #[derive(Debug)]
 pub enum BranchType {
-    EQ,
-    LE,
-    LT,
-    GE,
-    GT,
+    Eq,
+    Le,
+    Lt,
+    Ge,
+    Gt,
 }
 
 #[derive(Debug)]
 pub struct BranchInstruction {
     pub branch_type: BranchType,
-    pub source_register_1: u32,
-    pub source_register_2: u32,
+    pub immediate_1: Immediate,
+    pub immediate_2: Immediate,
     pub byte_code_index: u32,
 }
 
 #[derive(Debug)]
 pub struct OutputInstruction {
-    pub source_register: u32,
+    pub immediate: Immediate,
 }
 
 #[derive(Debug)]

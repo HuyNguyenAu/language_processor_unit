@@ -43,20 +43,19 @@ impl ControlUnit {
     }
 
     fn is_at_end(&self) -> bool {
-        return self.registers.get_instruction_pointer() >= self.memory.length();
+        self.registers.get_instruction_pointer() >= self.memory.length()
     }
 
     fn peek(&self) -> &[u8; 4] {
-        return match self.memory.read(self.registers.get_instruction_pointer()) {
+        match self.memory.read(self.registers.get_instruction_pointer()) {
             Ok(bytes) => bytes,
             Err(error) => panic!(
                 "Failed to read byte code at instruction pointer during peek. Error: {}. Instruction pointer value: {}.",
                 error,
                 self.registers.get_instruction_pointer()
             ),
-        };
+        }
     }
-
     fn advance(&mut self) {
         self.registers.advance_instruction_pointer();
 
@@ -160,7 +159,7 @@ impl ControlUnit {
             self.advance();
         }
 
-        return u32::from_be_bytes(register_be_bytes);
+        u32::from_be_bytes(register_be_bytes)
     }
 
     fn decode_number(&mut self, length_byte: bool, message: &str) -> u32 {
@@ -179,7 +178,7 @@ impl ControlUnit {
             self.advance();
         }
 
-        return u32::from_be_bytes(number_be_bytes);
+        u32::from_be_bytes(number_be_bytes)
     }
 
     fn decode_immediate_type(&mut self, message: &str) -> ImmediateType {
@@ -194,13 +193,13 @@ impl ControlUnit {
         // Consume value type bytecode.
         self.advance();
 
-        return match ImmediateType::from_be_bytes(be_bytes) {
+        match ImmediateType::from_be_bytes(be_bytes) {
             Ok(immediate_type) => immediate_type,
             Err(error) => panic!(
                 "{} {}, Instruction Byte code: {:?}",
                 message, error, be_bytes
             ),
-        };
+        }
     }
 
     fn decode_immediate(
@@ -209,17 +208,20 @@ impl ControlUnit {
         value_number_message: &str,
         value_text_message: &str,
     ) -> Immediate {
-        return match self.decode_immediate_type(value_type_message) {
-            ImmediateType::NUMBER => {
+        match self.decode_immediate_type(value_type_message) {
+            ImmediateType::Number => {
                 Immediate::Number(self.decode_number(true, value_number_message))
             }
-            ImmediateType::TEXT => Immediate::Text(self.decode_text(value_text_message)),
-        };
+            ImmediateType::Register => {
+                Immediate::Register(self.decode_register(true, value_number_message))
+            }
+            ImmediateType::Text => Immediate::Text(self.decode_text(value_text_message)),
+        }
     }
 
     fn decode_load_immediate(&mut self) -> LoadImmediateInstruction {
         // Consume LI opcode.
-        self.decode_op_code(&OpCode::LI, "Failed to decode LI opcode.");
+        self.decode_op_code(&OpCode::Li, "Failed to decode LI opcode.");
 
         // Consume the destination register.
         let destination_register = self.decode_register(
@@ -234,15 +236,15 @@ impl ControlUnit {
             "Failed to decode text for LI instruction.",
         );
 
-        return LoadImmediateInstruction {
+        LoadImmediateInstruction {
             destination_register,
             value,
-        };
+        }
     }
 
     fn decode_load_file(&mut self) -> LoadFileInstruction {
         // Consume LF opcode.
-        self.decode_op_code(&OpCode::LF, "Failed to decode LF opcode.");
+        self.decode_op_code(&OpCode::Lf, "Failed to decode LF opcode.");
 
         // Consume the destination register.
         let destination_register = self.decode_register(
@@ -260,15 +262,15 @@ impl ControlUnit {
             _ => panic!("LF instruction requires a text immediate for the file path."),
         };
 
-        return LoadFileInstruction {
+        LoadFileInstruction {
             destination_register,
             value,
-        };
+        }
     }
 
     fn decode_move(&mut self) -> MoveInstruction {
         // Consume MOV opcode.
-        self.decode_op_code(&OpCode::MV, "Failed to decode MV opcode.");
+        self.decode_op_code(&OpCode::Mv, "Failed to decode MV opcode.");
 
         // Consume the destination register.
         let destination_register = self.decode_register(
@@ -280,10 +282,10 @@ impl ControlUnit {
         let source_register =
             self.decode_register(false, "Failed to read source register for MOV instruction.");
 
-        return MoveInstruction {
+        MoveInstruction {
             destination_register,
             source_register,
-        };
+        }
     }
 
     fn decode_semantic(&mut self, op_code: OpCode) -> SemanticInstruction {
@@ -303,42 +305,40 @@ impl ControlUnit {
             .as_str(),
         );
 
-        // Consume the source register 1.
-        let source_register_1 = self.decode_register(
-            false,
-            format!(
-                "Failed to read source register 1 for {:?} instruction.",
-                op_code
-            )
-            .as_str(),
+        // Decode first immediate operand.
+        let immediate_1 = self.decode_immediate(
+            "Failed to decode immediate type for semantic instruction.",
+            "Failed to decode number for semantic instruction.",
+            "Failed to decode text for semantic instruction.",
         );
 
-        // Consume the source register 2.
-        let source_register_2 = self.decode_register(
-            false,
-            format!(
-                "Failed to read source register 2 for {:?} instruction.",
-                op_code
+        // Decode second immediate operand (HAL uses a dummy numeric 0).
+        let immediate_2 = if matches!(op_code, OpCode::Hal) {
+            Immediate::Number(0)
+        } else {
+            self.decode_immediate(
+                "Failed to decode immediate type for semantic instruction.",
+                "Failed to decode number for semantic instruction.",
+                "Failed to decode text for semantic instruction.",
             )
-            .as_str(),
-        );
+        };
 
         let semantic_type = match op_code {
-            OpCode::ADD => SemanticType::ADD,
-            OpCode::SUB => SemanticType::SUB,
-            OpCode::MUL => SemanticType::MUL,
-            OpCode::DIV => SemanticType::DIV,
-            OpCode::INF => SemanticType::INF,
-            OpCode::ADT => SemanticType::ADT,
+            OpCode::Add => SemanticType::Add,
+            OpCode::Sub => SemanticType::Sub,
+            OpCode::Mul => SemanticType::Mul,
+            OpCode::Div => SemanticType::Div,
+            OpCode::Inf => SemanticType::Inf,
+            OpCode::Adt => SemanticType::Adt,
             _ => panic!("Invalid opcode '{:?}' for semantic instruction.", op_code),
         };
 
-        return SemanticInstruction {
+        SemanticInstruction {
             semantic_type,
             destination_register,
-            source_register_1,
-            source_register_2,
-        };
+            immediate_1,
+            immediate_2,
+        }
     }
 
     fn decode_heuristic(&mut self, op_code: OpCode) -> HeuristicInstruction {
@@ -358,56 +358,54 @@ impl ControlUnit {
             .as_str(),
         );
 
-        // Consume the source register 1.
-        let source_register_1 = self.decode_register(
-            false,
-            format!(
-                "Failed to read source register 1 for {:?} instruction.",
-                op_code
-            )
-            .as_str(),
+        // Decode the first immediate operand.
+        let immediate_1 = self.decode_immediate(
+            "Failed to decode immediate type for heuristic instruction.",
+            "Failed to decode number for heuristic instruction.",
+            "Failed to decode text for heuristic instruction.",
         );
 
-        let source_register_2 = self.decode_register(
-            false,
-            format!(
-                "Failed to read source register 2 for {:?} instruction.",
-                op_code
-            )
-            .as_str(),
+        // Decode the second immediate operand (assembler emits a dummy for single-operand heuristics like HAL).
+        let immediate_2 = self.decode_immediate(
+            "Failed to decode immediate type for heuristic instruction.",
+            "Failed to decode number for heuristic instruction.",
+            "Failed to decode text for heuristic instruction.",
         );
 
         let heuristic_type = match op_code {
-            OpCode::EQV => HeuristicType::EQV,
-            OpCode::INT => HeuristicType::INT,
-            OpCode::HAL => HeuristicType::HAL,
-            OpCode::SIM => HeuristicType::SIM,
+            OpCode::Eqv => HeuristicType::Eqv,
+            OpCode::Int => HeuristicType::Int,
+            OpCode::Hal => HeuristicType::Hal,
+            OpCode::Sim => HeuristicType::Sim,
             _ => panic!("Invalid opcode '{:?}' for heuristic instruction.", op_code),
         };
 
-        return HeuristicInstruction {
+        HeuristicInstruction {
             heuristic_type,
             destination_register,
-            source_register_1,
-            source_register_2,
-        };
+            immediate_1,
+            immediate_2,
+        }
     }
 
     fn decode_branch(&mut self, op_code: OpCode) -> BranchInstruction {
         // Consume branch opcode.
         self.advance();
 
-        // Consume the source register 1.
-        let source_register_1 = self.decode_register(
-            false,
-            "Failed to read source register 1 for branch instruction.",
+        // Decode the first immediate operand.
+        let immediate_1 = self.decode_immediate(
+            "Failed to decode immediate type for branch instruction.",
+            "Failed to decode number for branch instruction.",
+            "Failed to decode text for branch instruction.",
         );
 
-        // Consume the source register 2.
-        let source_register_2 = self.decode_register(
-            false,
-            "Failed to read source register 2 for branch instruction.",
+        // Decode the second immediate operand.
+        let immediate_2 = self.decode_immediate(
+            "Failed to decode immediate type for branch instruction.",
+            "Failed to decode number for branch instruction.",
+            "Failed to decode text for branch instruction.",
         );
+
         // Consume the branch jump index.
         let byte_code_index = self.decode_number(
             false,
@@ -419,38 +417,41 @@ impl ControlUnit {
         );
 
         let branch_type = match op_code {
-            OpCode::BEQ => BranchType::EQ,
-            OpCode::BLT => BranchType::LT,
-            OpCode::BLE => BranchType::LE,
-            OpCode::BGT => BranchType::GT,
-            OpCode::BGE => BranchType::GE,
+            OpCode::Beq => BranchType::Eq,
+            OpCode::Blt => BranchType::Lt,
+            OpCode::Ble => BranchType::Le,
+            OpCode::Bgt => BranchType::Gt,
+            OpCode::Bge => BranchType::Ge,
             _ => panic!("Invalid opcode '{:?}' for branch instruction.", op_code),
         };
 
-        return BranchInstruction {
+        BranchInstruction {
             branch_type,
-            source_register_1,
-            source_register_2,
+            immediate_1,
+            immediate_2,
             byte_code_index,
-        };
+        }
     }
 
     fn decode_output(&mut self) -> OutputInstruction {
         // Consume OUT opcode.
         self.advance();
 
-        // Consume the source register.
-        let source_register =
-            self.decode_register(false, "Failed to read source register for OUT instruction.");
+        // Decode the immediate operand for OUT.
+        let immediate = self.decode_immediate(
+            "Failed to decode immediate type for OUT instruction.",
+            "Failed to decode number for OUT instruction.",
+            "Failed to decode text for OUT instruction.",
+        );
 
-        return OutputInstruction { source_register };
+        OutputInstruction { immediate }
     }
 
     fn decode_exit(&mut self) -> ExitInstruction {
         // Consume EXIT opcode.
-        self.decode_op_code(&OpCode::EXIT, "Failed to decode EXIT opcode.");
+        self.decode_op_code(&OpCode::Exit, "Failed to decode EXIT opcode.");
 
-        return ExitInstruction;
+        ExitInstruction
     }
 
     pub fn load_byte_code(&mut self, byte_code: Vec<[u8; 4]>) {
@@ -483,40 +484,47 @@ impl ControlUnit {
         };
         let instruction = match op_code {
             // Data movement instructions.
-            OpCode::LI => Instruction::LoadImmediate(self.decode_load_immediate()),
-            OpCode::LF => Instruction::LoadFile(self.decode_load_file()),
-            OpCode::MV => Instruction::Move(self.decode_move()),
+            OpCode::Li => Instruction::LoadImmediate(self.decode_load_immediate()),
+            OpCode::Lf => Instruction::LoadFile(self.decode_load_file()),
+            OpCode::Mv => Instruction::Move(self.decode_move()),
             // Semantic instructions.
-            OpCode::ADD => Instruction::Semantic(self.decode_semantic(OpCode::ADD)),
-            OpCode::SUB => Instruction::Semantic(self.decode_semantic(OpCode::SUB)),
-            OpCode::MUL => Instruction::Semantic(self.decode_semantic(OpCode::MUL)),
-            OpCode::DIV => Instruction::Semantic(self.decode_semantic(OpCode::DIV)),
-            OpCode::INF => Instruction::Semantic(self.decode_semantic(OpCode::INF)),
-            OpCode::ADT => Instruction::Semantic(self.decode_semantic(OpCode::ADT)),
+            OpCode::Add => Instruction::Semantic(self.decode_semantic(OpCode::Add)),
+            OpCode::Sub => Instruction::Semantic(self.decode_semantic(OpCode::Sub)),
+            OpCode::Mul => Instruction::Semantic(self.decode_semantic(OpCode::Mul)),
+            OpCode::Div => Instruction::Semantic(self.decode_semantic(OpCode::Div)),
+            OpCode::Inf => Instruction::Semantic(self.decode_semantic(OpCode::Inf)),
+            OpCode::Adt => Instruction::Semantic(self.decode_semantic(OpCode::Adt)),
             // Heuristic instructions.
-            OpCode::EQV => Instruction::Heuristic(self.decode_heuristic(OpCode::EQV)),
-            OpCode::INT => Instruction::Heuristic(self.decode_heuristic(OpCode::INT)),
-            OpCode::HAL => Instruction::Heuristic(self.decode_heuristic(OpCode::HAL)),
-            OpCode::SIM => Instruction::Heuristic(self.decode_heuristic(OpCode::SIM)),
+            OpCode::Eqv => Instruction::Heuristic(self.decode_heuristic(OpCode::Eqv)),
+            OpCode::Int => Instruction::Heuristic(self.decode_heuristic(OpCode::Int)),
+            OpCode::Hal => Instruction::Heuristic(self.decode_heuristic(OpCode::Hal)),
+            OpCode::Sim => Instruction::Heuristic(self.decode_heuristic(OpCode::Sim)),
             // Branch instructions.
-            OpCode::BEQ => Instruction::Branch(self.decode_branch(op_code)),
-            OpCode::BLT => Instruction::Branch(self.decode_branch(op_code)),
-            OpCode::BLE => Instruction::Branch(self.decode_branch(op_code)),
-            OpCode::BGT => Instruction::Branch(self.decode_branch(op_code)),
-            OpCode::BGE => Instruction::Branch(self.decode_branch(op_code)),
+            OpCode::Beq => Instruction::Branch(self.decode_branch(op_code)),
+            OpCode::Blt => Instruction::Branch(self.decode_branch(op_code)),
+            OpCode::Ble => Instruction::Branch(self.decode_branch(op_code)),
+            OpCode::Bgt => Instruction::Branch(self.decode_branch(op_code)),
+            OpCode::Bge => Instruction::Branch(self.decode_branch(op_code)),
             // I/O instructions.
-            OpCode::OUT => Instruction::Output(self.decode_output()),
+            OpCode::Out => Instruction::Output(self.decode_output()),
             // Misc instructions.
-            OpCode::EXIT => Instruction::Exit(self.decode_exit()),
+            OpCode::Exit => Instruction::Exit(self.decode_exit()),
         };
 
-        return Some(instruction);
+        Some(instruction)
     }
 
     fn execute_load_immediate(&mut self, instruction: &LoadImmediateInstruction, debug: bool) {
         let value = match &instruction.value {
             Immediate::Text(text) => Value::Text(text.to_string()),
             Immediate::Number(number) => Value::Number(*number),
+            Immediate::Register(register) => match self.registers.get_register(*register) {
+                Ok(value) => value.to_owned(),
+                Err(error) => panic!(
+                    "Failed to read source register r{} for LI instruction. Error: {}",
+                    register, error
+                ),
+            },
         };
 
         match self
@@ -595,31 +603,40 @@ impl ControlUnit {
     }
 
     fn execute_semantic(&mut self, instruction: &SemanticInstruction, debug: bool) {
-        let value_a = match self.registers.get_register(instruction.source_register_1) {
-            Ok(value) => value,
-            Err(error) => panic!(
-                "Failed to execute {:?} instruction. Error: {}",
-                instruction.semantic_type, error
-            ),
+        let value_a = match &instruction.immediate_1 {
+            Immediate::Text(text) => Value::Text(text.to_string()),
+            Immediate::Number(number) => Value::Number(*number),
+            Immediate::Register(register) => match self.registers.get_register(*register) {
+                Ok(value) => value.to_owned(),
+                Err(error) => panic!(
+                    "Failed to read source register r{} for semantic instruction. Error: {}",
+                    register, error
+                ),
+            },
         };
-        let value_b = match self.registers.get_register(instruction.source_register_2) {
-            Ok(value) => value,
-            Err(error) => panic!(
-                "Failed to execute {:?} instruction. Error: {}",
-                instruction.semantic_type, error
-            ),
+
+        let value_b = match &instruction.immediate_2 {
+            Immediate::Text(text) => Value::Text(text.to_string()),
+            Immediate::Number(number) => Value::Number(*number),
+            Immediate::Register(register) => match self.registers.get_register(*register) {
+                Ok(value) => value.to_owned(),
+                Err(error) => panic!(
+                    "Failed to read source register r{} for semantic instruction. Error: {}",
+                    register, error
+                ),
+            },
         };
 
         let opcode: OpCode = match instruction.semantic_type {
-            SemanticType::ADD => OpCode::ADD,
-            SemanticType::SUB => OpCode::SUB,
-            SemanticType::MUL => OpCode::MUL,
-            SemanticType::DIV => OpCode::DIV,
-            SemanticType::INF => OpCode::INF,
-            SemanticType::ADT => OpCode::ADT,
+            SemanticType::Add => OpCode::Add,
+            SemanticType::Sub => OpCode::Sub,
+            SemanticType::Mul => OpCode::Mul,
+            SemanticType::Div => OpCode::Div,
+            SemanticType::Inf => OpCode::Inf,
+            SemanticType::Adt => OpCode::Adt,
         };
 
-        let result = match self.language_logic_unit.run(&opcode, value_a, value_b) {
+        let result = match self.language_logic_unit.run(&opcode, &value_a, &value_b) {
             Ok(result) => result,
             Err(error) => panic!(
                 "Failed to perform {:?}. Error: {}",
@@ -633,12 +650,12 @@ impl ControlUnit {
                 instruction.semantic_type,
                 value_a,
                 match instruction.semantic_type {
-                    SemanticType::ADD => "+",
-                    SemanticType::SUB => "-",
-                    SemanticType::MUL => "*",
-                    SemanticType::DIV => "/",
-                    SemanticType::INF => "->",
-                    SemanticType::ADT => "<->",
+                    SemanticType::Add => "+",
+                    SemanticType::Sub => "-",
+                    SemanticType::Mul => "*",
+                    SemanticType::Div => "/",
+                    SemanticType::Inf => "->",
+                    SemanticType::Adt => "<->",
                 },
                 value_b,
                 instruction.destination_register,
@@ -659,29 +676,39 @@ impl ControlUnit {
     }
 
     fn execute_heuristic(&mut self, instruction: &HeuristicInstruction, debug: bool) {
-        let value_a = match self.registers.get_register(instruction.source_register_1) {
-            Ok(value) => value,
-            Err(error) => panic!(
-                "Failed to execute {:?} instruction. Error: {}",
-                instruction.heuristic_type, error
-            ),
+        // Resolve immediates to concrete Values (register lookups for Immediate::Register).
+        let value_a = match &instruction.immediate_1 {
+            Immediate::Text(text) => Value::Text(text.to_string()),
+            Immediate::Number(number) => Value::Number(*number),
+            Immediate::Register(register) => match self.registers.get_register(*register) {
+                Ok(value) => value.to_owned(),
+                Err(error) => panic!(
+                    "Failed to read source register r{} for {:?} instruction. Error: {}",
+                    register, instruction.heuristic_type, error
+                ),
+            },
         };
-        let value_b = match self.registers.get_register(instruction.source_register_2) {
-            Ok(value) => value,
-            Err(error) => panic!(
-                "Failed to execute {:?} instruction. Error: {}",
-                instruction.heuristic_type, error
-            ),
+
+        let value_b = match &instruction.immediate_2 {
+            Immediate::Text(text) => Value::Text(text.to_string()),
+            Immediate::Number(number) => Value::Number(*number),
+            Immediate::Register(register) => match self.registers.get_register(*register) {
+                Ok(value) => value.to_owned(),
+                Err(error) => panic!(
+                    "Failed to read source register r{} for {:?} instruction. Error: {}",
+                    register, instruction.heuristic_type, error
+                ),
+            },
         };
 
         let opcode: OpCode = match instruction.heuristic_type {
-            HeuristicType::EQV => OpCode::EQV,
-            HeuristicType::INT => OpCode::INT,
-            HeuristicType::HAL => OpCode::HAL,
-            HeuristicType::SIM => OpCode::SIM,
+            HeuristicType::Eqv => OpCode::Eqv,
+            HeuristicType::Int => OpCode::Int,
+            HeuristicType::Hal => OpCode::Hal,
+            HeuristicType::Sim => OpCode::Sim,
         };
 
-        let result = match self.language_logic_unit.run(&opcode, value_a, value_b) {
+        let result = match self.language_logic_unit.run(&opcode, &value_a, &value_b) {
             Ok(result) => result,
             Err(error) => panic!(
                 "Failed to perform {:?}. Error: {}",
@@ -695,10 +722,10 @@ impl ControlUnit {
                 instruction.heuristic_type,
                 value_a,
                 match instruction.heuristic_type {
-                    HeuristicType::EQV => "EQV",
-                    HeuristicType::INT => "INT",
-                    HeuristicType::HAL => "HAL",
-                    HeuristicType::SIM => "SIM",
+                    HeuristicType::Eqv => "EQV",
+                    HeuristicType::Int => "INT",
+                    HeuristicType::Hal => "HAL",
+                    HeuristicType::Sim => "SIM",
                 },
                 value_b,
                 instruction.destination_register,
@@ -719,33 +746,46 @@ impl ControlUnit {
     }
 
     fn execute_branch(&mut self, instruction: &BranchInstruction, debug: bool) {
-        let value_a = match self.registers.get_register(instruction.source_register_1) {
-            Ok(value) => match value {
-                Value::Number(number) => *number,
-                _ => panic!(
+        // Resolve immediates to numeric u32 values.
+        let value_a: u32 = match &instruction.immediate_1 {
+            Immediate::Number(number) => *number,
+            Immediate::Register(register) => match self.registers.get_register(*register) {
+                Ok(Value::Number(number)) => *number,
+                Ok(_) => panic!(
                     "{:?} instruction requires numeric operands.",
                     instruction.branch_type
                 ),
+                Err(error) => panic!("Failed to execute branch instruction. Error: {}", error),
             },
-            Err(error) => panic!("Failed to execute branch instruction. Error: {}", error),
+            Immediate::Text(_) => panic!(
+                "{:?} instruction requires numeric operands.",
+                instruction.branch_type
+            ),
         };
-        let value_b = match self.registers.get_register(instruction.source_register_2) {
-            Ok(value) => match value {
-                Value::Number(number) => *number,
-                _ => panic!(
+
+        let value_b: u32 = match &instruction.immediate_2 {
+            Immediate::Number(number) => *number,
+            Immediate::Register(register) => match self.registers.get_register(*register) {
+                Ok(Value::Number(number)) => *number,
+                Ok(_) => panic!(
                     "{:?} instruction requires numeric operands.",
                     instruction.branch_type
                 ),
+                Err(error) => panic!("Failed to execute branch instruction. Error: {}", error),
             },
-            Err(error) => panic!("Failed to execute branch instruction. Error: {}", error),
+            Immediate::Text(_) => panic!(
+                "{:?} instruction requires numeric operands.",
+                instruction.branch_type
+            ),
         };
+
         let address = instruction.byte_code_index;
         let is_true = match instruction.branch_type {
-            BranchType::EQ => value_a == value_b,
-            BranchType::LT => value_a < value_b,
-            BranchType::LE => value_a <= value_b,
-            BranchType::GT => value_a > value_b,
-            BranchType::GE => value_a >= value_b,
+            BranchType::Eq => value_a == value_b,
+            BranchType::Lt => value_a < value_b,
+            BranchType::Le => value_a <= value_b,
+            BranchType::Gt => value_a > value_b,
+            BranchType::Ge => value_a >= value_b,
         };
 
         if is_true {
@@ -764,7 +804,7 @@ impl ControlUnit {
 
         if debug {
             match instruction.branch_type {
-                BranchType::EQ => {
+                BranchType::Eq => {
                     println!(
                         "Executed {:?}: {:?} == {:?} -> {}, {}",
                         instruction.branch_type,
@@ -774,7 +814,7 @@ impl ControlUnit {
                         instruction.byte_code_index
                     );
                 }
-                BranchType::LT => {
+                BranchType::Lt => {
                     println!(
                         "Executed {:?}: {:?} < {:?} -> {}, {}",
                         instruction.branch_type,
@@ -784,7 +824,7 @@ impl ControlUnit {
                         instruction.byte_code_index
                     );
                 }
-                BranchType::LE => {
+                BranchType::Le => {
                     println!(
                         "Executed {:?}: {:?} <= {:?} -> {}, {}",
                         instruction.branch_type,
@@ -794,7 +834,7 @@ impl ControlUnit {
                         instruction.byte_code_index
                     );
                 }
-                BranchType::GT => {
+                BranchType::Gt => {
                     println!(
                         "Executed {:?}: {:?} > {:?} -> {}, {}",
                         instruction.branch_type,
@@ -804,7 +844,7 @@ impl ControlUnit {
                         instruction.byte_code_index
                     );
                 }
-                BranchType::GE => println!(
+                BranchType::Ge => println!(
                     "Executed {:?}: {:?} >= {:?} -> {}, {}",
                     instruction.branch_type, value_a, value_b, is_true, instruction.byte_code_index
                 ),
@@ -813,13 +853,17 @@ impl ControlUnit {
     }
 
     fn execute_output(&mut self, instruction: &OutputInstruction, debug: bool) {
-        let value_a = match self.registers.get_register(instruction.source_register) {
-            Ok(value) => match value {
-                Value::Text(text) => text.to_string(),
-                Value::Number(number) => number.to_string(),
-                _ => panic!("OUT instruction requires text or number operands."),
+        let value_a = match &instruction.immediate {
+            Immediate::Text(text) => text.to_string(),
+            Immediate::Number(number) => number.to_string(),
+            Immediate::Register(register) => match self.registers.get_register(*register) {
+                Ok(value) => match value {
+                    Value::Text(text) => text.to_string(),
+                    Value::Number(number) => number.to_string(),
+                    _ => panic!("OUT instruction requires text or number operands."),
+                },
+                Err(error) => panic!("Failed to execute OUT instruction. Error: {}", error),
             },
-            Err(error) => panic!("Failed to execute OUT instruction. Error: {}", error),
         };
 
         if debug {

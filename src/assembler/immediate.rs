@@ -1,11 +1,15 @@
 #[derive(Debug, PartialEq, Clone)]
 pub enum ImmediateType {
-    TEXT,
-    NUMBER,
+    Text,
+    Number,
+    Register,
 }
 
-static IMMEDIATE_TYPE_MAPPING: [(ImmediateType, u32); 2] =
-    [(ImmediateType::NUMBER, 0x00), (ImmediateType::TEXT, 0x01)];
+static IMMEDIATE_TYPE_MAPPING: [(ImmediateType, u32); 3] = [
+    (ImmediateType::Number, 0x00),
+    (ImmediateType::Text, 0x01),
+    (ImmediateType::Register, 0x02),
+];
 
 impl ImmediateType {
     pub fn from_be_bytes(be_bytes: [u8; 4]) -> Result<ImmediateType, &'static str> {
@@ -17,7 +21,7 @@ impl ImmediateType {
             }
         }
 
-        return Err("Byte value does not correspond to any known immediate type.");
+        Err("Byte value does not correspond to any known immediate type.")
     }
 
     pub fn to_be_bytes(&self) -> Result<[u8; 4], &'static str> {
@@ -27,7 +31,7 @@ impl ImmediateType {
             }
         }
 
-        return Err("Immediate type does not correspond to any known byte value.");
+        Err("Immediate type does not correspond to any known byte value.")
     }
 }
 
@@ -35,4 +39,5 @@ impl ImmediateType {
 pub enum Immediate {
     Text(String),
     Number(u32),
+    Register(u32),
 }

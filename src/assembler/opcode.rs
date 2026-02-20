@@ -1,60 +1,60 @@
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum OpCode {
     // Data movement.
-    LI,
-    LF,
-    MV,
+    Li,
+    Lf,
+    Mv,
     // Semantic operations.
-    ADD,
-    SUB,
-    MUL,
-    DIV,
-    INF,
-    ADT,
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Inf,
+    Adt,
     // Heuristic operations.
-    EQV,
-    INT,
-    HAL,
-    SIM,
+    Eqv,
+    Int,
+    Hal,
+    Sim,
     // Control flow.
-    BEQ,
-    BLE,
-    BLT,
-    BGE,
-    BGT,
+    Beq,
+    Ble,
+    Blt,
+    Bge,
+    Bgt,
     // I/O.
-    OUT,
+    Out,
     // Misc.
-    EXIT,
+    Exit,
 }
 
 static OP_CODE_MAPPING: [(OpCode, u32); 20] = [
     // Data movement.
-    (OpCode::LI, 0x00),
-    (OpCode::LF, 0x01),
-    (OpCode::MV, 0x02),
+    (OpCode::Li, 0x00),
+    (OpCode::Lf, 0x01),
+    (OpCode::Mv, 0x02),
     // Semantic operations.
-    (OpCode::ADD, 0x03),
-    (OpCode::SUB, 0x04),
-    (OpCode::MUL, 0x05),
-    (OpCode::DIV, 0x06),
-    (OpCode::INF, 0x07),
-    (OpCode::ADT, 0x08),
+    (OpCode::Add, 0x03),
+    (OpCode::Sub, 0x04),
+    (OpCode::Mul, 0x05),
+    (OpCode::Div, 0x06),
+    (OpCode::Inf, 0x07),
+    (OpCode::Adt, 0x08),
     // Heuristic operations.
-    (OpCode::EQV, 0x09),
-    (OpCode::INT, 0x0A),
-    (OpCode::HAL, 0x0B),
-    (OpCode::SIM, 0x0C),
+    (OpCode::Eqv, 0x09),
+    (OpCode::Int, 0x0A),
+    (OpCode::Hal, 0x0B),
+    (OpCode::Sim, 0x0C),
     // Control flow.
-    (OpCode::BEQ, 0x0D),
-    (OpCode::BLE, 0x0E),
-    (OpCode::BLT, 0x0F),
-    (OpCode::BGE, 0x10),
-    (OpCode::BGT, 0x11),
+    (OpCode::Beq, 0x0D),
+    (OpCode::Ble, 0x0E),
+    (OpCode::Blt, 0x0F),
+    (OpCode::Bge, 0x10),
+    (OpCode::Bgt, 0x11),
     // I/O.
-    (OpCode::OUT, 0x12),
+    (OpCode::Out, 0x12),
     // Misc.
-    (OpCode::EXIT, 0xFF),
+    (OpCode::Exit, 0xFF),
 ];
 
 impl OpCode {
@@ -67,7 +67,7 @@ impl OpCode {
             }
         }
 
-        return Err("Byte value does not correspond to any known opcode.");
+        Err("Byte value does not correspond to any known opcode.")
     }
 
     pub fn to_be_bytes(&self) -> Result<[u8; 4], &'static str> {
@@ -77,6 +77,6 @@ impl OpCode {
             }
         }
 
-        return Err("Opcode not found in mapping.");
+        Err("Opcode not found in mapping.")
     }
 }

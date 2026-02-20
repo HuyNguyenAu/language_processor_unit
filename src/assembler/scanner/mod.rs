@@ -50,46 +50,47 @@ impl Scanner {
     }
 
     fn peek(&self) -> char {
-        self.source.chars().nth(self.current).expect(
-            format!(
+        self.source.chars().nth(self.current).unwrap_or_else(|| {
+            panic!(
                 "Tried to peek past end of source. Source length: {}, current: {}",
                 self.source_len, self.current
             )
-            .as_str(),
-        )
+        })
     }
 
     fn peek_next(&self) -> char {
-        self.source.chars().nth(self.current + 1).expect(
-            format!(
-                "Tried to peek next past end of source. Source length: {}, current: {}",
-                self.source_len,
-                self.current + 1
-            )
-            .as_str(),
-        )
+        self.source
+            .chars()
+            .nth(self.current + 1)
+            .unwrap_or_else(|| {
+                panic!(
+                    "Tried to peek next past end of source. Source length: {}, current: {}",
+                    self.source_len,
+                    self.current + 1
+                )
+            })
     }
 
     fn make_token(&self, token_type: TokenType) -> Token {
-        return Token::new(
+        Token::new(
             token_type,
             self.start,
             self.current,
             self.line,
             self.column,
             None,
-        );
+        )
     }
 
     fn make_error(&self, message: &'static str) -> Token {
-        return Token::new(
+        Token::new(
             TokenType::ERROR,
             self.start,
             self.current,
             self.line,
             self.column,
             Some(message),
-        );
+        )
     }
 
     fn skip_whitespace(&mut self) {
@@ -120,7 +121,7 @@ impl Scanner {
         // Consume the ':'.
         self.advance();
 
-        return token;
+        token
     }
 
     fn identifier(&mut self) -> Token {
@@ -141,10 +142,10 @@ impl Scanner {
             .iter()
             .find(|(_, name)| *name == identifier.to_lowercase());
 
-        return match matched_token {
+        match matched_token {
             Some((token_type, _)) => self.make_token(token_type.clone()),
             None => self.make_token(TokenType::IDENTIFIER),
-        };
+        }
     }
 
     fn number(&mut self) -> Token {
@@ -171,7 +172,7 @@ impl Scanner {
             }
         }
 
-        return self.make_token(TokenType::NUMBER);
+        self.make_token(TokenType::NUMBER)
     }
 
     fn string(&mut self) -> Token {
@@ -185,13 +186,12 @@ impl Scanner {
         }
 
         if self.is_at_end() {
-            return self.make_error("Unterminated string.");
+            self.make_error("Unterminated string.")
+        } else {
+            // Consume the closing quote.
+            self.advance();
+            self.make_token(TokenType::STRING)
         }
-
-        // Consume the closing quote.
-        self.advance();
-
-        return self.make_token(TokenType::STRING);
     }
 
     pub fn scan_token(&mut self) -> Token {
@@ -203,23 +203,22 @@ impl Scanner {
             return self.make_token(TokenType::EOF);
         }
 
-        let char = self.peek();
-
+        let ch = self.peek();
         self.advance();
 
-        if Self::is_alpha(char) {
+        if Self::is_alpha(ch) {
             return self.identifier();
         }
 
-        if Self::is_digit(char) {
+        if Self::is_digit(ch) {
             return self.number();
         }
 
-        return match char {
+        match ch {
             // Single-character tokens.
             ',' => self.make_token(TokenType::COMMA),
-            '"' => return self.string(),
-            _ => return self.make_error("Unexpected character"),
-        };
+            '"' => self.string(),
+            _ => self.make_error("Unexpected character"),
+        }
     }
 }

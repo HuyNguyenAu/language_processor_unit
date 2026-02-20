@@ -17,11 +17,11 @@ pub struct OpenAIClient {
 
 impl OpenAIClient {
     pub fn new() -> Self {
-        return OpenAIClient {
+        OpenAIClient {
             base_url: "http://127.0.0.1:8080",
             chat_completion_endpoint: "v1/chat/completions",
             embeddings_endpoint: "v1/embeddings",
-        };
+        }
     }
 
     pub fn create_chat_completion(
@@ -67,13 +67,13 @@ impl OpenAIClient {
             }
         };
 
-        return match serde_json::from_str::<OpenAIChatCompletionResponse>(&text) {
+        match serde_json::from_str::<OpenAIChatCompletionResponse>(&text) {
             Ok(parsed_response) => Ok(parsed_response),
             Err(error) => Err(format!(
                 "Failed to deserialise chat response JSON. Error: {}. Response Text: {}",
                 error, text
             )),
-        };
+        }
     }
 
     pub fn create_embeddings(
@@ -112,14 +112,12 @@ impl OpenAIClient {
             }
         };
 
-        return match serde_json::from_str::<OpenAIEmbeddingsResponse>(&text) {
+        match serde_json::from_str::<OpenAIEmbeddingsResponse>(&text) {
             Ok(parsed_response) => Ok(parsed_response),
-            Err(error) => {
-                return Err(format!(
-                    "Failed to deserialise embedding response JSON. Error: {}. Response Text: {}",
-                    error, text
-                ));
-            }
-        };
+            Err(error) => Err(format!(
+                "Failed to deserialise embedding response JSON. Error: {}. Response Text: {}",
+                error, text
+            )),
+        }
     }
 }

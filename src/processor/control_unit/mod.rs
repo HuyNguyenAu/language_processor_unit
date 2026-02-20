@@ -159,7 +159,7 @@ impl ControlUnit {
             self.advance();
         }
 
-        return u32::from_be_bytes(register_be_bytes);
+        u32::from_be_bytes(register_be_bytes)
     }
 
     fn decode_number(&mut self, length_byte: bool, message: &str) -> u32 {
@@ -178,7 +178,7 @@ impl ControlUnit {
             self.advance();
         }
 
-        return u32::from_be_bytes(number_be_bytes);
+        u32::from_be_bytes(number_be_bytes)
     }
 
     fn decode_immediate_type(&mut self, message: &str) -> ImmediateType {
@@ -193,13 +193,13 @@ impl ControlUnit {
         // Consume value type bytecode.
         self.advance();
 
-        return match ImmediateType::from_be_bytes(be_bytes) {
+        match ImmediateType::from_be_bytes(be_bytes) {
             Ok(immediate_type) => immediate_type,
             Err(error) => panic!(
                 "{} {}, Instruction Byte code: {:?}",
                 message, error, be_bytes
             ),
-        };
+        }
     }
 
     fn decode_immediate(

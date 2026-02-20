@@ -21,7 +21,7 @@ impl ImmediateType {
             }
         }
 
-        return Err("Byte value does not correspond to any known immediate type.");
+        Err("Byte value does not correspond to any known immediate type.")
     }
 
     pub fn to_be_bytes(&self) -> Result<[u8; 4], &'static str> {
@@ -31,7 +31,7 @@ impl ImmediateType {
             }
         }
 
-        return Err("Immediate type does not correspond to any known byte value.");
+        Err("Immediate type does not correspond to any known byte value.")
     }
 }
 

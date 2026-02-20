@@ -67,7 +67,7 @@ impl OpCode {
             }
         }
 
-        return Err("Byte value does not correspond to any known opcode.");
+        Err("Byte value does not correspond to any known opcode.")
     }
 
     pub fn to_be_bytes(&self) -> Result<[u8; 4], &'static str> {
@@ -77,6 +77,6 @@ impl OpCode {
             }
         }
 
-        return Err("Opcode not found in mapping.");
+        Err("Opcode not found in mapping.")
     }
 }

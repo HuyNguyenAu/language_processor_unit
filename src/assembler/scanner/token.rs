@@ -40,7 +40,7 @@ pub enum TokenType {
     EXIT,
 }
 
-pub static TOKEN_TYPE_MAPPING: [(TokenType, &'static str); 20] = [
+pub static TOKEN_TYPE_MAPPING: [(TokenType, &str); 20] = [
     // Data movement.
     (TokenType::LI, "li"),
     (TokenType::LF, "lf"),
@@ -99,26 +99,26 @@ impl Token {
     }
 
     pub fn token_type(&self) -> &TokenType {
-        return &self.token_type;
+        &self.token_type
     }
 
     pub fn start(&self) -> usize {
-        return self.start;
+        self.start
     }
 
     pub fn end(&self) -> usize {
-        return self.end;
+        self.end
     }
 
     pub fn line(&self) -> usize {
-        return self.line;
+        self.line
     }
 
     pub fn column(&self) -> usize {
-        return self.column;
+        self.column
     }
 
     pub fn error(&self) -> Option<&'static str> {
-        return self.error;
+        self.error
     }
 }

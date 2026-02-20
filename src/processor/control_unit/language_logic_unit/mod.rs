@@ -128,7 +128,7 @@ impl LanguageLogicUnit {
 
         let choice = response
             .choices
-            .get(0)
+            .first()
             .ok_or_else(|| "No choices returned from client.".to_string())?;
 
         Ok(self.clean_string(&choice.message.content))
@@ -162,7 +162,7 @@ impl LanguageLogicUnit {
 
         let embeddings = response
             .data
-            .get(0)
+            .first()
             .ok_or_else(|| "No embeddings returned from client.".to_string())?;
 
         Ok(embeddings.embedding.to_owned())
@@ -178,11 +178,11 @@ impl LanguageLogicUnit {
             _ => return Err(format!("{:?} requires text value.", OpCode::SIM)),
         };
 
-        let value_a_embeddings = self.embeddings(&value_a).map_err(|error| {
+        let value_a_embeddings = self.embeddings(value_a).map_err(|error| {
             format!("Failed to get embedding for {}. Error: {}", value_a, error)
         })?;
 
-        let value_b_embeddings = self.embeddings(&value_b).map_err(|error| {
+        let value_b_embeddings = self.embeddings(value_b).map_err(|error| {
             format!("Failed to get embedding for {}. Error: {}", value_b, error)
         })?;
 

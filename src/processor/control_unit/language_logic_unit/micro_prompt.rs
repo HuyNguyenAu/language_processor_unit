@@ -1,16 +1,16 @@
 use crate::assembler::opcode::OpCode;
 
 pub fn true_values(opcode: &OpCode) -> Result<Vec<&'static str>, &'static str> {
-    return match opcode {
+    match opcode {
         OpCode::EQV => Ok(vec!["IDENTICAL", "SYNONYMOUS", "RELATED"]),
         OpCode::INT => Ok(vec!["TRUE"]),
         OpCode::HAL => Ok(vec!["REAL"]),
         _ => Err("Unsupported opcode for true values."),
-    };
+    }
 }
 
 pub fn search(opcode: &OpCode, value_a: &str, value_b: &str) -> Result<String, &'static str> {
-    return match opcode {
+    match opcode {
         // Semantic operations.
         OpCode::ADD => Ok(format!(
             "Merge the essence, attributes, and presence of \"{}\" and \"{}\" into a single form.",
@@ -50,5 +50,5 @@ pub fn search(opcode: &OpCode, value_a: &str, value_b: &str) -> Result<String, &
             value_a
         )),
         _ => Err("Unsupported opcode for micro prompt generation."),
-    };
+    }
 }

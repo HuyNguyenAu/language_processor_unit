@@ -134,13 +134,13 @@ impl Assembler {
     fn number(&mut self, message: &str) -> Result<u32, String> {
         self.consume(&TokenType::NUMBER, message);
 
-        return match self.previous_lexeme().parse() {
+        match self.previous_lexeme().parse() {
             Ok(value) => Ok(value),
             Err(_) => Err(format!(
                 "Failed to parse number from lexeme '{}'.",
                 self.previous_lexeme()
             )),
-        };
+        }
     }
 
     fn register(&mut self, message: &str) -> Result<u32, String> {
@@ -156,7 +156,7 @@ impl Assembler {
             ));
         }
 
-        let register_number = match u32::from_str_radix(&lexeme[1..], 10) {
+        let register_number = match lexeme[1..].parse::<u32>() {
             Ok(value) => value,
             Err(_) => {
                 return Err(format!(
@@ -166,14 +166,14 @@ impl Assembler {
             }
         };
 
-        if register_number < 1 || register_number > 32 {
+        if !(1..=32).contains(&register_number) {
             return Err(format!(
                 "Register number out of range: '{}'. Expected format: 'xN' where N is a number between 1 and 32.",
                 register_number
             ));
         }
 
-        return Ok(register_number);
+        Ok(register_number)
     }
 
     fn string(&mut self, message: &str) -> String {
@@ -182,12 +182,12 @@ impl Assembler {
         let lexeme = self.previous_lexeme();
 
         // Remove surrounding quotes.
-        return lexeme
+        lexeme
             .chars()
             .skip(1)
             .take(lexeme.chars().count() - 2)
             .collect::<String>()
-            .replace("\\n", "\n");
+            .replace("\\n", "\n")
     }
 
     fn identifier(&mut self, message: &str) -> &str {
@@ -207,7 +207,7 @@ impl Assembler {
             }
         };
 
-        return match current_type {
+        match current_type {
             TokenType::STRING => Ok(Immediate::Text(self.string(message).to_string())),
             TokenType::NUMBER => {
                 let number = self.number(message);
@@ -216,7 +216,7 @@ impl Assembler {
                     return Ok(Immediate::Number(number));
                 }
 
-                return Err(format!("Failed to parse immediate number. {}", message));
+                Err(format!("Failed to parse immediate number. {}", message))
             }
             TokenType::IDENTIFIER => {
                 let reg = self.register(message);
@@ -224,15 +224,13 @@ impl Assembler {
                     return Ok(Immediate::Register(register));
                 }
 
-                return Err(format!("Failed to parse immediate register. {}", message));
+                Err(format!("Failed to parse immediate register. {}", message))
             }
-            _ => {
-                return Err(format!(
-                    "Invalid immediate value. Expected number, string or register. Found token type: {:?}. {}",
-                    current_type, message
-                ));
-            }
-        };
+            _ => Err(format!(
+                "Invalid immediate value. Expected number, string or register. Found token type: {:?}. {}",
+                current_type, message
+            )),
+        }
     }
 
     fn emit_number_bytecode(&mut self, value: u32) {
@@ -243,7 +241,7 @@ impl Assembler {
         let op_code_be_bytes = match op_code.to_be_bytes() {
             Ok(bytes) => bytes,
             Err(message) => {
-                self.error_at_current(&message);
+                self.error_at_current(message);
                 return;
             }
         };
@@ -271,7 +269,7 @@ impl Assembler {
         let immediate_type_be_bytes = match immediate_type.to_be_bytes() {
             Ok(bytes) => bytes,
             Err(message) => {
-                self.error_at_current(&message);
+                self.error_at_current(message);
 
                 return;
             }
@@ -343,7 +341,6 @@ impl Assembler {
                 Ok(()) => (),
                 Err(message) => {
                     self.error_at_current(&message);
-                    return;
                 }
             }
         }
@@ -436,7 +433,7 @@ impl Assembler {
         let mut hasher = DefaultHasher::new();
         value.hash(&mut hasher);
 
-        return hasher.finish();
+        hasher.finish()
     }
 
     fn label(&mut self) {
@@ -583,7 +580,7 @@ impl Assembler {
         self.consume(&TokenType::COMMA, "Expected ',' after source immediate 2.");
 
         let label_name = self.identifier("Expected label name after ','.");
-        let key = Self::hash(&label_name);
+        let key = Self::hash(label_name);
 
         self.emit_op_code_bytecode(opcode);
         self.emit_immediate_bytecode(&immediate_1);

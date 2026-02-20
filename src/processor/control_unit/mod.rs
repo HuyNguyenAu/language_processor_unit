@@ -43,20 +43,19 @@ impl ControlUnit {
     }
 
     fn is_at_end(&self) -> bool {
-        return self.registers.get_instruction_pointer() >= self.memory.length();
+        self.registers.get_instruction_pointer() >= self.memory.length()
     }
 
     fn peek(&self) -> &[u8; 4] {
-        return match self.memory.read(self.registers.get_instruction_pointer()) {
+        match self.memory.read(self.registers.get_instruction_pointer()) {
             Ok(bytes) => bytes,
             Err(error) => panic!(
                 "Failed to read byte code at instruction pointer during peek. Error: {}. Instruction pointer value: {}.",
                 error,
                 self.registers.get_instruction_pointer()
             ),
-        };
+        }
     }
-
     fn advance(&mut self) {
         self.registers.advance_instruction_pointer();
 
@@ -209,7 +208,7 @@ impl ControlUnit {
         value_number_message: &str,
         value_text_message: &str,
     ) -> Immediate {
-        return match self.decode_immediate_type(value_type_message) {
+        match self.decode_immediate_type(value_type_message) {
             ImmediateType::NUMBER => {
                 Immediate::Number(self.decode_number(true, value_number_message))
             }
@@ -217,7 +216,7 @@ impl ControlUnit {
                 Immediate::Register(self.decode_register(true, value_number_message))
             }
             ImmediateType::TEXT => Immediate::Text(self.decode_text(value_text_message)),
-        };
+        }
     }
 
     fn decode_load_immediate(&mut self) -> LoadImmediateInstruction {
@@ -237,10 +236,10 @@ impl ControlUnit {
             "Failed to decode text for LI instruction.",
         );
 
-        return LoadImmediateInstruction {
+        LoadImmediateInstruction {
             destination_register,
             value,
-        };
+        }
     }
 
     fn decode_load_file(&mut self) -> LoadFileInstruction {
@@ -263,10 +262,10 @@ impl ControlUnit {
             _ => panic!("LF instruction requires a text immediate for the file path."),
         };
 
-        return LoadFileInstruction {
+        LoadFileInstruction {
             destination_register,
             value,
-        };
+        }
     }
 
     fn decode_move(&mut self) -> MoveInstruction {
@@ -283,10 +282,10 @@ impl ControlUnit {
         let source_register =
             self.decode_register(false, "Failed to read source register for MOV instruction.");
 
-        return MoveInstruction {
+        MoveInstruction {
             destination_register,
             source_register,
-        };
+        }
     }
 
     fn decode_semantic(&mut self, op_code: OpCode) -> SemanticInstruction {
@@ -334,12 +333,12 @@ impl ControlUnit {
             _ => panic!("Invalid opcode '{:?}' for semantic instruction.", op_code),
         };
 
-        return SemanticInstruction {
+        SemanticInstruction {
             semantic_type,
             destination_register,
             immediate_1,
             immediate_2,
-        };
+        }
     }
 
     fn decode_heuristic(&mut self, op_code: OpCode) -> HeuristicInstruction {
@@ -381,12 +380,12 @@ impl ControlUnit {
             _ => panic!("Invalid opcode '{:?}' for heuristic instruction.", op_code),
         };
 
-        return HeuristicInstruction {
+        HeuristicInstruction {
             heuristic_type,
             destination_register,
             immediate_1,
             immediate_2,
-        };
+        }
     }
 
     fn decode_branch(&mut self, op_code: OpCode) -> BranchInstruction {
@@ -426,12 +425,12 @@ impl ControlUnit {
             _ => panic!("Invalid opcode '{:?}' for branch instruction.", op_code),
         };
 
-        return BranchInstruction {
+        BranchInstruction {
             branch_type,
             immediate_1,
             immediate_2,
             byte_code_index,
-        };
+        }
     }
 
     fn decode_output(&mut self) -> OutputInstruction {
@@ -445,14 +444,14 @@ impl ControlUnit {
             "Failed to decode text for OUT instruction.",
         );
 
-        return OutputInstruction { immediate };
+        OutputInstruction { immediate }
     }
 
     fn decode_exit(&mut self) -> ExitInstruction {
         // Consume EXIT opcode.
         self.decode_op_code(&OpCode::EXIT, "Failed to decode EXIT opcode.");
 
-        return ExitInstruction;
+        ExitInstruction
     }
 
     pub fn load_byte_code(&mut self, byte_code: Vec<[u8; 4]>) {
@@ -512,18 +511,18 @@ impl ControlUnit {
             OpCode::EXIT => Instruction::Exit(self.decode_exit()),
         };
 
-        return Some(instruction);
+        Some(instruction)
     }
 
     fn execute_load_immediate(&mut self, instruction: &LoadImmediateInstruction, debug: bool) {
         let value = match &instruction.value {
             Immediate::Text(text) => Value::Text(text.to_string()),
             Immediate::Number(number) => Value::Number(*number),
-            Immediate::Register(reg) => match self.registers.get_register(*reg) {
-                Ok(v) => v.to_owned(),
+            Immediate::Register(register) => match self.registers.get_register(*register) {
+                Ok(value) => value.to_owned(),
                 Err(error) => panic!(
                     "Failed to read source register r{} for LI instruction. Error: {}",
-                    reg, error
+                    register, error
                 ),
             },
         };
@@ -637,10 +636,7 @@ impl ControlUnit {
             SemanticType::ADT => OpCode::ADT,
         };
 
-        let result = match self
-            .language_logic_unit
-            .run(&opcode, &value_a, &value_b)
-        {
+        let result = match self.language_logic_unit.run(&opcode, &value_a, &value_b) {
             Ok(result) => result,
             Err(error) => panic!(
                 "Failed to perform {:?}. Error: {}",
@@ -694,7 +690,7 @@ impl ControlUnit {
         };
 
         let value_b = match &instruction.immediate_2 {
-           Immediate::Text(text) => Value::Text(text.to_string()),
+            Immediate::Text(text) => Value::Text(text.to_string()),
             Immediate::Number(number) => Value::Number(*number),
             Immediate::Register(register) => match self.registers.get_register(*register) {
                 Ok(value) => value.to_owned(),
@@ -755,7 +751,10 @@ impl ControlUnit {
             Immediate::Number(number) => *number,
             Immediate::Register(register) => match self.registers.get_register(*register) {
                 Ok(Value::Number(number)) => *number,
-                Ok(_) => panic!("{:?} instruction requires numeric operands.", instruction.branch_type),
+                Ok(_) => panic!(
+                    "{:?} instruction requires numeric operands.",
+                    instruction.branch_type
+                ),
                 Err(error) => panic!("Failed to execute branch instruction. Error: {}", error),
             },
             Immediate::Text(_) => panic!(
@@ -768,7 +767,10 @@ impl ControlUnit {
             Immediate::Number(number) => *number,
             Immediate::Register(register) => match self.registers.get_register(*register) {
                 Ok(Value::Number(number)) => *number,
-                Ok(_) => panic!("{:?} instruction requires numeric operands.", instruction.branch_type),
+                Ok(_) => panic!(
+                    "{:?} instruction requires numeric operands.",
+                    instruction.branch_type
+                ),
                 Err(error) => panic!("Failed to execute branch instruction. Error: {}", error),
             },
             Immediate::Text(_) => panic!(
@@ -853,8 +855,8 @@ impl ControlUnit {
     fn execute_output(&mut self, instruction: &OutputInstruction, debug: bool) {
         let value_a = match &instruction.immediate {
             Immediate::Text(text) => text.to_string(),
-            Immediate::Number(n) => n.to_string(),
-            Immediate::Register(r) => match self.registers.get_register(*r) {
+            Immediate::Number(number) => number.to_string(),
+            Immediate::Register(register) => match self.registers.get_register(*register) {
                 Ok(value) => match value {
                     Value::Text(text) => text.to_string(),
                     Value::Number(number) => number.to_string(),

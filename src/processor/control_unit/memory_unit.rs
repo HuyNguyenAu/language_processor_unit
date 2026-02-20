@@ -12,13 +12,12 @@ impl MemoryUnit {
     }
 
     pub fn read(&self, address: usize) -> Result<&[u8; 4], String> {
-        return match self.data.get(address) {
-            Some(bytes) => Ok(bytes),
-            None => Err(format!("Address out of bounds: {}", address)),
-        };
+        self.data
+            .get(address)
+            .ok_or_else(|| format!("Address out of bounds: {}", address))
     }
 
     pub fn length(&self) -> usize {
-        return self.data.len();
+        self.data.len()
     }
 }

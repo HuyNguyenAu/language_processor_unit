@@ -17,24 +17,9 @@ impl Processor {
         let byte_code: Vec<[u8; 4]> = data
             .chunks(4)
             .map(|chunk| {
-                return [
-                    chunk
-                        .get(0)
-                        .cloned()
-                        .expect("Byte code chunk is missing the first byte"),
-                    chunk
-                        .get(1)
-                        .cloned()
-                        .expect("Byte code chunk is missing the second byte"),
-                    chunk
-                        .get(2)
-                        .cloned()
-                        .expect("Byte code chunk is missing the third byte"),
-                    chunk
-                        .get(3)
-                        .cloned()
-                        .expect("Byte code chunk is missing the fourth byte"),
-                ];
+                chunk
+                    .try_into()
+                    .expect("Byte code chunks must be exactly 4 bytes")
             })
             .collect();
 

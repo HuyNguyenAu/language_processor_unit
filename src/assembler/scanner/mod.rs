@@ -8,40 +8,40 @@ pub struct Scanner {
     current: usize,
     line: usize,
     column: usize,
+    source_len: usize,
 }
 
 impl Scanner {
     pub fn new(source: &'static str) -> Self {
+        let source_len = source.chars().count();
+
         Scanner {
             source,
             current: 0,
             start: 0,
             line: 1,
             column: 0,
+            source_len,
         }
     }
 
-    fn is_alpha(char: char) -> bool {
-        return (char >= 'a' && char <= 'z')
-            || (char >= 'A' && char <= 'Z')
-            || char == '_'
-            || char == ':';
+    fn is_alpha(ch: char) -> bool {
+        ch.is_ascii_alphabetic() || ch == '_' || ch == ':'
     }
 
-    fn is_digit(char: char) -> bool {
-        return char >= '0' && char <= '9';
+    fn is_digit(ch: char) -> bool {
+        ch.is_ascii_digit()
     }
 
     fn is_at_end(&self) -> bool {
-        return self.current >= self.source.chars().count();
+        self.current >= self.source_len
     }
 
     fn advance(&mut self) {
-        if self.current > self.source.chars().count() {
+        if self.current >= self.source_len {
             panic!(
                 "Tried to advance past end of source. Source length: {}, current: {}",
-                self.source.chars().count(),
-                self.current
+                self.source_len, self.current
             )
         }
 
@@ -50,25 +50,24 @@ impl Scanner {
     }
 
     fn peek(&self) -> char {
-        return self.source.chars().nth(self.current).expect(
+        self.source.chars().nth(self.current).expect(
             format!(
                 "Tried to peek past end of source. Source length: {}, current: {}",
-                self.source.chars().count(),
-                self.current
+                self.source_len, self.current
             )
             .as_str(),
-        );
+        )
     }
 
     fn peek_next(&self) -> char {
-        return self.source.chars().nth(self.current + 1).expect(
+        self.source.chars().nth(self.current + 1).expect(
             format!(
                 "Tried to peek next past end of source. Source length: {}, current: {}",
-                self.source.chars().count(),
+                self.source_len,
                 self.current + 1
             )
             .as_str(),
-        );
+        )
     }
 
     fn make_token(&self, token_type: TokenType) -> Token {

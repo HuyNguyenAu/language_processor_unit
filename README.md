@@ -26,15 +26,15 @@ START:
     LI  X2, "Make it more warm."    ; Load the user's vague complaint
 
     ; Load the user's desired vibe
-    LI  X3, "Goal: Warm, inviting, comfortable, relaxed." 
+    LI  X3, "Goal: Warm, inviting, comfortable, relaxed."
 
     ; The Cognitive Operation
     APP X4, X2, X3 ; Apply the user's complaint and goal to generate a new state for the room.
 
     ; Predict the new state of X1 (Sensors) given X4 (Complaint + Goal).
     ; The LLU calculates: "Sterile" (Cold/White) -> Needs Warmer Temp + Warmer Light.
-    INF X5, X1, X4                  
-    
+    INF X5, X1, X4
+
     ; X5 now holds the generated JSON: {temp: 22C, lights: 2700K, music: "LoFi Jazz"}
 
     ; Safety Guardrail
@@ -45,7 +45,7 @@ START:
     ; Branching Logic
     LI  X8, 0
     BGT X7, X8, HANDLER             ; If aligns with intention, jump to error handler
-    
+
     ; Execute
     OUT X5                          ; Send new config to IoT Hub
     EXIT
@@ -69,13 +69,13 @@ In this assembly language, we can represent this loop as follows:
 START:  LF X1, "state.txt"  ; Observation
         LF X2, "goal.txt"   ; Load the goal
         LF X3, 100          ; Load the similarity threshold
-        
+
         INF X4, X2, X1       ; Reason: Predict next action based on goal + state
-        
+
         LI  X5, "DONE"
         SIM X6, X5, X4       ; Check if action is "DONE"
         BLT X6, X3, EXIT     ; If similarity to "DONE" is high, exit
-        
+
         OUT X3               ; Act: Output the action
         JMP START            ; Loop back for next observation
 
@@ -93,29 +93,29 @@ EXIT:   OUT "Agent has completed the task." ; Final output
 
 The instruction set is closely inspired by RISC-V assembly language:
 
-| Instruction | Description                                                                                 | Use                        |
-| ----------- | ------------------------------------------------------------------------------------------- | -------------------------- |
-| LI          | Load immediate into rd                                                                      | `li rd, imm`               |
-| LF          | Load file into rd                                                                           | `lf rd, "file_path"`       |
-| MV          | Copy rs into rd                                                                             | `mv rd, rs`                |
-| ADD         | Merge rs1 and rs2 into a single form stored in rd                                           | `add rd, rs1, rs2`         |
-| SUB         | Strip rs2 from rs1 leaving only the remainder stored in rd                                  | `sub rd, rs1, rs2`         |
-| MUL         | Magnify rs1 by rs2 and store the result in rd                                               | `mul rd, rs1, rs2`         |
-| DIV         | Deconstruct rs1 into units of rs2 and store the result in rd                                | `div rd, rs1, rs2`         |
-| INF         | Predict what will happen to rs1 given rs2 and store the result in rd                        | `inf rd, rs1, rs2`         |
-| ADT         | Find why rs1 is not compliant with rs2 and store the result in rd                           | `adt rd, rs1, rs2`         |
-| EQV         | Is rs1 equivalent to rs2? Store 100 if true, 0 if false in rd                               | `eqv rd, rs1, rs2`         |
-| INT         | Is rs1 aligned with rs2? Store 100 if true, 0 if false in rd                                | `int rd, rs1, rs2`         |
-| HAL         | Is rs a hallucination? Store 100 if false, 0 if true in rd                                  | `hal rd, rs`               |
-| SIM         | Cosine similarity of rs1 and rs2. Store 100 if identical, else 0 in rd                      | `sim rd, rs1, rs2`         |
-| LABEL       | Define a label. Required for branching instructions                                         | `label_name:`              |
-| BEQ         | Go to label if rs1 = rs2                                                                    | `beq rs1, rs2, label_name` |
-| BLT         | Go to label if rs1 < rs2                                                                    | `blt rs1, rs2, label_name` |
-| BLE         | Go to label if rs1 <= rs2                                                                   | `ble rs1, rs2, label_name` |
-| BGT         | Go to label if rs1 > rs2                                                                    | `bgt rs1, rs2, label_name` |
-| BGE         | Go to label if rs1 >= rs2                                                                   | `bge rs1, rs2, label_name` |
-| OUT         | Print the value of rs                                                                       | `out rs`                   |
-| EXIT        | Exit the program                                                                            | `exit`                     |
+| Instruction | Description                                                            | Use                                        |
+| ----------- | ---------------------------------------------------------------------- | ------------------------------------------ |
+| LI          | Load immediate into rd                                                 | `li rd, imm`                               |
+| LF          | Load file into rd                                                      | `lf rd, "file_path"`                       |
+| MV          | Copy rs into rd                                                        | `mv rd, rs`                                |
+| ADD         | Merge rs1 and rs2 into a single form stored in rd                      | `add rd, rs1\|string, rs2\|string`         |
+| SUB         | Strip rs2 from rs1 leaving only the remainder stored in rd             | `sub rd, rs1\|string, rs2\|string`         |
+| MUL         | Magnify rs1 by rs2 and store the result in rd                          | `mul rd, rs1\|string, rs2\|string`         |
+| DIV         | Deconstruct rs1 into units of rs2 and store the result in rd           | `div rd, rs1\|string, rs2\|string`         |
+| INF         | Predict what will happen to rs1 given rs2 and store the result in rd   | `inf rd, rs1\|string, rs2\|string`         |
+| ADT         | Find why rs1 is not compliant with rs2 and store the result in rd      | `adt rd, rs1\|string, rs2\|string`         |
+| EQV         | Is rs1 equivalent to rs2? Store 100 if true, 0 if false in rd          | `eqv rd, rs1\|string, rs2\|string`         |
+| INT         | Is rs1 aligned with rs2? Store 100 if true, 0 if false in rd           | `int rd, rs1\|string, rs2\|string`         |
+| HAL         | Is rs a hallucination? Store 100 if false, 0 if true in rd             | `hal rd, rs\|string`                       |
+| SIM         | Cosine similarity of rs1 and rs2. Store 100 if identical, else 0 in rd | `sim rd, rs1\|string, rs2\|string`         |
+| LABEL       | Define a label. Required for branching instructions                    | `label_name:`                              |
+| BEQ         | Go to label if rs1 = rs2                                               | `beq rs1\|number, rs2\|number, label_name` |
+| BLT         | Go to label if rs1 < rs2                                               | `blt rs1\|number, rs2\|number, label_name` |
+| BLE         | Go to label if rs1 <= rs2                                              | `ble rs1\|number, rs2\|number, label_name` |
+| BGT         | Go to label if rs1 > rs2                                               | `bgt rs1\|number, rs2\|number, label_name` |
+| BGE         | Go to label if rs1 >= rs2                                              | `bge rs1\|number, rs2\|number, label_name` |
+| OUT         | Print the value of rs                                                  | `out rs\|imm`                              |
+| EXIT        | Exit the program                                                       | `exit`                                     |
 
 ## Registers
 

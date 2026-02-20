@@ -101,13 +101,12 @@ impl Assembler {
 
         loop {
             let token = self.scanner.scan_token();
-            self.current = Some(token);
 
-            if self.current.as_ref().unwrap().token_type() != &TokenType::Error {
-                return;
+            if token.token_type() == &TokenType::Error {
+                self.error_at_current("Failed to advance to next token due to scanning error.");
             }
 
-            self.error_at_current("");
+            self.current = Some(token);
         }
     }
 

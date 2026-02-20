@@ -471,7 +471,7 @@ impl Assembler {
         let opcode = match token_type {
             // Generative operations.
             TokenType::Sum => OpCode::Sum,
-            TokenType::Xpn => OpCode::Xpn,
+            TokenType::Exp => OpCode::Exp,
             TokenType::Trn => OpCode::Trn,
             // Cognitive operations.
             TokenType::Cmp => OpCode::Cmp,
@@ -479,7 +479,7 @@ impl Assembler {
             TokenType::Flt => OpCode::Flt,
             TokenType::Prd => OpCode::Prd,
             // Guardrails operations.
-            TokenType::Vfy => OpCode::Vfy,
+            TokenType::Vrf => OpCode::Vrf,
             TokenType::Sim => OpCode::Sim,
             _ => {
                 self.error_at_previous("Invalid opcode instruction.");
@@ -622,7 +622,7 @@ impl Assembler {
                     TokenType::Out => self.output(),
                     // Generative operations.
                     TokenType::Sum => self.r_type(&TokenType::Sum),
-                    TokenType::Xpn => self.r_type(&TokenType::Xpn),
+                    TokenType::Exp => self.r_type(&TokenType::Exp),
                     TokenType::Trn => self.r_type(&TokenType::Trn),
                     // Cognitive operations.
                     TokenType::Cmp => self.r_type(&TokenType::Cmp),
@@ -630,7 +630,7 @@ impl Assembler {
                     TokenType::Flt => self.r_type(&TokenType::Flt),
                     TokenType::Prd => self.r_type(&TokenType::Prd),
                     // Guardrails operations.
-                    TokenType::Vfy => self.r_type(&TokenType::Vfy),
+                    TokenType::Vrf => self.r_type(&TokenType::Vrf),
                     TokenType::Sim => self.r_type(&TokenType::Sim),
                     // Misc.
                     TokenType::Eof => break,

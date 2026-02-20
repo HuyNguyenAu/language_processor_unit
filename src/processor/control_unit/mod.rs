@@ -321,7 +321,7 @@ impl ControlUnit {
         let r_type = match op_code {
             // Generative operations.
             OpCode::Sum => RType::Sum,
-            OpCode::Xpn => RType::Xpn,
+            OpCode::Exp => RType::Exp,
             OpCode::Trn => RType::Trn,
             // Cognitive operations.
             OpCode::Cmp => RType::Cmp,
@@ -329,7 +329,7 @@ impl ControlUnit {
             OpCode::Flt => RType::Flt,
             OpCode::Prd => RType::Prd,
             // Guardrails operations.
-            OpCode::Vfy => RType::Vfy,
+            OpCode::Vrf => RType::Vrf,
             OpCode::Sim => RType::Sim,
             _ => panic!("Invalid opcode '{:?}' for R-type instruction.", op_code),
         };
@@ -451,7 +451,7 @@ impl ControlUnit {
             // I/O instructions.
             OpCode::Out => Instruction::Output(self.decode_output()),
             // Generative operations.
-            OpCode::Sum | OpCode::Xpn | OpCode::Trn => {
+            OpCode::Sum | OpCode::Exp | OpCode::Trn => {
                 Instruction::RType(self.decode_r_type(op_code))
             }
             // Cognitive operations.
@@ -459,7 +459,7 @@ impl ControlUnit {
                 Instruction::RType(self.decode_r_type(op_code))
             }
             // Guardrails operations.
-            OpCode::Vfy | OpCode::Sim => Instruction::RType(self.decode_r_type(op_code)),
+            OpCode::Vrf | OpCode::Sim => Instruction::RType(self.decode_r_type(op_code)),
         };
 
         Some(instruction)

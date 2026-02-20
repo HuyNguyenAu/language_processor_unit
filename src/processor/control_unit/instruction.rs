@@ -22,7 +22,7 @@ pub struct MoveInstruction {
 pub enum RType {
     // Generative operations.
     Sum,
-    Xpn,
+    Exp,
     Trn,
     // Cognitive operations.
     Cmp,
@@ -30,7 +30,7 @@ pub enum RType {
     Flt,
     Prd,
     // Guardrails operations.
-    Vfy,
+    Vrf,
     Sim,
 }
 

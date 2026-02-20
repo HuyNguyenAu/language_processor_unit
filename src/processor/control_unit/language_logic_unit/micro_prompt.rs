@@ -2,7 +2,7 @@ use crate::processor::control_unit::instruction::RType;
 
 pub fn true_values(r_type: &RType) -> Result<Vec<&'static str>, &'static str> {
     match r_type {
-        RType::Vfy => Ok(vec!["VERIFIED"]),
+        RType::Vrf => Ok(vec!["VERIFIED"]),
         _ => Err("Unsupported r_type for true values."),
     }
 }
@@ -14,7 +14,7 @@ pub fn search(r_type: &RType, value_a: &str, value_b: &str) -> Result<String, &'
             "TASK: Summarize\nDATA: \"{}\"\nCONSTRAINT: \"{}\"\nRESULT:",
             value_a, value_b
         )),
-        RType::Xpn => Ok(format!(
+        RType::Exp => Ok(format!(
             "TOPIC: \"{}\"\nCONTEXT TO ADD: \"{}\"\nEXPANDED RESULT:",
             value_a, value_b
         )),
@@ -40,7 +40,7 @@ pub fn search(r_type: &RType, value_a: &str, value_b: &str) -> Result<String, &'
             value_a, value_b
         )),
         // Guardrails operations.
-        RType::Vfy => Ok(format!(
+        RType::Vrf => Ok(format!(
             "CLAIM: \"{}\"\nEVIDENCE: \"{}\"\nSTATUS [VERIFIED/FAILED]:",
             value_b, value_a
         )),

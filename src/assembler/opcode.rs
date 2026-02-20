@@ -15,7 +15,7 @@ pub enum OpCode {
     Out,
     // Generative operations.
     Sum,
-    Xpn,
+    Exp,
     Trn,
     // Cognitive operations.
     Cmp,
@@ -23,7 +23,7 @@ pub enum OpCode {
     Flt,
     Prd,
     // Guardrails operations.
-    Vfy,
+    Vrf,
     Sim,
 }
 
@@ -43,7 +43,7 @@ static OP_CODE_MAPPING: [(OpCode, u32); 19] = [
     (OpCode::Out, 0x09),
     // Generative operations.
     (OpCode::Sum, 0x0A),
-    (OpCode::Xpn, 0x0B),
+    (OpCode::Exp, 0x0B),
     (OpCode::Trn, 0x0C),
     // Cognitive operations.
     (OpCode::Cmp, 0x0D),
@@ -51,7 +51,7 @@ static OP_CODE_MAPPING: [(OpCode, u32); 19] = [
     (OpCode::Flt, 0x0F),
     (OpCode::Prd, 0x10),
     // Guardrails operations.
-    (OpCode::Vfy, 0x11),
+    (OpCode::Vrf, 0x11),
     (OpCode::Sim, 0x12),
 ];
 

@@ -23,7 +23,7 @@ pub enum TokenType {
     Out,
     // Generative operations keywords.
     Sum,
-    Xpn,
+    Exp,
     Trn,
     // Cognitive operations keywords.
     Cmp,
@@ -31,7 +31,7 @@ pub enum TokenType {
     Flt,
     Prd,
     // Guardrails operations keywords.
-    Vfy,
+    Vrf,
     Sim,
 
     // Misc keywords.
@@ -56,7 +56,7 @@ pub static TOKEN_TYPE_MAPPING: [(TokenType, &str); 19] = [
     (TokenType::Out, "out"),
     // Generative operations.
     (TokenType::Sum, "sum"),
-    (TokenType::Xpn, "xpn"),
+    (TokenType::Exp, "exp"),
     (TokenType::Trn, "trn"),
     // Cognitive operations.
     (TokenType::Cmp, "cmp"),
@@ -64,7 +64,7 @@ pub static TOKEN_TYPE_MAPPING: [(TokenType, &str); 19] = [
     (TokenType::Flt, "flt"),
     (TokenType::Prd, "prd"),
     // Guardrails operations.
-    (TokenType::Vfy, "vfy"),
+    (TokenType::Vrf, "vrf"),
     (TokenType::Sim, "sim"),
 ];
 

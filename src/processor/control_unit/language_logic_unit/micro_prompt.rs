@@ -11,38 +11,38 @@ pub fn search(r_type: &RType, value_a: &str, value_b: &str) -> Result<String, &'
     match r_type {
         // Generative operations.
         RType::Sum => Ok(format!(
-            "Read \"{}\". Extract only info about \"{}\". Be short. Bullet points only.",
+            "TASK: Summarize\nDATA: \"{}\"\nCONSTRAINT: \"{}\"\nRESULT:",
             value_a, value_b
         )),
         RType::Xpn => Ok(format!(
-            "Write a detailed report about \"{}\". Use the facts in \"{}\" to add detail. No fluff.",
+            "TOPIC: \"{}\"\nCONTEXT TO ADD: \"{}\"\nEXPANDED RESULT:",
             value_a, value_b
         )),
         RType::Trn => Ok(format!(
-            "Convert \"{}\" into \"{}\" format. Do not add text. Output only the code/data.",
+            "SOURCE: \"{}\"\nTARGET FORMAT: \"{}\"\nTRANSFORMED DATA:",
             value_a, value_b
         )),
         // Cognitive operations.
         RType::Cmp => Ok(format!(
-            "Compare \"{}\" and \"{}\". List what is different. List what is the same.",
+            "ITEM A: \"{}\"\nITEM B: \"{}\"\nCOMPARISON POINTS:",
             value_a, value_b
         )),
         RType::Syn => Ok(format!(
-            "Combine \"{}\" and \"{}\" into one new text. Keep the meaning of both. Be seamless.",
+            "INPUT 1: \"{}\"\nINPUT 2: \"{}\"\nSYNTHESIZED OUTPUT:",
             value_a, value_b
         )),
         RType::Flt => Ok(format!(
-            "Copy-paste only the parts of \"{}\" that mention \"{}\". Delete everything else.",
+            "RAW DATA: \"{}\"\nFILTER CRITERIA: \"{}\"\nFILTERED DATA:",
             value_a, value_b
         )),
         RType::Prd => Ok(format!(
-            "Current state: \"{}\". Action: \"{}\". What happens next? List the result.",
+            "CURRENT STATE: \"{}\"\nTREND/RULE: \"{}\"\nPREDICTED NEXT:",
             value_a, value_b
         )),
         // Guardrails operations.
         RType::Vfy => Ok(format!(
-            "Check \"{}\" against \"{}\". List any lies or errors. If none, say \"Verified\".",
-            value_a, value_b
+            "CLAIM: \"{}\"\nEVIDENCE: \"{}\"\nSTATUS [VERIFIED/FAILED]:",
+            value_b, value_a
         )),
         _ => Err("Unsupported r_type for micro prompt generation."),
     }

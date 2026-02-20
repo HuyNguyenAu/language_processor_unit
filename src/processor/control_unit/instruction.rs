@@ -20,12 +20,12 @@ pub struct MoveInstruction {
 
 #[derive(Debug)]
 pub enum SemanticType {
-    ADD,
-    SUB,
-    MUL,
-    DIV,
-    INF,
-    ADT,
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Inf,
+    Adt,
 }
 
 #[derive(Debug)]
@@ -38,10 +38,10 @@ pub struct SemanticInstruction {
 
 #[derive(Debug)]
 pub enum HeuristicType {
-    EQV,
-    INT,
-    HAL,
-    SIM,
+    Eqv,
+    Int,
+    Hal,
+    Sim,
 }
 
 #[derive(Debug)]
@@ -54,11 +54,11 @@ pub struct HeuristicInstruction {
 
 #[derive(Debug)]
 pub enum BranchType {
-    EQ,
-    LE,
-    LT,
-    GE,
-    GT,
+    Eq,
+    Le,
+    Lt,
+    Ge,
+    Gt,
 }
 
 #[derive(Debug)]

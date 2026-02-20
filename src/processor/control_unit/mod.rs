@@ -209,19 +209,19 @@ impl ControlUnit {
         value_text_message: &str,
     ) -> Immediate {
         match self.decode_immediate_type(value_type_message) {
-            ImmediateType::NUMBER => {
+            ImmediateType::Number => {
                 Immediate::Number(self.decode_number(true, value_number_message))
             }
-            ImmediateType::REGISTER => {
+            ImmediateType::Register => {
                 Immediate::Register(self.decode_register(true, value_number_message))
             }
-            ImmediateType::TEXT => Immediate::Text(self.decode_text(value_text_message)),
+            ImmediateType::Text => Immediate::Text(self.decode_text(value_text_message)),
         }
     }
 
     fn decode_load_immediate(&mut self) -> LoadImmediateInstruction {
         // Consume LI opcode.
-        self.decode_op_code(&OpCode::LI, "Failed to decode LI opcode.");
+        self.decode_op_code(&OpCode::Li, "Failed to decode LI opcode.");
 
         // Consume the destination register.
         let destination_register = self.decode_register(
@@ -244,7 +244,7 @@ impl ControlUnit {
 
     fn decode_load_file(&mut self) -> LoadFileInstruction {
         // Consume LF opcode.
-        self.decode_op_code(&OpCode::LF, "Failed to decode LF opcode.");
+        self.decode_op_code(&OpCode::Lf, "Failed to decode LF opcode.");
 
         // Consume the destination register.
         let destination_register = self.decode_register(
@@ -270,7 +270,7 @@ impl ControlUnit {
 
     fn decode_move(&mut self) -> MoveInstruction {
         // Consume MOV opcode.
-        self.decode_op_code(&OpCode::MV, "Failed to decode MV opcode.");
+        self.decode_op_code(&OpCode::Mv, "Failed to decode MV opcode.");
 
         // Consume the destination register.
         let destination_register = self.decode_register(
@@ -313,7 +313,7 @@ impl ControlUnit {
         );
 
         // Decode second immediate operand (HAL uses a dummy numeric 0).
-        let immediate_2 = if matches!(op_code, OpCode::HAL) {
+        let immediate_2 = if matches!(op_code, OpCode::Hal) {
             Immediate::Number(0)
         } else {
             self.decode_immediate(
@@ -324,12 +324,12 @@ impl ControlUnit {
         };
 
         let semantic_type = match op_code {
-            OpCode::ADD => SemanticType::ADD,
-            OpCode::SUB => SemanticType::SUB,
-            OpCode::MUL => SemanticType::MUL,
-            OpCode::DIV => SemanticType::DIV,
-            OpCode::INF => SemanticType::INF,
-            OpCode::ADT => SemanticType::ADT,
+            OpCode::Add => SemanticType::Add,
+            OpCode::Sub => SemanticType::Sub,
+            OpCode::Mul => SemanticType::Mul,
+            OpCode::Div => SemanticType::Div,
+            OpCode::Inf => SemanticType::Inf,
+            OpCode::Adt => SemanticType::Adt,
             _ => panic!("Invalid opcode '{:?}' for semantic instruction.", op_code),
         };
 
@@ -373,10 +373,10 @@ impl ControlUnit {
         );
 
         let heuristic_type = match op_code {
-            OpCode::EQV => HeuristicType::EQV,
-            OpCode::INT => HeuristicType::INT,
-            OpCode::HAL => HeuristicType::HAL,
-            OpCode::SIM => HeuristicType::SIM,
+            OpCode::Eqv => HeuristicType::Eqv,
+            OpCode::Int => HeuristicType::Int,
+            OpCode::Hal => HeuristicType::Hal,
+            OpCode::Sim => HeuristicType::Sim,
             _ => panic!("Invalid opcode '{:?}' for heuristic instruction.", op_code),
         };
 
@@ -417,11 +417,11 @@ impl ControlUnit {
         );
 
         let branch_type = match op_code {
-            OpCode::BEQ => BranchType::EQ,
-            OpCode::BLT => BranchType::LT,
-            OpCode::BLE => BranchType::LE,
-            OpCode::BGT => BranchType::GT,
-            OpCode::BGE => BranchType::GE,
+            OpCode::Beq => BranchType::Eq,
+            OpCode::Blt => BranchType::Lt,
+            OpCode::Ble => BranchType::Le,
+            OpCode::Bgt => BranchType::Gt,
+            OpCode::Bge => BranchType::Ge,
             _ => panic!("Invalid opcode '{:?}' for branch instruction.", op_code),
         };
 
@@ -449,7 +449,7 @@ impl ControlUnit {
 
     fn decode_exit(&mut self) -> ExitInstruction {
         // Consume EXIT opcode.
-        self.decode_op_code(&OpCode::EXIT, "Failed to decode EXIT opcode.");
+        self.decode_op_code(&OpCode::Exit, "Failed to decode EXIT opcode.");
 
         ExitInstruction
     }
@@ -484,31 +484,31 @@ impl ControlUnit {
         };
         let instruction = match op_code {
             // Data movement instructions.
-            OpCode::LI => Instruction::LoadImmediate(self.decode_load_immediate()),
-            OpCode::LF => Instruction::LoadFile(self.decode_load_file()),
-            OpCode::MV => Instruction::Move(self.decode_move()),
+            OpCode::Li => Instruction::LoadImmediate(self.decode_load_immediate()),
+            OpCode::Lf => Instruction::LoadFile(self.decode_load_file()),
+            OpCode::Mv => Instruction::Move(self.decode_move()),
             // Semantic instructions.
-            OpCode::ADD => Instruction::Semantic(self.decode_semantic(OpCode::ADD)),
-            OpCode::SUB => Instruction::Semantic(self.decode_semantic(OpCode::SUB)),
-            OpCode::MUL => Instruction::Semantic(self.decode_semantic(OpCode::MUL)),
-            OpCode::DIV => Instruction::Semantic(self.decode_semantic(OpCode::DIV)),
-            OpCode::INF => Instruction::Semantic(self.decode_semantic(OpCode::INF)),
-            OpCode::ADT => Instruction::Semantic(self.decode_semantic(OpCode::ADT)),
+            OpCode::Add => Instruction::Semantic(self.decode_semantic(OpCode::Add)),
+            OpCode::Sub => Instruction::Semantic(self.decode_semantic(OpCode::Sub)),
+            OpCode::Mul => Instruction::Semantic(self.decode_semantic(OpCode::Mul)),
+            OpCode::Div => Instruction::Semantic(self.decode_semantic(OpCode::Div)),
+            OpCode::Inf => Instruction::Semantic(self.decode_semantic(OpCode::Inf)),
+            OpCode::Adt => Instruction::Semantic(self.decode_semantic(OpCode::Adt)),
             // Heuristic instructions.
-            OpCode::EQV => Instruction::Heuristic(self.decode_heuristic(OpCode::EQV)),
-            OpCode::INT => Instruction::Heuristic(self.decode_heuristic(OpCode::INT)),
-            OpCode::HAL => Instruction::Heuristic(self.decode_heuristic(OpCode::HAL)),
-            OpCode::SIM => Instruction::Heuristic(self.decode_heuristic(OpCode::SIM)),
+            OpCode::Eqv => Instruction::Heuristic(self.decode_heuristic(OpCode::Eqv)),
+            OpCode::Int => Instruction::Heuristic(self.decode_heuristic(OpCode::Int)),
+            OpCode::Hal => Instruction::Heuristic(self.decode_heuristic(OpCode::Hal)),
+            OpCode::Sim => Instruction::Heuristic(self.decode_heuristic(OpCode::Sim)),
             // Branch instructions.
-            OpCode::BEQ => Instruction::Branch(self.decode_branch(op_code)),
-            OpCode::BLT => Instruction::Branch(self.decode_branch(op_code)),
-            OpCode::BLE => Instruction::Branch(self.decode_branch(op_code)),
-            OpCode::BGT => Instruction::Branch(self.decode_branch(op_code)),
-            OpCode::BGE => Instruction::Branch(self.decode_branch(op_code)),
+            OpCode::Beq => Instruction::Branch(self.decode_branch(op_code)),
+            OpCode::Blt => Instruction::Branch(self.decode_branch(op_code)),
+            OpCode::Ble => Instruction::Branch(self.decode_branch(op_code)),
+            OpCode::Bgt => Instruction::Branch(self.decode_branch(op_code)),
+            OpCode::Bge => Instruction::Branch(self.decode_branch(op_code)),
             // I/O instructions.
-            OpCode::OUT => Instruction::Output(self.decode_output()),
+            OpCode::Out => Instruction::Output(self.decode_output()),
             // Misc instructions.
-            OpCode::EXIT => Instruction::Exit(self.decode_exit()),
+            OpCode::Exit => Instruction::Exit(self.decode_exit()),
         };
 
         Some(instruction)
@@ -628,12 +628,12 @@ impl ControlUnit {
         };
 
         let opcode: OpCode = match instruction.semantic_type {
-            SemanticType::ADD => OpCode::ADD,
-            SemanticType::SUB => OpCode::SUB,
-            SemanticType::MUL => OpCode::MUL,
-            SemanticType::DIV => OpCode::DIV,
-            SemanticType::INF => OpCode::INF,
-            SemanticType::ADT => OpCode::ADT,
+            SemanticType::Add => OpCode::Add,
+            SemanticType::Sub => OpCode::Sub,
+            SemanticType::Mul => OpCode::Mul,
+            SemanticType::Div => OpCode::Div,
+            SemanticType::Inf => OpCode::Inf,
+            SemanticType::Adt => OpCode::Adt,
         };
 
         let result = match self.language_logic_unit.run(&opcode, &value_a, &value_b) {
@@ -650,12 +650,12 @@ impl ControlUnit {
                 instruction.semantic_type,
                 value_a,
                 match instruction.semantic_type {
-                    SemanticType::ADD => "+",
-                    SemanticType::SUB => "-",
-                    SemanticType::MUL => "*",
-                    SemanticType::DIV => "/",
-                    SemanticType::INF => "->",
-                    SemanticType::ADT => "<->",
+                    SemanticType::Add => "+",
+                    SemanticType::Sub => "-",
+                    SemanticType::Mul => "*",
+                    SemanticType::Div => "/",
+                    SemanticType::Inf => "->",
+                    SemanticType::Adt => "<->",
                 },
                 value_b,
                 instruction.destination_register,
@@ -702,10 +702,10 @@ impl ControlUnit {
         };
 
         let opcode: OpCode = match instruction.heuristic_type {
-            HeuristicType::EQV => OpCode::EQV,
-            HeuristicType::INT => OpCode::INT,
-            HeuristicType::HAL => OpCode::HAL,
-            HeuristicType::SIM => OpCode::SIM,
+            HeuristicType::Eqv => OpCode::Eqv,
+            HeuristicType::Int => OpCode::Int,
+            HeuristicType::Hal => OpCode::Hal,
+            HeuristicType::Sim => OpCode::Sim,
         };
 
         let result = match self.language_logic_unit.run(&opcode, &value_a, &value_b) {
@@ -722,10 +722,10 @@ impl ControlUnit {
                 instruction.heuristic_type,
                 value_a,
                 match instruction.heuristic_type {
-                    HeuristicType::EQV => "EQV",
-                    HeuristicType::INT => "INT",
-                    HeuristicType::HAL => "HAL",
-                    HeuristicType::SIM => "SIM",
+                    HeuristicType::Eqv => "EQV",
+                    HeuristicType::Int => "INT",
+                    HeuristicType::Hal => "HAL",
+                    HeuristicType::Sim => "SIM",
                 },
                 value_b,
                 instruction.destination_register,
@@ -781,11 +781,11 @@ impl ControlUnit {
 
         let address = instruction.byte_code_index;
         let is_true = match instruction.branch_type {
-            BranchType::EQ => value_a == value_b,
-            BranchType::LT => value_a < value_b,
-            BranchType::LE => value_a <= value_b,
-            BranchType::GT => value_a > value_b,
-            BranchType::GE => value_a >= value_b,
+            BranchType::Eq => value_a == value_b,
+            BranchType::Lt => value_a < value_b,
+            BranchType::Le => value_a <= value_b,
+            BranchType::Gt => value_a > value_b,
+            BranchType::Ge => value_a >= value_b,
         };
 
         if is_true {
@@ -804,7 +804,7 @@ impl ControlUnit {
 
         if debug {
             match instruction.branch_type {
-                BranchType::EQ => {
+                BranchType::Eq => {
                     println!(
                         "Executed {:?}: {:?} == {:?} -> {}, {}",
                         instruction.branch_type,
@@ -814,7 +814,7 @@ impl ControlUnit {
                         instruction.byte_code_index
                     );
                 }
-                BranchType::LT => {
+                BranchType::Lt => {
                     println!(
                         "Executed {:?}: {:?} < {:?} -> {}, {}",
                         instruction.branch_type,
@@ -824,7 +824,7 @@ impl ControlUnit {
                         instruction.byte_code_index
                     );
                 }
-                BranchType::LE => {
+                BranchType::Le => {
                     println!(
                         "Executed {:?}: {:?} <= {:?} -> {}, {}",
                         instruction.branch_type,
@@ -834,7 +834,7 @@ impl ControlUnit {
                         instruction.byte_code_index
                     );
                 }
-                BranchType::GT => {
+                BranchType::Gt => {
                     println!(
                         "Executed {:?}: {:?} > {:?} -> {}, {}",
                         instruction.branch_type,
@@ -844,7 +844,7 @@ impl ControlUnit {
                         instruction.byte_code_index
                     );
                 }
-                BranchType::GE => println!(
+                BranchType::Ge => println!(
                     "Executed {:?}: {:?} >= {:?} -> {}, {}",
                     instruction.branch_type, value_a, value_b, is_true, instruction.byte_code_index
                 ),

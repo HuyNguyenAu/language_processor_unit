@@ -1,14 +1,14 @@
 #[derive(Debug, PartialEq, Clone)]
 pub enum ImmediateType {
-    TEXT,
-    NUMBER,
-    REGISTER,
+    Text,
+    Number,
+    Register,
 }
 
 static IMMEDIATE_TYPE_MAPPING: [(ImmediateType, u32); 3] = [
-    (ImmediateType::NUMBER, 0x00),
-    (ImmediateType::TEXT, 0x01),
-    (ImmediateType::REGISTER, 0x02),
+    (ImmediateType::Number, 0x00),
+    (ImmediateType::Text, 0x01),
+    (ImmediateType::Register, 0x02),
 ];
 
 impl ImmediateType {

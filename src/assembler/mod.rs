@@ -254,10 +254,10 @@ impl Assembler {
 
     fn emit_immediate_bytecode(&mut self, immediate: &Immediate) {
         let (immediate_type, value_be_bytes): (ImmediateType, Vec<[u8; 4]>) = match immediate {
-            Immediate::Number(value) => (ImmediateType::NUMBER, vec![value.to_be_bytes()]),
-            Immediate::Register(value) => (ImmediateType::REGISTER, vec![value.to_be_bytes()]),
+            Immediate::Number(value) => (ImmediateType::Number, vec![value.to_be_bytes()]),
+            Immediate::Register(value) => (ImmediateType::Register, vec![value.to_be_bytes()]),
             Immediate::Text(value) => (
-                ImmediateType::TEXT,
+                ImmediateType::Text,
                 value
                     .bytes()
                     .map(|byte| u32::from(byte).to_be_bytes())
@@ -369,7 +369,7 @@ impl Assembler {
             }
         };
 
-        self.emit_op_code_bytecode(OpCode::LI);
+        self.emit_op_code_bytecode(OpCode::Li);
         self.emit_register_bytecode(destination_register);
         self.emit_immediate_bytecode(&immediate);
     }
@@ -394,7 +394,7 @@ impl Assembler {
             .string("Expected file path string after ','.")
             .to_string();
 
-        self.emit_op_code_bytecode(OpCode::LF);
+        self.emit_op_code_bytecode(OpCode::Lf);
         self.emit_register_bytecode(destination_register);
         self.emit_immediate_bytecode(&Immediate::Text(file_path));
     }
@@ -423,7 +423,7 @@ impl Assembler {
             }
         };
 
-        self.emit_op_code_bytecode(OpCode::MV);
+        self.emit_op_code_bytecode(OpCode::Mv);
         self.emit_register_bytecode(destination_register);
         self.emit_register_bytecode(source_register);
     }
@@ -473,17 +473,17 @@ impl Assembler {
 
         let opcode = match token_type {
             // Semantic operations.
-            TokenType::Add => OpCode::ADD,
-            TokenType::Sub => OpCode::SUB,
-            TokenType::Mul => OpCode::MUL,
-            TokenType::Div => OpCode::DIV,
-            TokenType::Inf => OpCode::INF,
-            TokenType::Adt => OpCode::ADT,
+            TokenType::Add => OpCode::Add,
+            TokenType::Sub => OpCode::Sub,
+            TokenType::Mul => OpCode::Mul,
+            TokenType::Div => OpCode::Div,
+            TokenType::Inf => OpCode::Inf,
+            TokenType::Adt => OpCode::Adt,
             // Heuristic operations.
-            TokenType::Eqv => OpCode::EQV,
-            TokenType::Int => OpCode::INT,
-            TokenType::Hal => OpCode::HAL,
-            TokenType::Sim => OpCode::SIM,
+            TokenType::Eqv => OpCode::Eqv,
+            TokenType::Int => OpCode::Int,
+            TokenType::Hal => OpCode::Hal,
+            TokenType::Sim => OpCode::Sim,
             _ => {
                 self.error_at_previous("Invalid semantic instruction.");
                 return;
@@ -545,11 +545,11 @@ impl Assembler {
         );
 
         let opcode = match token_type {
-            TokenType::Beq => OpCode::BEQ,
-            TokenType::Blt => OpCode::BLT,
-            TokenType::Ble => OpCode::BLE,
-            TokenType::Bgt => OpCode::BGT,
-            TokenType::Bge => OpCode::BGE,
+            TokenType::Beq => OpCode::Beq,
+            TokenType::Blt => OpCode::Blt,
+            TokenType::Ble => OpCode::Ble,
+            TokenType::Bgt => OpCode::Bgt,
+            TokenType::Bge => OpCode::Bge,
             _ => {
                 self.error_at_previous("Invalid branch instruction.");
                 return;
@@ -598,14 +598,14 @@ impl Assembler {
             }
         };
 
-        self.emit_op_code_bytecode(OpCode::OUT);
+        self.emit_op_code_bytecode(OpCode::Out);
         self.emit_immediate_bytecode(&immediate);
     }
 
     fn exit(&mut self) {
         self.consume(&TokenType::Exit, "Expected 'exit' keyword.");
 
-        self.emit_op_code_bytecode(OpCode::EXIT);
+        self.emit_op_code_bytecode(OpCode::Exit);
     }
 
     pub fn assemble(&mut self) -> Result<Vec<u8>, &'static str> {

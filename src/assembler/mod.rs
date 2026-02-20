@@ -10,8 +10,8 @@ pub mod immediate;
 pub mod opcode;
 mod scanner;
 
-struct UnitialisedLabel {
-    current_byte_code_indices: Vec<usize>,
+struct UnresolvedLabel {
+    bytecode_indices: Vec<usize>,
     token: Token,
 }
 
@@ -24,9 +24,8 @@ pub struct Assembler {
     previous: Option<Token>,
     current: Option<Token>,
 
-    current_byte_code_index: usize,
     byte_code_indices: HashMap<u64, usize>,
-    uninitialised_labels: HashMap<u64, UnitialisedLabel>,
+    unresolved_labels: HashMap<u64, UnresolvedLabel>,
 
     had_error: bool,
     panic_mode: bool,
@@ -34,27 +33,21 @@ pub struct Assembler {
 
 impl Assembler {
     pub fn new(source: &'static str) -> Self {
-        return Assembler {
+        Assembler {
             byte_code: Vec::new(),
             source,
             scanner: Scanner::new(source),
             previous: None,
             current: None,
-            current_byte_code_index: 0,
             byte_code_indices: HashMap::new(),
-            uninitialised_labels: HashMap::new(),
+            unresolved_labels: HashMap::new(),
             had_error: false,
             panic_mode: false,
-        };
+        }
     }
 
-    fn lexeme(&self, token: &Token) -> String {
-        return self
-            .source
-            .chars()
-            .skip(token.start())
-            .take(token.end() - token.start())
-            .collect::<String>();
+    fn lexeme(&self, token: &Token) -> &str {
+        &self.source[token.start()..token.end()]
     }
 
     fn error_at(&mut self, token: &Token, message: &str) {
@@ -80,38 +73,37 @@ impl Assembler {
     }
 
     fn error_at_current(&mut self, message: &str) {
-        let token = match &self.current {
-            Some(token) => token.to_owned(),
-            None => panic!(
+        if let Some(token) = &self.current {
+            let token = token.clone();
+            self.error_at(&token, message);
+        } else {
+            panic!(
                 "Failed to handle error at current token.\nError: {}",
                 message
-            ),
-        };
-
-        self.error_at(&token, message);
+            );
+        }
     }
 
     fn error_at_previous(&mut self, message: &str) {
-        let token = match &self.previous {
-            Some(token) => token.to_owned(),
-            None => panic!(
+        if let Some(token) = &self.previous {
+            let token = token.clone();
+            self.error_at(&token, message);
+        } else {
+            panic!(
                 "Failed to handle error at previous token.\nError: {}",
                 message
-            ),
-        };
-
-        self.error_at(&token, message);
+            );
+        }
     }
 
     fn advance(&mut self) {
-        self.previous = self.current.to_owned();
+        self.previous = self.current.clone();
 
         loop {
-            let current_token = self.scanner.scan_token();
+            let token = self.scanner.scan_token();
+            self.current = Some(token);
 
-            self.current = Some(current_token.to_owned());
-
-            if current_token.token_type() != &TokenType::ERROR {
+            if self.current.as_ref().unwrap().token_type() != &TokenType::ERROR {
                 return;
             }
 
@@ -119,9 +111,9 @@ impl Assembler {
         }
     }
 
-    fn previous_lexeme(&self) -> String {
+    fn previous_lexeme(&self) -> &str {
         if let Some(token) = &self.previous {
-            return self.lexeme(&token);
+            return self.lexeme(token);
         }
 
         panic!("Expected previous token to be present, but it is None.");
@@ -137,10 +129,6 @@ impl Assembler {
         }
 
         self.error_at_current(message);
-    }
-
-    fn advance_stack_level(&mut self) {
-        self.current_byte_code_index = self.byte_code.len() - 1;
     }
 
     fn number(&mut self, message: &str) -> Result<u32, String> {
@@ -202,10 +190,10 @@ impl Assembler {
             .replace("\\n", "\n");
     }
 
-    fn identifier(&mut self, message: &str) -> String {
+    fn identifier(&mut self, message: &str) -> &str {
         self.consume(&TokenType::IDENTIFIER, message);
 
-        return self.previous_lexeme();
+        self.previous_lexeme()
     }
 
     fn immediate(&mut self, message: &str) -> Result<Immediate, String> {
@@ -308,25 +296,23 @@ impl Assembler {
         self.byte_code.extend(value_be_bytes);
     }
 
-    fn upsert_uninitialised_label(&mut self, key: u64) -> Result<(), String> {
+    fn upsert_unresolved_label(&mut self, key: u64) -> Result<(), String> {
         let bytecode_index = self.byte_code.len() - 1;
 
-        if let Some(uninitialised_label) = self.uninitialised_labels.get_mut(&key) {
-            uninitialised_label
-                .current_byte_code_indices
-                .push(bytecode_index);
+        if let Some(label) = self.unresolved_labels.get_mut(&key) {
+            label.bytecode_indices.push(bytecode_index);
         } else {
-            let previous_token = match self.previous.to_owned() {
-                Some(token) => token,
+            let previous_token = match &self.previous {
+                Some(token) => token.clone(),
                 None => {
-                    return Err("Failed to get current token for uninitialised label.".to_string());
+                    return Err("Failed to get current token for unresolved label.".to_string());
                 }
             };
 
-            self.uninitialised_labels.insert(
+            self.unresolved_labels.insert(
                 key,
-                UnitialisedLabel {
-                    current_byte_code_indices: vec![bytecode_index],
+                UnresolvedLabel {
+                    bytecode_indices: vec![bytecode_index],
                     token: previous_token,
                 },
             );
@@ -353,7 +339,7 @@ impl Assembler {
             // Placeholder for backpatching.
             self.emit_number_bytecode(0);
             // Record the current bytecode index for backpatching later.
-            match self.upsert_uninitialised_label(key) {
+            match self.upsert_unresolved_label(key) {
                 Ok(()) => (),
                 Err(message) => {
                     self.error_at_current(&message);
@@ -390,8 +376,6 @@ impl Assembler {
         self.emit_op_code_bytecode(OpCode::LI);
         self.emit_register_bytecode(destination_register);
         self.emit_immediate_bytecode(&immediate);
-
-        self.advance_stack_level();
     }
 
     fn load_file(&mut self) {
@@ -417,8 +401,6 @@ impl Assembler {
         self.emit_op_code_bytecode(OpCode::LF);
         self.emit_register_bytecode(destination_register);
         self.emit_immediate_bytecode(&Immediate::Text(file_path));
-
-        self.advance_stack_level();
     }
 
     fn move_value(&mut self) {
@@ -448,8 +430,6 @@ impl Assembler {
         self.emit_op_code_bytecode(OpCode::MV);
         self.emit_register_bytecode(destination_register);
         self.emit_register_bytecode(source_register);
-
-        self.advance_stack_level();
     }
 
     fn hash(value: &str) -> u64 {
@@ -467,8 +447,8 @@ impl Assembler {
         let key = Self::hash(value);
         let jump_destination_byte_code_index = self.byte_code.len();
 
-        // Backpatch any uninitialised labels.
-        if let Some(uninitialised_labels) = self.uninitialised_labels.remove(&key) {
+        // Backpatch any unresolved labels.
+        if let Some(unresolved) = self.unresolved_labels.remove(&key) {
             let value: u32 = match jump_destination_byte_code_index.try_into() {
                 Ok(value) => value,
                 Err(_) => {
@@ -480,8 +460,8 @@ impl Assembler {
 
             let bytes = value.to_be_bytes();
 
-            for current_byte_code_index in uninitialised_labels.current_byte_code_indices {
-                self.byte_code[current_byte_code_index] = bytes;
+            for idx in unresolved.bytecode_indices {
+                self.byte_code[idx] = bytes;
             }
         }
 
@@ -560,8 +540,6 @@ impl Assembler {
         self.emit_register_bytecode(destination_register);
         self.emit_immediate_bytecode(&immediate_1);
         self.emit_immediate_bytecode(&immediate_2);
-
-        self.advance_stack_level();
     }
 
     fn branch(&mut self, token_type: &TokenType) {
@@ -611,8 +589,6 @@ impl Assembler {
         self.emit_immediate_bytecode(&immediate_1);
         self.emit_immediate_bytecode(&immediate_2);
         self.emit_label_bytecode(key);
-
-        self.advance_stack_level();
     }
 
     fn output(&mut self) {
@@ -628,16 +604,12 @@ impl Assembler {
 
         self.emit_op_code_bytecode(OpCode::OUT);
         self.emit_immediate_bytecode(&immediate);
-
-        self.advance_stack_level();
     }
 
     fn exit(&mut self) {
         self.consume(&TokenType::EXIT, "Expected 'exit' keyword.");
 
         self.emit_op_code_bytecode(OpCode::EXIT);
-
-        self.advance_stack_level();
     }
 
     pub fn assemble(&mut self) -> Result<Vec<u8>, &'static str> {
@@ -685,19 +657,19 @@ impl Assembler {
             return Err("Assembly failed due to errors.");
         }
 
-        if let Some((_, uninitialised_label)) = self.uninitialised_labels.iter().nth(0) {
-            let token = uninitialised_label.token.to_owned();
+        if let Some((_, unresolved_label)) = self.unresolved_labels.iter().nth(0) {
+            let token = unresolved_label.token.clone();
 
             self.error_at(&token, "Undefined label referenced here.");
 
             return Err("Assembly failed due to errors.");
         }
 
-        return Ok(self
+        Ok(self
             .byte_code
             .iter()
             .flat_map(|bytes| bytes.iter())
-            .cloned()
-            .collect());
+            .copied()
+            .collect())
     }
 }

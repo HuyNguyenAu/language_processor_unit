@@ -7,9 +7,8 @@ use crate::{
     },
     processor::control_unit::{
         instruction::{
-            BranchInstruction, BranchType, ExitInstruction, HeuristicInstruction, HeuristicType,
-            Instruction, LoadFileInstruction, LoadImmediateInstruction, MoveInstruction,
-            OutputInstruction, SemanticInstruction, SemanticType,
+            BranchInstruction, BranchType, ExitInstruction, Instruction, LoadFileInstruction,
+            LoadImmediateInstruction, MoveInstruction, OutputInstruction, RType, RTypeInstruction,
         },
         language_logic_unit::LanguageLogicUnit,
         memory_unit::MemoryUnit,
@@ -288,8 +287,8 @@ impl ControlUnit {
         }
     }
 
-    fn decode_semantic(&mut self, op_code: OpCode) -> SemanticInstruction {
-        // Consume semantic opcode.
+    fn decode_r_type(&mut self, op_code: OpCode) -> RTypeInstruction {
+        // Consume opcode.
         self.decode_op_code(
             &op_code,
             format!("Failed to decode {:?} opcode.", op_code).as_str(),
@@ -307,81 +306,36 @@ impl ControlUnit {
 
         // Decode first immediate operand.
         let immediate_1 = self.decode_immediate(
-            "Failed to decode immediate type for semantic instruction.",
-            "Failed to decode number for semantic instruction.",
-            "Failed to decode text for semantic instruction.",
+            "Failed to decode immediate type for R-type instruction.",
+            "Failed to decode number for cognitive instruction.",
+            "Failed to decode text for cognitive instruction.",
         );
 
         // Decode second immediate operand (HAL uses a dummy numeric 0).
-        let immediate_2 = if matches!(op_code, OpCode::Hal) {
-            Immediate::Number(0)
-        } else {
-            self.decode_immediate(
-                "Failed to decode immediate type for semantic instruction.",
-                "Failed to decode number for semantic instruction.",
-                "Failed to decode text for semantic instruction.",
-            )
-        };
-
-        let semantic_type = match op_code {
-            OpCode::Add => SemanticType::Add,
-            OpCode::Sub => SemanticType::Sub,
-            OpCode::Mul => SemanticType::Mul,
-            OpCode::Div => SemanticType::Div,
-            OpCode::Inf => SemanticType::Inf,
-            OpCode::Adt => SemanticType::Adt,
-            _ => panic!("Invalid opcode '{:?}' for semantic instruction.", op_code),
-        };
-
-        SemanticInstruction {
-            semantic_type,
-            destination_register,
-            immediate_1,
-            immediate_2,
-        }
-    }
-
-    fn decode_heuristic(&mut self, op_code: OpCode) -> HeuristicInstruction {
-        // Consume heuristic opcode.
-        self.decode_op_code(
-            &op_code,
-            format!("Failed to decode {:?} opcode.", op_code).as_str(),
-        );
-
-        // Consume the destination register.
-        let destination_register = self.decode_register(
-            false,
-            format!(
-                "Failed to read destination register for {:?} instruction.",
-                op_code
-            )
-            .as_str(),
-        );
-
-        // Decode the first immediate operand.
-        let immediate_1 = self.decode_immediate(
-            "Failed to decode immediate type for heuristic instruction.",
-            "Failed to decode number for heuristic instruction.",
-            "Failed to decode text for heuristic instruction.",
-        );
-
-        // Decode the second immediate operand (assembler emits a dummy for single-operand heuristics like HAL).
         let immediate_2 = self.decode_immediate(
-            "Failed to decode immediate type for heuristic instruction.",
-            "Failed to decode number for heuristic instruction.",
-            "Failed to decode text for heuristic instruction.",
+            "Failed to decode immediate type for cognitive instruction.",
+            "Failed to decode number for cognitive instruction.",
+            "Failed to decode text for cognitive instruction.",
         );
 
-        let heuristic_type = match op_code {
-            OpCode::Eqv => HeuristicType::Eqv,
-            OpCode::Int => HeuristicType::Int,
-            OpCode::Hal => HeuristicType::Hal,
-            OpCode::Sim => HeuristicType::Sim,
-            _ => panic!("Invalid opcode '{:?}' for heuristic instruction.", op_code),
+        let r_type = match op_code {
+            // Generative operations.
+            OpCode::Sum => RType::Sum,
+            OpCode::Xpn => RType::Xpn,
+            OpCode::Trn => RType::Trn,
+            // Cognitive operations.
+            OpCode::Cmp => RType::Cmp,
+            OpCode::Syn => RType::Syn,
+            OpCode::Flt => RType::Flt,
+            OpCode::Prd => RType::Prd,
+            // Guardrails operations.
+            OpCode::Vfy => RType::Vfy,
+            OpCode::Sim => RType::Sim,
+            _ => panic!("Invalid opcode '{:?}' for R-type instruction.", op_code),
         };
 
-        HeuristicInstruction {
-            heuristic_type,
+        RTypeInstruction {
+            r_type,
             destination_register,
             immediate_1,
             immediate_2,
@@ -487,28 +441,25 @@ impl ControlUnit {
             OpCode::Li => Instruction::LoadImmediate(self.decode_load_immediate()),
             OpCode::Lf => Instruction::LoadFile(self.decode_load_file()),
             OpCode::Mv => Instruction::Move(self.decode_move()),
-            // Semantic instructions.
-            OpCode::Add => Instruction::Semantic(self.decode_semantic(OpCode::Add)),
-            OpCode::Sub => Instruction::Semantic(self.decode_semantic(OpCode::Sub)),
-            OpCode::Mul => Instruction::Semantic(self.decode_semantic(OpCode::Mul)),
-            OpCode::Div => Instruction::Semantic(self.decode_semantic(OpCode::Div)),
-            OpCode::Inf => Instruction::Semantic(self.decode_semantic(OpCode::Inf)),
-            OpCode::Adt => Instruction::Semantic(self.decode_semantic(OpCode::Adt)),
-            // Heuristic instructions.
-            OpCode::Eqv => Instruction::Heuristic(self.decode_heuristic(OpCode::Eqv)),
-            OpCode::Int => Instruction::Heuristic(self.decode_heuristic(OpCode::Int)),
-            OpCode::Hal => Instruction::Heuristic(self.decode_heuristic(OpCode::Hal)),
-            OpCode::Sim => Instruction::Heuristic(self.decode_heuristic(OpCode::Sim)),
-            // Branch instructions.
+            // Control flow instructions.
             OpCode::Beq => Instruction::Branch(self.decode_branch(op_code)),
             OpCode::Blt => Instruction::Branch(self.decode_branch(op_code)),
             OpCode::Ble => Instruction::Branch(self.decode_branch(op_code)),
             OpCode::Bgt => Instruction::Branch(self.decode_branch(op_code)),
             OpCode::Bge => Instruction::Branch(self.decode_branch(op_code)),
+            OpCode::Exit => Instruction::Exit(self.decode_exit()),
             // I/O instructions.
             OpCode::Out => Instruction::Output(self.decode_output()),
-            // Misc instructions.
-            OpCode::Exit => Instruction::Exit(self.decode_exit()),
+            // Generative operations.
+            OpCode::Sum | OpCode::Xpn | OpCode::Trn => {
+                Instruction::RType(self.decode_r_type(op_code))
+            }
+            // Cognitive operations.
+            OpCode::Cmp | OpCode::Syn | OpCode::Flt | OpCode::Prd => {
+                Instruction::RType(self.decode_r_type(op_code))
+            }
+            // Guardrails operations.
+            OpCode::Vfy | OpCode::Sim => Instruction::RType(self.decode_r_type(op_code)),
         };
 
         Some(instruction)
@@ -602,14 +553,14 @@ impl ControlUnit {
         }
     }
 
-    fn execute_semantic(&mut self, instruction: &SemanticInstruction, debug: bool) {
+    fn execute_r_type(&mut self, instruction: &RTypeInstruction, debug: bool) {
         let value_a = match &instruction.immediate_1 {
             Immediate::Text(text) => Value::Text(text.to_string()),
             Immediate::Number(number) => Value::Number(*number),
             Immediate::Register(register) => match self.registers.get_register(*register) {
                 Ok(value) => value.to_owned(),
                 Err(error) => panic!(
-                    "Failed to read source register r{} for semantic instruction. Error: {}",
+                    "Failed to read source register r{} for R-type instruction. Error: {}",
                     register, error
                 ),
             },
@@ -621,42 +572,29 @@ impl ControlUnit {
             Immediate::Register(register) => match self.registers.get_register(*register) {
                 Ok(value) => value.to_owned(),
                 Err(error) => panic!(
-                    "Failed to read source register r{} for semantic instruction. Error: {}",
+                    "Failed to read source register r{} for R-type instruction. Error: {}",
                     register, error
                 ),
             },
         };
 
-        let opcode: OpCode = match instruction.semantic_type {
-            SemanticType::Add => OpCode::Add,
-            SemanticType::Sub => OpCode::Sub,
-            SemanticType::Mul => OpCode::Mul,
-            SemanticType::Div => OpCode::Div,
-            SemanticType::Inf => OpCode::Inf,
-            SemanticType::Adt => OpCode::Adt,
-        };
-
-        let result = match self.language_logic_unit.run(&opcode, &value_a, &value_b) {
+        let result = match self
+            .language_logic_unit
+            .run(&instruction.r_type, &value_a, &value_b)
+        {
             Ok(result) => result,
             Err(error) => panic!(
                 "Failed to perform {:?}. Error: {}",
-                instruction.semantic_type, error
+                instruction.r_type, error
             ),
         };
 
         if debug {
             println!(
-                "Executed {:?}: {:?} {} {:?} -> r{} = \"{:?}\"",
-                instruction.semantic_type,
+                "Executed {:?}: {:?} {:?} {:?} -> r{} = \"{:?}\"",
+                instruction.r_type,
                 value_a,
-                match instruction.semantic_type {
-                    SemanticType::Add => "+",
-                    SemanticType::Sub => "-",
-                    SemanticType::Mul => "*",
-                    SemanticType::Div => "/",
-                    SemanticType::Inf => "->",
-                    SemanticType::Adt => "<->",
-                },
+                instruction.r_type,
                 value_b,
                 instruction.destination_register,
                 result
@@ -670,77 +608,7 @@ impl ControlUnit {
             Ok(_) => {}
             Err(error) => panic!(
                 "Failed to set register for {:?} instruction. Error: {}",
-                instruction.semantic_type, error
-            ),
-        };
-    }
-
-    fn execute_heuristic(&mut self, instruction: &HeuristicInstruction, debug: bool) {
-        // Resolve immediates to concrete Values (register lookups for Immediate::Register).
-        let value_a = match &instruction.immediate_1 {
-            Immediate::Text(text) => Value::Text(text.to_string()),
-            Immediate::Number(number) => Value::Number(*number),
-            Immediate::Register(register) => match self.registers.get_register(*register) {
-                Ok(value) => value.to_owned(),
-                Err(error) => panic!(
-                    "Failed to read source register r{} for {:?} instruction. Error: {}",
-                    register, instruction.heuristic_type, error
-                ),
-            },
-        };
-
-        let value_b = match &instruction.immediate_2 {
-            Immediate::Text(text) => Value::Text(text.to_string()),
-            Immediate::Number(number) => Value::Number(*number),
-            Immediate::Register(register) => match self.registers.get_register(*register) {
-                Ok(value) => value.to_owned(),
-                Err(error) => panic!(
-                    "Failed to read source register r{} for {:?} instruction. Error: {}",
-                    register, instruction.heuristic_type, error
-                ),
-            },
-        };
-
-        let opcode: OpCode = match instruction.heuristic_type {
-            HeuristicType::Eqv => OpCode::Eqv,
-            HeuristicType::Int => OpCode::Int,
-            HeuristicType::Hal => OpCode::Hal,
-            HeuristicType::Sim => OpCode::Sim,
-        };
-
-        let result = match self.language_logic_unit.run(&opcode, &value_a, &value_b) {
-            Ok(result) => result,
-            Err(error) => panic!(
-                "Failed to perform {:?}. Error: {}",
-                instruction.heuristic_type, error
-            ),
-        };
-
-        if debug {
-            println!(
-                "Executed {:?}: {:?} {} {:?} -> r{} = \"{:?}\"",
-                instruction.heuristic_type,
-                value_a,
-                match instruction.heuristic_type {
-                    HeuristicType::Eqv => "EQV",
-                    HeuristicType::Int => "INT",
-                    HeuristicType::Hal => "HAL",
-                    HeuristicType::Sim => "SIM",
-                },
-                value_b,
-                instruction.destination_register,
-                result
-            );
-        }
-
-        match self
-            .registers
-            .set_register(instruction.destination_register, &result)
-        {
-            Ok(_) => {}
-            Err(error) => panic!(
-                "Failed to set register for {:?} instruction. Error: {}",
-                instruction.heuristic_type, error
+                instruction.r_type, error
             ),
         };
     }
@@ -889,11 +757,10 @@ impl ControlUnit {
             }
             Instruction::LoadFile(instruction) => self.execute_load_file(instruction, debug),
             Instruction::Move(instruction) => self.execute_move(instruction, debug),
-            Instruction::Semantic(instruction) => self.execute_semantic(instruction, debug),
-            Instruction::Heuristic(instruction) => self.execute_heuristic(instruction, debug),
             Instruction::Branch(instruction) => self.execute_branch(instruction, debug),
-            Instruction::Output(instruction) => self.execute_output(instruction, debug),
             Instruction::Exit(instruction) => self.execute_exit(instruction, debug),
+            Instruction::Output(instruction) => self.execute_output(instruction, debug),
+            Instruction::RType(instruction) => self.execute_r_type(instruction, debug),
         }
     }
 }

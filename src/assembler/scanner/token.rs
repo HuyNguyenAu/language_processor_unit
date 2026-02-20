@@ -12,61 +12,60 @@ pub enum TokenType {
     Li,
     Lf,
     Mv,
-    // Semantic operations keywords.
-    Add,
-    Sub,
-    Mul,
-    Div,
-    Inf,
-    Adt,
-    // Heuristic operations keywords.
-    Eqv,
-    Int,
-    Hal,
-    Sim,
     // Control flow keywords.
     Beq,
     Ble,
     Blt,
     Bge,
     Bgt,
-    Label,
+    Exit,
     // I/O keywords.
     Out,
+    // Generative operations keywords.
+    Sum,
+    Xpn,
+    Trn,
+    // Cognitive operations keywords.
+    Cmp,
+    Syn,
+    Flt,
+    Prd,
+    // Guardrails operations keywords.
+    Vfy,
+    Sim,
 
-    // Misc.
+    // Misc keywords.
+    Label,
     Eof,
     Error,
-    Exit,
 }
 
-pub static TOKEN_TYPE_MAPPING: [(TokenType, &str); 20] = [
+pub static TOKEN_TYPE_MAPPING: [(TokenType, &str); 19] = [
     // Data movement.
     (TokenType::Li, "li"),
     (TokenType::Lf, "lf"),
     (TokenType::Mv, "mv"),
-    // Semantic operations.
-    (TokenType::Add, "add"),
-    (TokenType::Sub, "sub"),
-    (TokenType::Mul, "mul"),
-    (TokenType::Div, "div"),
-    (TokenType::Inf, "inf"),
-    (TokenType::Adt, "adt"),
-    // Heuristic operations.
-    (TokenType::Eqv, "eqv"),
-    (TokenType::Int, "int"),
-    (TokenType::Hal, "hal"),
-    (TokenType::Sim, "sim"),
     // Control flow.
     (TokenType::Beq, "beq"),
-    (TokenType::Blt, "blt"),
     (TokenType::Ble, "ble"),
+    (TokenType::Blt, "blt"),
     (TokenType::Bge, "bge"),
     (TokenType::Bgt, "bgt"),
+    (TokenType::Exit, "exit"),
     // I/O.
     (TokenType::Out, "out"),
-    // Misc.
-    (TokenType::Exit, "exit"),
+    // Generative operations.
+    (TokenType::Sum, "add"),
+    (TokenType::Xpn, "sub"),
+    (TokenType::Trn, "mul"),
+    // Cognitive operations.
+    (TokenType::Cmp, "div"),
+    (TokenType::Syn, "inf"),
+    (TokenType::Flt, "adt"),
+    (TokenType::Prd, "eqv"),
+    // Guardrails operations.
+    (TokenType::Vfy, "int"),
+    (TokenType::Sim, "hal"),
 ];
 
 #[derive(Clone, Debug)]

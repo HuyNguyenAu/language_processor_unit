@@ -4,57 +4,55 @@ pub enum OpCode {
     Li,
     Lf,
     Mv,
-    // Semantic operations.
-    Add,
-    Sub,
-    Mul,
-    Div,
-    Inf,
-    Adt,
-    // Heuristic operations.
-    Eqv,
-    Int,
-    Hal,
-    Sim,
     // Control flow.
     Beq,
     Ble,
     Blt,
     Bge,
     Bgt,
+    Exit,
     // I/O.
     Out,
-    // Misc.
-    Exit,
+    // Generative operations.
+    Sum,
+    Xpn,
+    Trn,
+    // Cognitive operations.
+    Cmp,
+    Syn,
+    Flt,
+    Prd,
+    // Guardrails operations.
+    Vfy,
+    Sim,
 }
 
-static OP_CODE_MAPPING: [(OpCode, u32); 20] = [
+static OP_CODE_MAPPING: [(OpCode, u32); 19] = [
     // Data movement.
     (OpCode::Li, 0x00),
     (OpCode::Lf, 0x01),
     (OpCode::Mv, 0x02),
-    // Semantic operations.
-    (OpCode::Add, 0x03),
-    (OpCode::Sub, 0x04),
-    (OpCode::Mul, 0x05),
-    (OpCode::Div, 0x06),
-    (OpCode::Inf, 0x07),
-    (OpCode::Adt, 0x08),
-    // Heuristic operations.
-    (OpCode::Eqv, 0x09),
-    (OpCode::Int, 0x0A),
-    (OpCode::Hal, 0x0B),
-    (OpCode::Sim, 0x0C),
     // Control flow.
-    (OpCode::Beq, 0x0D),
-    (OpCode::Ble, 0x0E),
-    (OpCode::Blt, 0x0F),
-    (OpCode::Bge, 0x10),
-    (OpCode::Bgt, 0x11),
+    (OpCode::Beq, 0x03),
+    (OpCode::Ble, 0x04),
+    (OpCode::Blt, 0x05),
+    (OpCode::Bge, 0x06),
+    (OpCode::Bgt, 0x07),
+    (OpCode::Exit, 0x08),
     // I/O.
-    (OpCode::Out, 0x12),
-    // Misc.
-    (OpCode::Exit, 0xFF),
+    (OpCode::Out, 0x09),
+    // Generative operations.
+    (OpCode::Sum, 0x0A),
+    (OpCode::Xpn, 0x0B),
+    (OpCode::Trn, 0x0C),
+    // Cognitive operations.
+    (OpCode::Cmp, 0x0D),
+    (OpCode::Syn, 0x0E),
+    (OpCode::Flt, 0x0F),
+    (OpCode::Prd, 0x10),
+    // Guardrails operations.
+    (OpCode::Vfy, 0x11),
+    (OpCode::Sim, 0x12),
 ];
 
 impl OpCode {

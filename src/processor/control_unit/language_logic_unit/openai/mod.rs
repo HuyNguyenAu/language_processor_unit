@@ -53,7 +53,7 @@ impl OpenAIClient {
             }
         };
 
-        match from_str::<OpenAIChatCompletionResponse>(&text) {
+        match from_str::<OpenAIChatCompletionResponse>(text) {
             Ok(parsed_response) => Ok(parsed_response),
             Err(error) => Err(format!(
                 "Failed to deserialise chat response JSON. Error: {}. Response Text: {}",
@@ -96,7 +96,7 @@ impl OpenAIClient {
             }
         };
 
-        match from_str::<OpenAIEmbeddingsResponse>(&text) {
+        match from_str::<OpenAIEmbeddingsResponse>(text) {
             Ok(parsed_response) => Ok(parsed_response),
             Err(error) => Err(format!(
                 "Failed to deserialise embedding response JSON. Error: {}. Response Text: {}",

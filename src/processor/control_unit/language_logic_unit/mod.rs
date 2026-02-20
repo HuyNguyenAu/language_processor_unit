@@ -1,6 +1,7 @@
 use crate::{
     assembler::opcode::OpCode,
     processor::control_unit::{
+        instruction::RType,
         language_logic_unit::openai::{
             OpenAIClient,
             chat_completion_models::{
@@ -200,35 +201,35 @@ impl LanguageLogicUnit {
         Ok(percentage_similarity.round() as u32)
     }
 
-    fn execute(&self, opcode: &OpCode, value_a: &Value, value_b: &Value) -> Result<String, String> {
+    fn execute(&self, r_type: &RType, value_a: &Value, value_b: &Value) -> Result<String, String> {
         let value_a = match value_a {
             Value::Text(text) => text,
-            _ => return Err(format!("{:?} requires text value.", opcode)),
+            _ => return Err(format!("{:?} requires text value.", r_type)),
         };
         let value_b = match value_b {
             Value::Text(text) => text,
-            _ => return Err(format!("{:?} requires text value.", opcode)),
+            _ => return Err(format!("{:?} requires text value.", r_type)),
         };
 
-        let prompt = micro_prompt::search(opcode, value_a, value_b).map_err(|error| {
+        let prompt = micro_prompt::search(r_type, value_a, value_b).map_err(|error| {
             format!(
                 "Failed to generate micro prompt for {:?}. Error: {}",
-                opcode, error
+                r_type, error
             )
         })?;
 
         let result = self
             .chat(prompt.as_str())
-            .map_err(|error| format!("Failed to perform {:?}. Error: {}", opcode, error))?;
+            .map_err(|error| format!("Failed to perform {:?}. Error: {}", r_type, error))?;
 
         Ok(result.to_lowercase())
     }
 
-    fn boolean(&self, opcode: &OpCode, value: &str) -> Result<u32, String> {
-        let true_values = micro_prompt::true_values(opcode).map_err(|error| {
+    fn boolean(&self, r_type: &RType, value: &str) -> Result<u32, String> {
+        let true_values = micro_prompt::true_values(r_type).map_err(|error| {
             format!(
                 "Failed to get true values for {:?}. Error: {}",
-                opcode, error
+                r_type, error
             )
         })?;
 
@@ -239,22 +240,22 @@ impl LanguageLogicUnit {
         })
     }
 
-    pub fn run(&self, opcode: &OpCode, value_a: &Value, value_b: &Value) -> Result<Value, String> {
-        if matches!(opcode, OpCode::Eqv | OpCode::Int | OpCode::Hal) {
-            let value = self.execute(opcode, value_a, value_b).map_err(|error| {
+    pub fn run(&self, r_type: &RType, value_a: &Value, value_b: &Value) -> Result<Value, String> {
+        if matches!(r_type, RType::Vfy) {
+            let value = self.execute(r_type, value_a, value_b).map_err(|error| {
                 format!(
                     "Failed to execute {:?} for boolean operation. Error: {}",
-                    opcode, error
+                    r_type, error
                 )
             })?;
 
-            return self.boolean(opcode, &value).map(Value::Number);
+            return self.boolean(r_type, &value).map(Value::Number);
         }
 
-        if opcode == &OpCode::Sim {
+        if matches!(r_type, RType::Sim) {
             return self.cosine_similarity(value_a, value_b).map(Value::Number);
         }
 
-        self.execute(opcode, value_a, value_b).map(Value::Text)
+        self.execute(r_type, value_a, value_b).map(Value::Text)
     }
 }

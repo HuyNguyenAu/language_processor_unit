@@ -14,7 +14,7 @@ impl Processor {
     }
 
     pub fn load(&mut self, data: Vec<u8>) {
-        if data.len() % 4 != 0 {
+        if !data.len().is_multiple_of(4) {
             panic!(
                 "Invalid bytecode length: {}. Bytecode must be a multiple of 4 bytes.",
                 data.len()

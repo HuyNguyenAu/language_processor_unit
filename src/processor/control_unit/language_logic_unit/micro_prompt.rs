@@ -1,54 +1,49 @@
-use crate::assembler::opcode::OpCode;
+use crate::processor::control_unit::instruction::RType;
 
-pub fn true_values(opcode: &OpCode) -> Result<Vec<&'static str>, &'static str> {
-    match opcode {
-        OpCode::Eqv => Ok(vec!["IDENTICAL", "SYNONYMOUS", "RELATED"]),
-        OpCode::Int => Ok(vec!["TRUE"]),
-        OpCode::Hal => Ok(vec!["REAL"]),
-        _ => Err("Unsupported opcode for true values."),
+pub fn true_values(r_type: &RType) -> Result<Vec<&'static str>, &'static str> {
+    match r_type {
+        RType::Vfy => Ok(vec!["VERIFIED"]),
+        _ => Err("Unsupported r_type for true values."),
     }
 }
 
-pub fn search(opcode: &OpCode, value_a: &str, value_b: &str) -> Result<String, &'static str> {
-    match opcode {
-        // Semantic operations.
-        OpCode::Add => Ok(format!(
-            "Merge the essence, attributes, and presence of \"{}\" and \"{}\" into a single form.",
+pub fn search(r_type: &RType, value_a: &str, value_b: &str) -> Result<String, &'static str> {
+    match r_type {
+        // Generative operations.
+        RType::Sum => Ok(format!(
+            "Distill {} into its most essential points, focusing specifically on the themes/dimensions requested in {}. Ignore all other data.",
             value_a, value_b
         )),
-        OpCode::Sub => Ok(format!(
-            "Strip the essence, attributes, and presence of \"{}\" away from \"{}\", leaving only the remainder.",
-            value_b, value_a
-        )),
-        OpCode::Mul => Ok(format!(
-            "Magnify the intensity, scale, and influence of \"{}\" using the defining traits of \"{}\".",
+        RType::Xpn => Ok(format!(
+            "Elaborate on the seed concept {} by applying the specific context or technical depth defined in {}. Maintain logical consistency with the seed.",
             value_a, value_b
         )),
-        OpCode::Div => Ok(format!(
-            "Deconstruct the complex concept \"{}\" into the specific units of \"{}\". List only the resulting components.",
+        RType::Trn => Ok(format!(
+            "Map the data in {} into the specific structure, schema, or language defined by {}. Ensure 1:1 data integrity. Output only the result.",
             value_a, value_b
         )),
-        OpCode::Inf => Ok(format!(
-            "Identify the pattern, sequence, or narrative trajectory in \"{}\". Project this trajectory forward by the amount specified in \"{}\".",
+        // Cognitive operations.
+        RType::Cmp => Ok(format!(
+            "Perform a delta analysis between {} and {}. Identify and list unique elements, shared overlaps, and direct contradictions between the two.",
             value_a, value_b
         )),
-        OpCode::Adt => Ok(format!(
-            "Hold the data in \"{}\" against the sacred light of the criteria \"{}\". List any fractures where the data fails to comply.",
+        RType::Syn => Ok(format!(
+            "Integrate the logic/content of {} with the constraints or stylistic requirements of {}. Create a unified output that satisfies both inputs.",
             value_a, value_b
         )),
-        // Heuristic operations.
-        OpCode::Eqv => Ok(format!(
-            "Relation: \"{}\" vs \"{}\". Label: [IDENTICAL, SYNONYMOUS, RELATED, DISPARATE]. Result:",
+        RType::Flt => Ok(format!(
+            "Scan {} and extract only the segments that satisfy the criteria defined in {}. Discard all irrelevant or non-matching information.",
             value_a, value_b
         )),
-        OpCode::Int => Ok(format!(
-            "Does the hidden intent behind \"{}\" align with the goal of \"{}\"? Answer TRUE or FALSE.",
+        RType::Prd => Ok(format!(
+            "Given the state {}, simulate the consequences of action {}. Describe the immediate resulting environment and any secondary side effects.",
             value_a, value_b
         )),
-        OpCode::Hal => Ok(format!(
-            "Does \"{}\" ring true with reality, or is it a hollow hallucination? Answer REAL or HOLLOW.",
-            value_a
+        // Guardrails operations.
+        RType::Vfy => Ok(format!(
+            "Audit {} against the source of truth {}. Identify any claims that are unsupported or false. If 100% accurate, return 'Verified'.",
+            value_a, value_b
         )),
-        _ => Err("Unsupported opcode for micro prompt generation."),
+        _ => Err("Unsupported r_type for micro prompt generation."),
     }
 }

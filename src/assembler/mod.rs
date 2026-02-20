@@ -462,27 +462,27 @@ impl Assembler {
             .insert(key, jump_destination_byte_code_index);
     }
 
-    fn semantic_heuristic(&mut self, token_type: &TokenType) {
+    fn r_type(&mut self, token_type: &TokenType) {
         self.consume(
             token_type,
             format!("Expected '{:?}' keyword.", token_type).as_str(),
         );
 
         let opcode = match token_type {
-            // Semantic operations.
-            TokenType::Add => OpCode::Add,
-            TokenType::Sub => OpCode::Sub,
-            TokenType::Mul => OpCode::Mul,
-            TokenType::Div => OpCode::Div,
-            TokenType::Inf => OpCode::Inf,
-            TokenType::Adt => OpCode::Adt,
-            // Heuristic operations.
-            TokenType::Eqv => OpCode::Eqv,
-            TokenType::Int => OpCode::Int,
-            TokenType::Hal => OpCode::Hal,
+            // Generative operations.
+            TokenType::Sum => OpCode::Sum,
+            TokenType::Xpn => OpCode::Xpn,
+            TokenType::Trn => OpCode::Trn,
+            // Cognitive operations.
+            TokenType::Cmp => OpCode::Cmp,
+            TokenType::Syn => OpCode::Syn,
+            TokenType::Flt => OpCode::Flt,
+            TokenType::Prd => OpCode::Prd,
+            // Guardrails operations.
+            TokenType::Vfy => OpCode::Vfy,
             TokenType::Sim => OpCode::Sim,
             _ => {
-                self.error_at_previous("Invalid semantic instruction.");
+                self.error_at_previous("Invalid opcode instruction.");
                 return;
             }
         };
@@ -514,18 +514,13 @@ impl Assembler {
             }
         };
 
-        let immediate_2 = if matches!(token_type, TokenType::Hal) {
-            // HAL only takes one source operand; use numeric 0 as a dummy immediate.
-            Immediate::Number(0)
-        } else {
-            self.consume(&TokenType::Comma, "Expected ',' after immediate 1.");
+        self.consume(&TokenType::Comma, "Expected ',' after immediate 1.");
 
-            match self.immediate("Expected immediate 2 after ','.") {
-                Ok(immediate) => immediate,
-                Err(message) => {
-                    self.error_at_current(&message);
-                    return;
-                }
+        let immediate_2 = match self.immediate("Expected immediate 2 after ','.") {
+            Ok(immediate) => immediate,
+            Err(message) => {
+                self.error_at_current(&message);
+                return;
             }
         };
 
@@ -615,29 +610,29 @@ impl Assembler {
                     TokenType::Li => self.load_immediate(),
                     TokenType::Lf => self.load_file(),
                     TokenType::Mv => self.move_value(),
-                    // Semantic operations.
-                    TokenType::Add => self.semantic_heuristic(&TokenType::Add),
-                    TokenType::Sub => self.semantic_heuristic(&TokenType::Sub),
-                    TokenType::Mul => self.semantic_heuristic(&TokenType::Mul),
-                    TokenType::Div => self.semantic_heuristic(&TokenType::Div),
-                    TokenType::Inf => self.semantic_heuristic(&TokenType::Inf),
-                    TokenType::Adt => self.semantic_heuristic(&TokenType::Adt),
-                    // Heuristic operations.
-                    TokenType::Eqv => self.semantic_heuristic(&TokenType::Eqv),
-                    TokenType::Int => self.semantic_heuristic(&TokenType::Int),
-                    TokenType::Hal => self.semantic_heuristic(&TokenType::Hal),
-                    TokenType::Sim => self.semantic_heuristic(&TokenType::Sim),
                     // Control flow.
                     TokenType::Beq => self.branch(&TokenType::Beq),
                     TokenType::Blt => self.branch(&TokenType::Blt),
                     TokenType::Ble => self.branch(&TokenType::Ble),
                     TokenType::Bgt => self.branch(&TokenType::Bgt),
                     TokenType::Bge => self.branch(&TokenType::Bge),
+                    TokenType::Exit => self.exit(),
                     TokenType::Label => self.label(),
                     // I/O.
                     TokenType::Out => self.output(),
+                    // Generative operations.
+                    TokenType::Sum => self.r_type(&TokenType::Sum),
+                    TokenType::Xpn => self.r_type(&TokenType::Xpn),
+                    TokenType::Trn => self.r_type(&TokenType::Trn),
+                    // Cognitive operations.
+                    TokenType::Cmp => self.r_type(&TokenType::Cmp),
+                    TokenType::Syn => self.r_type(&TokenType::Syn),
+                    TokenType::Flt => self.r_type(&TokenType::Flt),
+                    TokenType::Prd => self.r_type(&TokenType::Prd),
+                    // Guardrails operations.
+                    TokenType::Vfy => self.r_type(&TokenType::Vfy),
+                    TokenType::Sim => self.r_type(&TokenType::Sim),
                     // Misc.
-                    TokenType::Exit => self.exit(),
                     TokenType::Eof => break,
                     _ => self.error_at_current("Unexpected keyword."),
                 }

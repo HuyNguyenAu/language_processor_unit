@@ -19,34 +19,24 @@ pub struct MoveInstruction {
 }
 
 #[derive(Debug)]
-pub enum SemanticType {
-    Add,
-    Sub,
-    Mul,
-    Div,
-    Inf,
-    Adt,
-}
-
-#[derive(Debug)]
-pub struct SemanticInstruction {
-    pub semantic_type: SemanticType,
-    pub destination_register: u32,
-    pub immediate_1: Immediate,
-    pub immediate_2: Immediate,
-}
-
-#[derive(Debug)]
-pub enum HeuristicType {
-    Eqv,
-    Int,
-    Hal,
+pub enum RType {
+    // Generative operations.
+    Sum,
+    Xpn,
+    Trn,
+    // Cognitive operations.
+    Cmp,
+    Syn,
+    Flt,
+    Prd,
+    // Guardrails operations.
+    Vfy,
     Sim,
 }
 
 #[derive(Debug)]
-pub struct HeuristicInstruction {
-    pub heuristic_type: HeuristicType,
+pub struct RTypeInstruction {
+    pub r_type: RType,
     pub destination_register: u32,
     pub immediate_1: Immediate,
     pub immediate_2: Immediate,
@@ -82,8 +72,7 @@ pub enum Instruction {
     LoadImmediate(LoadImmediateInstruction),
     LoadFile(LoadFileInstruction),
     Move(MoveInstruction),
-    Semantic(SemanticInstruction),
-    Heuristic(HeuristicInstruction),
+    RType(RTypeInstruction),
     Branch(BranchInstruction),
     Output(OutputInstruction),
     Exit(ExitInstruction),

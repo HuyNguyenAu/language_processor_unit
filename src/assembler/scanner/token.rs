@@ -55,17 +55,17 @@ pub static TOKEN_TYPE_MAPPING: [(TokenType, &str); 19] = [
     // I/O.
     (TokenType::Out, "out"),
     // Generative operations.
-    (TokenType::Sum, "add"),
-    (TokenType::Xpn, "sub"),
-    (TokenType::Trn, "mul"),
+    (TokenType::Sum, "sum"),
+    (TokenType::Xpn, "xpn"),
+    (TokenType::Trn, "trn"),
     // Cognitive operations.
-    (TokenType::Cmp, "div"),
-    (TokenType::Syn, "inf"),
-    (TokenType::Flt, "adt"),
-    (TokenType::Prd, "eqv"),
+    (TokenType::Cmp, "cmp"),
+    (TokenType::Syn, "syn"),
+    (TokenType::Flt, "flt"),
+    (TokenType::Prd, "prd"),
     // Guardrails operations.
-    (TokenType::Vfy, "int"),
-    (TokenType::Sim, "hal"),
+    (TokenType::Vfy, "vfy"),
+    (TokenType::Sim, "sim"),
 ];
 
 #[derive(Clone, Debug)]

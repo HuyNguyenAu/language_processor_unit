@@ -13,7 +13,7 @@ pub struct Scanner {
 
 impl Scanner {
     pub fn new(source: &'static str) -> Self {
-        let source_len = source.chars().count();
+        let source_len = source.len();
 
         Scanner {
             source,
@@ -45,30 +45,24 @@ impl Scanner {
             )
         }
 
-        self.current += 1;
+        self.current += self.peek().len_utf8();
         self.column += 1;
     }
 
     fn peek(&self) -> char {
-        self.source.chars().nth(self.current).unwrap_or_else(|| {
-            panic!(
-                "Tried to peek past end of source. Source length: {}, current: {}",
-                self.source_len, self.current
-            )
-        })
+        self.source[self.current..]
+            .chars()
+            .next()
+            .unwrap_or_else(|| {
+                panic!(
+                    "Tried to peek past end of source. Source length: {}, current: {}",
+                    self.source_len, self.current
+                )
+            })
     }
 
     fn peek_next(&self) -> char {
-        self.source
-            .chars()
-            .nth(self.current + 1)
-            .unwrap_or_else(|| {
-                panic!(
-                    "Tried to peek next past end of source. Source length: {}, current: {}",
-                    self.source_len,
-                    self.current + 1
-                )
-            })
+        self.source[self.current..].chars().nth(1).unwrap_or('\0')
     }
 
     fn make_token(&self, token_type: TokenType) -> Token {

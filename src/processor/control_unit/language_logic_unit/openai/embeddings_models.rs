@@ -1,4 +1,4 @@
-use serde::{Deserialize, Serialize};
+use miniserde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct OpenAIEmbeddingsRequest {

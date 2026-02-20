@@ -1,4 +1,5 @@
-use reqwest::blocking::Client;
+use miniserde::json::{self, from_str};
+use minreq::post;
 
 use crate::processor::control_unit::language_logic_unit::openai::{
     chat_completion_models::{OpenAIChatCompletionRequest, OpenAIChatCompletionResponse},
@@ -28,36 +29,21 @@ impl OpenAIClient {
         &self,
         request: OpenAIChatCompletionRequest,
     ) -> Result<OpenAIChatCompletionResponse, String> {
-        let client = Client::new();
         let url = format!("{}/{}", self.base_url, self.chat_completion_endpoint);
-
-        let body = match serde_json::to_string(&request) {
-            Ok(body) => body,
-            Err(error) => {
-                return Err(format!(
-                    "Failed to serialise chat request to JSON. Error: {}",
-                    error
-                ));
-            }
-        };
-        let result = client.post(url).body(body).send();
-        let response = match result {
+        let body = json::to_string(&request);
+        let response = match post(&url).with_body(body).send() {
             Ok(response) => response,
             Err(error) => return Err(format!("Failed to send chat request. Error: {}", error)),
         };
 
-        if !response.status().is_success() {
+        if response.status_code != 200 {
             return Err(format!(
-                "Chat request failed with status code: {}. Response Text: {}",
-                response.status(),
-                match response.text() {
-                    Ok(text) => text,
-                    Err(error) => format!("Failed to read error response text. Error: {}", error),
-                }
+                "Chat request failed with status code: {}.",
+                response.status_code,
             ));
         }
 
-        let text = match response.text() {
+        let text = match response.as_str() {
             Ok(text) => text,
             Err(error) => {
                 return Err(format!(
@@ -67,7 +53,7 @@ impl OpenAIClient {
             }
         };
 
-        match serde_json::from_str::<OpenAIChatCompletionResponse>(&text) {
+        match from_str::<OpenAIChatCompletionResponse>(&text) {
             Ok(parsed_response) => Ok(parsed_response),
             Err(error) => Err(format!(
                 "Failed to deserialise chat response JSON. Error: {}. Response Text: {}",
@@ -80,19 +66,9 @@ impl OpenAIClient {
         &self,
         request: OpenAIEmbeddingsRequest,
     ) -> Result<OpenAIEmbeddingsResponse, String> {
-        let client = Client::new();
         let url = format!("{}/{}", self.base_url, self.embeddings_endpoint);
-
-        let body = match serde_json::to_string(&request) {
-            Ok(body) => body,
-            Err(error) => {
-                return Err(format!(
-                    "Failed to serialise embedding request to JSON. Error: {}",
-                    error
-                ));
-            }
-        };
-        let result = client.post(url).body(body).send();
+        let body = json::to_string(&request);
+        let result = post(&url).with_body(body).send();
         let response = match result {
             Ok(response) => response,
             Err(error) => {
@@ -102,7 +78,15 @@ impl OpenAIClient {
                 ));
             }
         };
-        let text: String = match response.text() {
+
+        if response.status_code != 200 {
+            return Err(format!(
+                "Embedding request failed with status code: {}.",
+                response.status_code,
+            ));
+        }
+
+        let text = match response.as_str() {
             Ok(text) => text,
             Err(error) => {
                 return Err(format!(
@@ -112,7 +96,7 @@ impl OpenAIClient {
             }
         };
 
-        match serde_json::from_str::<OpenAIEmbeddingsResponse>(&text) {
+        match from_str::<OpenAIEmbeddingsResponse>(&text) {
             Ok(parsed_response) => Ok(parsed_response),
             Err(error) => Err(format!(
                 "Failed to deserialise embedding response JSON. Error: {}. Response Text: {}",

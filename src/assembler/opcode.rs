@@ -23,7 +23,7 @@ pub enum OpCode {
     Flt,
     Prd,
     // Guardrails operations.
-    Vrf,
+    Vfy,
     Sim,
 }
 
@@ -51,7 +51,7 @@ static OP_CODE_MAPPING: [(OpCode, u32); 19] = [
     (OpCode::Flt, 0x0F),
     (OpCode::Prd, 0x10),
     // Guardrails operations.
-    (OpCode::Vrf, 0x11),
+    (OpCode::Vfy, 0x11),
     (OpCode::Sim, 0x12),
 ];
 

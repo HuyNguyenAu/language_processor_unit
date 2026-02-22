@@ -479,7 +479,7 @@ impl Assembler {
             TokenType::Flt => OpCode::Flt,
             TokenType::Prd => OpCode::Prd,
             // Guardrails operations.
-            TokenType::Vrf => OpCode::Vrf,
+            TokenType::Vfy => OpCode::Vfy,
             TokenType::Sim => OpCode::Sim,
             _ => {
                 self.error_at_previous("Invalid opcode instruction.");
@@ -630,7 +630,7 @@ impl Assembler {
                     TokenType::Flt => self.r_type(&TokenType::Flt),
                     TokenType::Prd => self.r_type(&TokenType::Prd),
                     // Guardrails operations.
-                    TokenType::Vrf => self.r_type(&TokenType::Vrf),
+                    TokenType::Vfy => self.r_type(&TokenType::Vfy),
                     TokenType::Sim => self.r_type(&TokenType::Sim),
                     // Misc.
                     TokenType::Eof => break,

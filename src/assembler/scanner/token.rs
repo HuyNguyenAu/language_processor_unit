@@ -31,7 +31,7 @@ pub enum TokenType {
     Flt,
     Prd,
     // Guardrails operations keywords.
-    Vrf,
+    Vfy,
     Sim,
 
     // Misc keywords.
@@ -64,7 +64,7 @@ pub static TOKEN_TYPE_MAPPING: [(TokenType, &str); 19] = [
     (TokenType::Flt, "flt"),
     (TokenType::Prd, "prd"),
     // Guardrails operations.
-    (TokenType::Vrf, "vrf"),
+    (TokenType::Vfy, "vfy"),
     (TokenType::Sim, "sim"),
 ];
 

@@ -30,7 +30,7 @@ pub enum RType {
     Flt,
     Prd,
     // Guardrails operations.
-    Vrf,
+    Vfy,
     Sim,
 }
 

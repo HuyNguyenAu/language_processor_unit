@@ -329,7 +329,7 @@ impl ControlUnit {
             OpCode::Flt => RType::Flt,
             OpCode::Prd => RType::Prd,
             // Guardrails operations.
-            OpCode::Vrf => RType::Vrf,
+            OpCode::Vfy => RType::Vfy,
             OpCode::Sim => RType::Sim,
             _ => panic!("Invalid opcode '{:?}' for R-type instruction.", op_code),
         };
@@ -459,7 +459,7 @@ impl ControlUnit {
                 Instruction::RType(self.decode_r_type(op_code))
             }
             // Guardrails operations.
-            OpCode::Vrf | OpCode::Sim => Instruction::RType(self.decode_r_type(op_code)),
+            OpCode::Vfy | OpCode::Sim => Instruction::RType(self.decode_r_type(op_code)),
         };
 
         Some(instruction)

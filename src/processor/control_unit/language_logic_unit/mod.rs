@@ -243,7 +243,7 @@ impl LanguageLogicUnit {
     }
 
     pub fn run(&self, r_type: &RType, value_a: &Value, value_b: &Value) -> Result<Value, String> {
-        if matches!(r_type, RType::Vrf) {
+        if matches!(r_type, RType::Vfy) {
             let value = self.execute(r_type, value_a, value_b).map_err(|error| {
                 format!(
                     "Failed to execute {:?} for boolean operation. Error: {}",

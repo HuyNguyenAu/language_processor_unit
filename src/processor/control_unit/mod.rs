@@ -447,8 +447,13 @@ impl ControlUnit {
             OpCode::Exit => Instruction::Exit(self.decode_exit()),
             // I/O instructions.
             OpCode::Out => Instruction::Output(self.decode_output()),
-            // Generative, cognitive, or guardrails operations.
-            _ => Instruction::RType(self.decode_r_type(op_code)),
+            // Generative, cognitive, and guardrails operations.
+            OpCode::Morph
+            | OpCode::Project
+            | OpCode::Distill
+            | OpCode::Correlate
+            | OpCode::Audit
+            | OpCode::Similarity => Instruction::RType(self.decode_r_type(op_code)),
         };
 
         Some(instruction)

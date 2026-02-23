@@ -184,6 +184,7 @@ impl Assembler {
             .take(lexeme.chars().count() - 2)
             .collect::<String>()
             .replace("\\n", "\n")
+            .replace("\\\"", "\"")
     }
 
     fn identifier(&mut self, message: &str) -> &str {

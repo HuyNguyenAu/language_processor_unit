@@ -1,0 +1,27 @@
+; Program: Room Comfort Adjustment System
+; Objective: Adjust the room's temperature and lighting based on sensor data to achieve optimal physical comfort.
+; Output: Adjusted temperature and lighting settings.
+
+LF  X1, "examples/data/room_sensor_data.json"
+LI  X2, "It's too dark to read and I am sweating."
+
+; Sense: Brief description of the current state of the room based on sensor data.
+LI  X3, "A sentence that describes the current state of the room."
+MRF X4, X1, X3
+
+RETRY:
+; Think: Analyze the sensed state and determine necessary adjustments for physical comfort.
+LI  X3, "New temperature and light adjustments values for physical comfort."
+DST X5, X4, X3 
+
+; Guardrails: Ensure that the adjustments are within safe and reasonable limits.
+LI  X3, "{ 'temp_c': number, 'light': number }"
+MRF X6, X5, X3
+
+LI  X3, "The temperature and light values must be within the following ranges: temp_c between 18 and 24 degrees Celsius, and light between 0 and 100 percent."
+AUD X7, X6, X3
+
+BEQ X7, 0, RETRY
+
+; Act: Implement the adjustments to achieve the desired physical comfort.
+OUT X6

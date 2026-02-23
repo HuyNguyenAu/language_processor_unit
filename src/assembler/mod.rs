@@ -16,7 +16,8 @@ struct UnresolvedLabel {
 }
 
 pub struct Assembler {
-    byte_code: Vec<[u8; 4]>,
+    data_segment: Vec<[u8; 4]>,
+    text_segment: Vec<[u8; 4]>,
 
     source: &'static str,
     scanner: Scanner,
@@ -34,7 +35,8 @@ pub struct Assembler {
 impl Assembler {
     pub fn new(source: &'static str) -> Self {
         Assembler {
-            byte_code: Vec::new(),
+            data_segment: Vec::new(),
+            text_segment: Vec::new(),
             source,
             scanner: Scanner::new(source),
             previous: None,
@@ -231,7 +233,7 @@ impl Assembler {
     }
 
     fn emit_number_bytecode(&mut self, value: u32) {
-        self.byte_code.push(value.to_be_bytes());
+        self.text_segment.push(value.to_be_bytes());
     }
 
     fn emit_op_code_bytecode(&mut self, op_code: OpCode) {
@@ -243,11 +245,11 @@ impl Assembler {
             }
         };
 
-        self.byte_code.push(op_code_be_bytes);
+        self.text_segment.push(op_code_be_bytes);
     }
 
     fn emit_register_bytecode(&mut self, register: u32) {
-        self.byte_code.push(register.to_be_bytes());
+        self.text_segment.push(register.to_be_bytes());
     }
 
     fn emit_immediate_bytecode(&mut self, immediate: &Immediate) {
@@ -256,7 +258,7 @@ impl Assembler {
             Immediate::Register(value) => (ImmediateType::Register, vec![value.to_be_bytes()]),
             Immediate::Text(value) => (
                 ImmediateType::Text,
-                value
+                format!("{}\0", value)
                     .bytes()
                     .map(|byte| u32::from(byte).to_be_bytes())
                     .collect::<Vec<[u8; 4]>>(),
@@ -272,27 +274,31 @@ impl Assembler {
             }
         };
 
-        self.byte_code.push(immediate_type_be_bytes);
+        self.text_segment.push(immediate_type_be_bytes);
 
-        let value_be_bytes_len: u32 = match value_be_bytes.len().try_into() {
-            Ok(length) => length,
-            _ => {
-                self.error_at_current(&format!(
-                    "Failed to convert immediate byte length to u32. Byte length exceeds {}. Found byte length: {}.",
+        if let ImmediateType::Text = immediate_type {
+            let value_be_bytes_address: u32 = match self.data_segment.len().try_into() {
+                Ok(length) => length,
+                _ => {
+                    self.error_at_current(&format!(
+                    "Failed to convert data segment length to u32. Data segment length exceeds {}. Found data segment length: {}.",
                     u32::MAX,
-                    value_be_bytes.len()
+                    self.data_segment.len()
                 ));
+                    return;
+                }
+            };
 
-                return;
-            }
-        };
+            self.text_segment.push(value_be_bytes_address.to_be_bytes());
 
-        self.byte_code.push(value_be_bytes_len.to_be_bytes());
-        self.byte_code.extend(value_be_bytes);
+            self.data_segment.extend(value_be_bytes);
+        } else {
+            self.text_segment.extend(value_be_bytes);
+        }
     }
 
     fn upsert_unresolved_label(&mut self, key: u64) -> Result<(), String> {
-        let bytecode_index = self.byte_code.len() - 1;
+        let bytecode_index = self.text_segment.len() - 1;
 
         if let Some(label) = self.unresolved_labels.get_mut(&key) {
             label.bytecode_indices.push(bytecode_index);
@@ -397,7 +403,7 @@ impl Assembler {
         self.emit_immediate_bytecode(&Immediate::Text(file_path));
     }
 
-    fn move_value(&mut self) {
+    fn _move(&mut self) {
         self.consume(&TokenType::Move, "Expected 'mv' keyword.");
 
         let destination_register = match self.register("Expected destination register.") {
@@ -439,7 +445,7 @@ impl Assembler {
         let label_name = self.previous_lexeme();
         let value = label_name.trim_end_matches(':');
         let key = Self::hash(value);
-        let jump_destination_byte_code_index = self.byte_code.len();
+        let jump_destination_byte_code_index = self.text_segment.len();
 
         // Backpatch any unresolved labels.
         if let Some(unresolved) = self.unresolved_labels.remove(&key) {
@@ -455,7 +461,7 @@ impl Assembler {
             let bytes = value.to_be_bytes();
 
             for idx in unresolved.bytecode_indices {
-                self.byte_code[idx] = bytes;
+                self.text_segment[idx] = bytes;
             }
         }
 
@@ -607,7 +613,7 @@ impl Assembler {
                     // Data movement.
                     TokenType::LoadImmediate => self.load_immediate(),
                     TokenType::LoadFile => self.load_file(),
-                    TokenType::Move => self.move_value(),
+                    TokenType::Move => self._move(),
                     // Control flow.
                     TokenType::BranchEqual => self.branch(&TokenType::BranchEqual),
                     TokenType::BranchLess => self.branch(&TokenType::BranchLess),
@@ -648,11 +654,42 @@ impl Assembler {
             return Err("Assembly failed due to errors.");
         }
 
-        Ok(self
-            .byte_code
-            .iter()
-            .flat_map(|bytes| bytes.iter())
-            .copied()
-            .collect())
+        let mut byte_code: Vec<[u8; 4]> = Vec::new();
+
+        // Append the data segment size.
+        let data_segment_size: u32 = match self.data_segment.len().try_into() {
+            Ok(size) => size,
+            Err(_) => {
+                self.error_at_current(&format!(
+                    "Failed to convert data segment size to u32. Data segment size exceeds {}. Found data segment size: {}.",
+                    u32::MAX,
+                    self.data_segment.len()
+                ));
+                return Err("Assembly failed due to errors.");
+            }
+        };
+        byte_code.push(data_segment_size.to_be_bytes());
+
+        // Append the text segment size.
+        let text_segment_size: u32 = match self.text_segment.len().try_into() {
+            Ok(size) => size,
+            Err(_) => {
+                self.error_at_current(&format!(
+                    "Failed to convert text segment size to u32. Text segment size exceeds {}. Found text segment size: {}.",
+                    u32::MAX,
+                    self.text_segment.len()
+                ));
+                return Err("Assembly failed due to errors.");
+            }
+        };
+        byte_code.push(text_segment_size.to_be_bytes());
+
+        // Append the data segment.
+        byte_code.extend(&self.data_segment);
+
+        // Append the text segment.
+        byte_code.extend(&self.text_segment);
+
+        Ok(byte_code.into_iter().flatten().collect())
     }
 }

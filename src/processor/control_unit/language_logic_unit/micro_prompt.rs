@@ -2,7 +2,7 @@ use crate::processor::control_unit::instruction::RType;
 
 pub fn true_values(r_type: &RType) -> Result<Vec<&'static str>, &'static str> {
     match r_type {
-        RType::Vrf => Ok(vec!["VERIFIED"]),
+        RType::Audit => Ok(vec!["PASS"]),
         _ => Err("Unsupported r_type for true values."),
     }
 }
@@ -10,39 +10,27 @@ pub fn true_values(r_type: &RType) -> Result<Vec<&'static str>, &'static str> {
 pub fn search(r_type: &RType, value_a: &str, value_b: &str) -> Result<String, &'static str> {
     match r_type {
         // Generative operations.
-        RType::Sum => Ok(format!(
-            "TASK: Summarize\nDATA: \"{}\"\nCONSTRAINT: \"{}\"\nRESULT:",
+        RType::Morph => Ok(format!(
+            "SOURCE: \"{}\"\nTARGET FORMAT: \"{}\"\nMORPHED DATA:",
             value_a, value_b
         )),
-        RType::Exp => Ok(format!(
-            "TOPIC: \"{}\"\nCONTEXT TO ADD: \"{}\"\nEXPANDED RESULT:",
-            value_a, value_b
-        )),
-        RType::Trn => Ok(format!(
-            "SOURCE: \"{}\"\nTARGET FORMAT: \"{}\"\nTRANSFORMED DATA:",
+        RType::Project => Ok(format!(
+            "BASE DATA: \"{}\"\nDIRECTION/TREND: \"{}\"\nPROJECTED OUTPUT:",
             value_a, value_b
         )),
         // Cognitive operations.
-        RType::Cmp => Ok(format!(
-            "ITEM A: \"{}\"\nITEM B: \"{}\"\nCOMPARISON POINTS:",
+        RType::Distill => Ok(format!(
+            "INPUT: \"{}\"\nGOAL/CRITERIA: \"{}\"\nDISTILLED RESULT:",
             value_a, value_b
         )),
-        RType::Syn => Ok(format!(
-            "INPUT 1: \"{}\"\nINPUT 2: \"{}\"\nSYNTHESIZED OUTPUT:",
-            value_a, value_b
-        )),
-        RType::Flt => Ok(format!(
-            "RAW DATA: \"{}\"\nFILTER CRITERIA: \"{}\"\nFILTERED DATA:",
-            value_a, value_b
-        )),
-        RType::Prd => Ok(format!(
-            "CURRENT STATE: \"{}\"\nTREND/RULE: \"{}\"\nPREDICTED NEXT:",
+        RType::Correlate => Ok(format!(
+            "ENTITY A: \"{}\"\nENTITY B: \"{}\"\nRELATIONAL ANALYSIS:",
             value_a, value_b
         )),
         // Guardrails operations.
-        RType::Vrf => Ok(format!(
-            "CLAIM: \"{}\"\nEVIDENCE: \"{}\"\nSTATUS [VERIFIED/FAILED]:",
-            value_b, value_a
+        RType::Audit => Ok(format!(
+            "CLAIM: \"{}\"\nEVIDENCE: \"{}\"\nAUDIT STATUS [PASS/FAIL]:",
+            value_a, value_b
         )),
         _ => Err("Unsupported r_type for micro prompt generation."),
     }

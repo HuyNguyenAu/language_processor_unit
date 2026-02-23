@@ -343,7 +343,7 @@ impl Assembler {
     }
 
     fn load_immediate(&mut self) {
-        self.consume(&TokenType::Li, "Expected 'li' keyword.");
+        self.consume(&TokenType::LoadImmediate, "Expected 'li' keyword.");
 
         let destination_register = match self.register("Expected destination register.") {
             Ok(register) => register,
@@ -366,13 +366,13 @@ impl Assembler {
             }
         };
 
-        self.emit_op_code_bytecode(OpCode::Li);
+        self.emit_op_code_bytecode(OpCode::LoadImmediate);
         self.emit_register_bytecode(destination_register);
         self.emit_immediate_bytecode(&immediate);
     }
 
     fn load_file(&mut self) {
-        self.consume(&TokenType::Lf, "Expected 'lf' keyword.");
+        self.consume(&TokenType::LoadFile, "Expected 'lf' keyword.");
 
         let destination_register = match self.register("Expected destination register.") {
             Ok(register) => register,
@@ -391,13 +391,13 @@ impl Assembler {
             .string("Expected file path string after ','.")
             .to_string();
 
-        self.emit_op_code_bytecode(OpCode::Lf);
+        self.emit_op_code_bytecode(OpCode::LoadFile);
         self.emit_register_bytecode(destination_register);
         self.emit_immediate_bytecode(&Immediate::Text(file_path));
     }
 
     fn move_value(&mut self) {
-        self.consume(&TokenType::Mv, "Expected 'mv' keyword.");
+        self.consume(&TokenType::Move, "Expected 'mv' keyword.");
 
         let destination_register = match self.register("Expected destination register.") {
             Ok(register) => register,
@@ -420,7 +420,7 @@ impl Assembler {
             }
         };
 
-        self.emit_op_code_bytecode(OpCode::Mv);
+        self.emit_op_code_bytecode(OpCode::Move);
         self.emit_register_bytecode(destination_register);
         self.emit_register_bytecode(source_register);
     }
@@ -470,17 +470,14 @@ impl Assembler {
 
         let opcode = match token_type {
             // Generative operations.
-            TokenType::Sum => OpCode::Sum,
-            TokenType::Exp => OpCode::Exp,
-            TokenType::Trn => OpCode::Trn,
+            TokenType::Morph => OpCode::Morph,
+            TokenType::Project => OpCode::Project,
             // Cognitive operations.
-            TokenType::Cmp => OpCode::Cmp,
-            TokenType::Syn => OpCode::Syn,
-            TokenType::Flt => OpCode::Flt,
-            TokenType::Prd => OpCode::Prd,
+            TokenType::Distill => OpCode::Distill,
+            TokenType::Correlate => OpCode::Correlate,
             // Guardrails operations.
-            TokenType::Vfy => OpCode::Vfy,
-            TokenType::Sim => OpCode::Sim,
+            TokenType::Audit => OpCode::Audit,
+            TokenType::Similarity => OpCode::Similarity,
             _ => {
                 self.error_at_previous("Invalid opcode instruction.");
                 return;
@@ -537,11 +534,11 @@ impl Assembler {
         );
 
         let opcode = match token_type {
-            TokenType::Beq => OpCode::Beq,
-            TokenType::Blt => OpCode::Blt,
-            TokenType::Ble => OpCode::Ble,
-            TokenType::Bgt => OpCode::Bgt,
-            TokenType::Bge => OpCode::Bge,
+            TokenType::BranchEqual => OpCode::BranchEqual,
+            TokenType::BranchLess => OpCode::BranchLess,
+            TokenType::BranchLessEqual => OpCode::BranchLessEqual,
+            TokenType::BranchGreater => OpCode::BranchGreater,
+            TokenType::BranchGreaterEqual => OpCode::BranchGreaterEqual,
             _ => {
                 self.error_at_previous("Invalid branch instruction.");
                 return;
@@ -607,31 +604,28 @@ impl Assembler {
             if let Some(current_token) = &self.current {
                 match current_token.token_type() {
                     // Data movement.
-                    TokenType::Li => self.load_immediate(),
-                    TokenType::Lf => self.load_file(),
-                    TokenType::Mv => self.move_value(),
+                    TokenType::LoadImmediate => self.load_immediate(),
+                    TokenType::LoadFile => self.load_file(),
+                    TokenType::Move => self.move_value(),
                     // Control flow.
-                    TokenType::Beq => self.branch(&TokenType::Beq),
-                    TokenType::Blt => self.branch(&TokenType::Blt),
-                    TokenType::Ble => self.branch(&TokenType::Ble),
-                    TokenType::Bgt => self.branch(&TokenType::Bgt),
-                    TokenType::Bge => self.branch(&TokenType::Bge),
+                    TokenType::BranchEqual => self.branch(&TokenType::BranchEqual),
+                    TokenType::BranchLess => self.branch(&TokenType::BranchLess),
+                    TokenType::BranchLessEqual => self.branch(&TokenType::BranchLessEqual),
+                    TokenType::BranchGreater => self.branch(&TokenType::BranchGreater),
+                    TokenType::BranchGreaterEqual => self.branch(&TokenType::BranchGreaterEqual),
                     TokenType::Exit => self.exit(),
                     TokenType::Label => self.label(),
                     // I/O.
                     TokenType::Out => self.output(),
                     // Generative operations.
-                    TokenType::Sum => self.r_type(&TokenType::Sum),
-                    TokenType::Exp => self.r_type(&TokenType::Exp),
-                    TokenType::Trn => self.r_type(&TokenType::Trn),
+                    TokenType::Morph => self.r_type(&TokenType::Morph),
+                    TokenType::Project => self.r_type(&TokenType::Project),
                     // Cognitive operations.
-                    TokenType::Cmp => self.r_type(&TokenType::Cmp),
-                    TokenType::Syn => self.r_type(&TokenType::Syn),
-                    TokenType::Flt => self.r_type(&TokenType::Flt),
-                    TokenType::Prd => self.r_type(&TokenType::Prd),
+                    TokenType::Distill => self.r_type(&TokenType::Distill),
+                    TokenType::Correlate => self.r_type(&TokenType::Correlate),
                     // Guardrails operations.
-                    TokenType::Vfy => self.r_type(&TokenType::Vfy),
-                    TokenType::Sim => self.r_type(&TokenType::Sim),
+                    TokenType::Audit => self.r_type(&TokenType::Audit),
+                    TokenType::Similarity => self.r_type(&TokenType::Similarity),
                     // Misc.
                     TokenType::Eof => break,
                     _ => self.error_at_current("Unexpected keyword."),

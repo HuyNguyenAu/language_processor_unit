@@ -21,17 +21,14 @@ pub struct MoveInstruction {
 #[derive(Debug)]
 pub enum RType {
     // Generative operations.
-    Sum,
-    Exp,
-    Trn,
+    Morph,
+    Project,
     // Cognitive operations.
-    Cmp,
-    Syn,
-    Flt,
-    Prd,
+    Distill,
+    Correlate,
     // Guardrails operations.
-    Vfy,
-    Sim,
+    Audit,
+    Similarity,
 }
 
 #[derive(Debug)]
@@ -44,11 +41,11 @@ pub struct RTypeInstruction {
 
 #[derive(Debug)]
 pub enum BranchType {
-    Eq,
-    Le,
-    Lt,
-    Ge,
-    Gt,
+    Equal,
+    LessEqual,
+    Less,
+    GreaterEqual,
+    Greater,
 }
 
 #[derive(Debug)]

@@ -2,70 +2,61 @@
 pub enum TokenType {
     // Single-character.
     Comma,
-
     // Literals.
     Identifier,
     String,
     Number,
-
     // Data movement keywords.
-    Li,
-    Lf,
-    Mv,
+    LoadImmediate,
+    LoadFile,
+    Move,
     // Control flow keywords.
-    Beq,
-    Ble,
-    Blt,
-    Bge,
-    Bgt,
+    BranchEqual,
+    BranchLessEqual,
+    BranchLess,
+    BranchGreaterEqual,
+    BranchGreater,
     Exit,
     // I/O keywords.
     Out,
     // Generative operations keywords.
-    Sum,
-    Exp,
-    Trn,
+    Morph,
+    Project,
     // Cognitive operations keywords.
-    Cmp,
-    Syn,
-    Flt,
-    Prd,
+    Distill,
+    Correlate,
     // Guardrails operations keywords.
-    Vfy,
-    Sim,
-
+    Audit,
+    Similarity,
     // Misc keywords.
     Label,
     Eof,
     Error,
 }
 
-pub static TOKEN_TYPE_MAPPING: [(TokenType, &str); 19] = [
+pub static TOKEN_TYPE_MAPPING: [(TokenType, &str); 16] = [
     // Data movement.
-    (TokenType::Li, "li"),
-    (TokenType::Lf, "lf"),
-    (TokenType::Mv, "mv"),
+    (TokenType::LoadImmediate, "li"),
+    (TokenType::LoadFile, "lf"),
+    (TokenType::Move, "mv"),
     // Control flow.
-    (TokenType::Beq, "beq"),
-    (TokenType::Ble, "ble"),
-    (TokenType::Blt, "blt"),
-    (TokenType::Bge, "bge"),
-    (TokenType::Bgt, "bgt"),
+    (TokenType::BranchEqual, "beq"),
+    (TokenType::BranchLessEqual, "ble"),
+    (TokenType::BranchLess, "blt"),
+    (TokenType::BranchGreaterEqual, "bge"),
+    (TokenType::BranchGreater, "bgt"),
     (TokenType::Exit, "exit"),
     // I/O.
     (TokenType::Out, "out"),
     // Generative operations.
-    (TokenType::Sum, "sum"),
-    (TokenType::Exp, "exp"),
-    (TokenType::Trn, "trn"),
+    (TokenType::Morph, "mrf"),
+    (TokenType::Project, "prj"),
     // Cognitive operations.
-    (TokenType::Cmp, "cmp"),
-    (TokenType::Syn, "syn"),
-    (TokenType::Flt, "flt"),
-    (TokenType::Prd, "prd"),
+    (TokenType::Distill, "dst"),
+    (TokenType::Correlate, "cor"),
     // Guardrails operations.
-    (TokenType::Vfy, "vfy"),
-    (TokenType::Sim, "sim"),
+    (TokenType::Audit, "aud"),
+    (TokenType::Similarity, "sim"),
 ];
 
 #[derive(Clone, Debug)]

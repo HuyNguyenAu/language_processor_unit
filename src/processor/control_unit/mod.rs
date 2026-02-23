@@ -220,7 +220,7 @@ impl ControlUnit {
 
     fn decode_load_immediate(&mut self) -> LoadImmediateInstruction {
         // Consume LI opcode.
-        self.decode_op_code(&OpCode::Li, "Failed to decode LI opcode.");
+        self.decode_op_code(&OpCode::LoadImmediate, "Failed to decode LI opcode.");
 
         // Consume the destination register.
         let destination_register = self.decode_register(
@@ -243,7 +243,7 @@ impl ControlUnit {
 
     fn decode_load_file(&mut self) -> LoadFileInstruction {
         // Consume LF opcode.
-        self.decode_op_code(&OpCode::Lf, "Failed to decode LF opcode.");
+        self.decode_op_code(&OpCode::LoadFile, "Failed to decode LF opcode.");
 
         // Consume the destination register.
         let destination_register = self.decode_register(
@@ -269,7 +269,7 @@ impl ControlUnit {
 
     fn decode_move(&mut self) -> MoveInstruction {
         // Consume MOV opcode.
-        self.decode_op_code(&OpCode::Mv, "Failed to decode MV opcode.");
+        self.decode_op_code(&OpCode::Move, "Failed to decode MV opcode.");
 
         // Consume the destination register.
         let destination_register = self.decode_register(
@@ -320,17 +320,14 @@ impl ControlUnit {
 
         let r_type = match op_code {
             // Generative operations.
-            OpCode::Sum => RType::Sum,
-            OpCode::Exp => RType::Exp,
-            OpCode::Trn => RType::Trn,
+            OpCode::Morph => RType::Morph,
+            OpCode::Project => RType::Project,
             // Cognitive operations.
-            OpCode::Cmp => RType::Cmp,
-            OpCode::Syn => RType::Syn,
-            OpCode::Flt => RType::Flt,
-            OpCode::Prd => RType::Prd,
+            OpCode::Distill => RType::Distill,
+            OpCode::Correlate => RType::Correlate,
             // Guardrails operations.
-            OpCode::Vfy => RType::Vfy,
-            OpCode::Sim => RType::Sim,
+            OpCode::Audit => RType::Audit,
+            OpCode::Similarity => RType::Similarity,
             _ => panic!("Invalid opcode '{:?}' for R-type instruction.", op_code),
         };
 
@@ -371,11 +368,11 @@ impl ControlUnit {
         );
 
         let branch_type = match op_code {
-            OpCode::Beq => BranchType::Eq,
-            OpCode::Blt => BranchType::Lt,
-            OpCode::Ble => BranchType::Le,
-            OpCode::Bgt => BranchType::Gt,
-            OpCode::Bge => BranchType::Ge,
+            OpCode::BranchEqual => BranchType::Equal,
+            OpCode::BranchLess => BranchType::Less,
+            OpCode::BranchLessEqual => BranchType::LessEqual,
+            OpCode::BranchGreater => BranchType::Greater,
+            OpCode::BranchGreaterEqual => BranchType::GreaterEqual,
             _ => panic!("Invalid opcode '{:?}' for branch instruction.", op_code),
         };
 
@@ -438,28 +435,20 @@ impl ControlUnit {
         };
         let instruction = match op_code {
             // Data movement instructions.
-            OpCode::Li => Instruction::LoadImmediate(self.decode_load_immediate()),
-            OpCode::Lf => Instruction::LoadFile(self.decode_load_file()),
-            OpCode::Mv => Instruction::Move(self.decode_move()),
+            OpCode::LoadImmediate => Instruction::LoadImmediate(self.decode_load_immediate()),
+            OpCode::LoadFile => Instruction::LoadFile(self.decode_load_file()),
+            OpCode::Move => Instruction::Move(self.decode_move()),
             // Control flow instructions.
-            OpCode::Beq => Instruction::Branch(self.decode_branch(op_code)),
-            OpCode::Blt => Instruction::Branch(self.decode_branch(op_code)),
-            OpCode::Ble => Instruction::Branch(self.decode_branch(op_code)),
-            OpCode::Bgt => Instruction::Branch(self.decode_branch(op_code)),
-            OpCode::Bge => Instruction::Branch(self.decode_branch(op_code)),
+            OpCode::BranchEqual => Instruction::Branch(self.decode_branch(op_code)),
+            OpCode::BranchLess => Instruction::Branch(self.decode_branch(op_code)),
+            OpCode::BranchLessEqual => Instruction::Branch(self.decode_branch(op_code)),
+            OpCode::BranchGreater => Instruction::Branch(self.decode_branch(op_code)),
+            OpCode::BranchGreaterEqual => Instruction::Branch(self.decode_branch(op_code)),
             OpCode::Exit => Instruction::Exit(self.decode_exit()),
             // I/O instructions.
             OpCode::Out => Instruction::Output(self.decode_output()),
-            // Generative operations.
-            OpCode::Sum | OpCode::Exp | OpCode::Trn => {
-                Instruction::RType(self.decode_r_type(op_code))
-            }
-            // Cognitive operations.
-            OpCode::Cmp | OpCode::Syn | OpCode::Flt | OpCode::Prd => {
-                Instruction::RType(self.decode_r_type(op_code))
-            }
-            // Guardrails operations.
-            OpCode::Vfy | OpCode::Sim => Instruction::RType(self.decode_r_type(op_code)),
+            // Generative, cognitive, or guardrails operations.
+            _ => Instruction::RType(self.decode_r_type(op_code)),
         };
 
         Some(instruction)
@@ -649,11 +638,11 @@ impl ControlUnit {
 
         let address = instruction.byte_code_index;
         let is_true = match instruction.branch_type {
-            BranchType::Eq => value_a == value_b,
-            BranchType::Lt => value_a < value_b,
-            BranchType::Le => value_a <= value_b,
-            BranchType::Gt => value_a > value_b,
-            BranchType::Ge => value_a >= value_b,
+            BranchType::Equal => value_a == value_b,
+            BranchType::Less => value_a < value_b,
+            BranchType::LessEqual => value_a <= value_b,
+            BranchType::Greater => value_a > value_b,
+            BranchType::GreaterEqual => value_a >= value_b,
         };
 
         if is_true {
@@ -672,7 +661,7 @@ impl ControlUnit {
 
         if debug {
             match instruction.branch_type {
-                BranchType::Eq => {
+                BranchType::Equal => {
                     println!(
                         "Executed {:?}: {:?} == {:?} -> {}, {}",
                         instruction.branch_type,
@@ -682,7 +671,7 @@ impl ControlUnit {
                         instruction.byte_code_index
                     );
                 }
-                BranchType::Lt => {
+                BranchType::Less => {
                     println!(
                         "Executed {:?}: {:?} < {:?} -> {}, {}",
                         instruction.branch_type,
@@ -692,7 +681,7 @@ impl ControlUnit {
                         instruction.byte_code_index
                     );
                 }
-                BranchType::Le => {
+                BranchType::LessEqual => {
                     println!(
                         "Executed {:?}: {:?} <= {:?} -> {}, {}",
                         instruction.branch_type,
@@ -702,7 +691,7 @@ impl ControlUnit {
                         instruction.byte_code_index
                     );
                 }
-                BranchType::Gt => {
+                BranchType::Greater => {
                     println!(
                         "Executed {:?}: {:?} > {:?} -> {}, {}",
                         instruction.branch_type,
@@ -712,7 +701,7 @@ impl ControlUnit {
                         instruction.byte_code_index
                     );
                 }
-                BranchType::Ge => println!(
+                BranchType::GreaterEqual => println!(
                     "Executed {:?}: {:?} >= {:?} -> {}, {}",
                     instruction.branch_type, value_a, value_b, is_true, instruction.byte_code_index
                 ),

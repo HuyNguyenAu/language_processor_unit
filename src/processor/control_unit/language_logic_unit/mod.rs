@@ -173,12 +173,12 @@ impl LanguageLogicUnit {
         let value_a = match value_a {
             Value::Text(text) => text,
             Value::Number(number) => &number.to_string(),
-            _ => return Err(format!("{:?} requires text value.", OpCode::Sim)),
+            _ => return Err(format!("{:?} requires text value.", OpCode::Similarity)),
         };
         let value_b = match value_b {
             Value::Text(text) => text,
             Value::Number(number) => &number.to_string(),
-            _ => return Err(format!("{:?} requires text value.", OpCode::Sim)),
+            _ => return Err(format!("{:?} requires text value.", OpCode::Similarity)),
         };
 
         let value_a_embeddings = self.embeddings(value_a).map_err(|error| {
@@ -243,7 +243,7 @@ impl LanguageLogicUnit {
     }
 
     pub fn run(&self, r_type: &RType, value_a: &Value, value_b: &Value) -> Result<Value, String> {
-        if matches!(r_type, RType::Vfy) {
+        if matches!(r_type, RType::Audit) {
             let value = self.execute(r_type, value_a, value_b).map_err(|error| {
                 format!(
                     "Failed to execute {:?} for boolean operation. Error: {}",
@@ -254,7 +254,7 @@ impl LanguageLogicUnit {
             return self.boolean(r_type, &value).map(Value::Number);
         }
 
-        if matches!(r_type, RType::Sim) {
+        if matches!(r_type, RType::Similarity) {
             return self.cosine_similarity(value_a, value_b).map(Value::Number);
         }
 

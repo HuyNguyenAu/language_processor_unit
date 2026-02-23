@@ -1,58 +1,52 @@
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum OpCode {
     // Data movement.
-    Li,
-    Lf,
-    Mv,
+    LoadImmediate,
+    LoadFile,
+    Move,
     // Control flow.
-    Beq,
-    Ble,
-    Blt,
-    Bge,
-    Bgt,
+    BranchEqual,
+    BranchLessEqual,
+    BranchLess,
+    BranchGreaterEqual,
+    BranchGreater,
     Exit,
     // I/O.
     Out,
     // Generative operations.
-    Sum,
-    Exp,
-    Trn,
+    Morph,
+    Project,
     // Cognitive operations.
-    Cmp,
-    Syn,
-    Flt,
-    Prd,
+    Distill,
+    Correlate,
     // Guardrails operations.
-    Vfy,
-    Sim,
+    Audit,
+    Similarity,
 }
 
-static OP_CODE_MAPPING: [(OpCode, u32); 19] = [
+static OP_CODE_MAPPING: [(OpCode, u32); 16] = [
     // Data movement.
-    (OpCode::Li, 0x00),
-    (OpCode::Lf, 0x01),
-    (OpCode::Mv, 0x02),
+    (OpCode::LoadFile, 0x00),
+    (OpCode::LoadImmediate, 0x01),
+    (OpCode::Move, 0x02),
     // Control flow.
-    (OpCode::Beq, 0x03),
-    (OpCode::Ble, 0x04),
-    (OpCode::Blt, 0x05),
-    (OpCode::Bge, 0x06),
-    (OpCode::Bgt, 0x07),
+    (OpCode::BranchEqual, 0x03),
+    (OpCode::BranchLessEqual, 0x04),
+    (OpCode::BranchLess, 0x05),
+    (OpCode::BranchGreaterEqual, 0x06),
+    (OpCode::BranchGreater, 0x07),
     (OpCode::Exit, 0x08),
     // I/O.
     (OpCode::Out, 0x09),
     // Generative operations.
-    (OpCode::Sum, 0x0A),
-    (OpCode::Exp, 0x0B),
-    (OpCode::Trn, 0x0C),
+    (OpCode::Morph, 0x0A),
+    (OpCode::Project, 0x0B),
     // Cognitive operations.
-    (OpCode::Cmp, 0x0D),
-    (OpCode::Syn, 0x0E),
-    (OpCode::Flt, 0x0F),
-    (OpCode::Prd, 0x10),
+    (OpCode::Distill, 0x0C),
+    (OpCode::Correlate, 0x0D),
     // Guardrails operations.
-    (OpCode::Vfy, 0x11),
-    (OpCode::Sim, 0x12),
+    (OpCode::Audit, 0x0E),
+    (OpCode::Similarity, 0x0F),
 ];
 
 impl OpCode {

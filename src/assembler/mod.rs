@@ -1,12 +1,10 @@
 use std::collections::HashMap;
 use std::hash::{DefaultHasher, Hash, Hasher};
 
-use crate::assembler::immediate::{Immediate, ImmediateType};
 use crate::assembler::opcode::OpCode;
 use crate::assembler::scanner::Scanner;
 use crate::assembler::scanner::token::{Token, TokenType};
 
-pub mod immediate;
 pub mod opcode;
 mod scanner;
 
@@ -195,43 +193,6 @@ impl Assembler {
         self.previous_lexeme()
     }
 
-    fn immediate(&mut self, message: &str) -> Result<Immediate, String> {
-        let current_type = match self.current {
-            Some(ref token) => token.token_type(),
-            None => {
-                return Err(format!(
-                    "Failed to parse immediate value. Current token is None. {}",
-                    message
-                ));
-            }
-        };
-
-        match current_type {
-            TokenType::String => Ok(Immediate::Text(self.string(message).to_string())),
-            TokenType::Number => {
-                let number = self.number(message);
-
-                if let Ok(number) = number {
-                    return Ok(Immediate::Number(number));
-                }
-
-                Err(format!("Failed to parse immediate number. {}", message))
-            }
-            TokenType::Identifier => {
-                let reg = self.register(message);
-                if let Ok(register) = reg {
-                    return Ok(Immediate::Register(register));
-                }
-
-                Err(format!("Failed to parse immediate register. {}", message))
-            }
-            _ => Err(format!(
-                "Invalid immediate value. Expected number, string or register. Found token type: {:?}. {}",
-                current_type, message
-            )),
-        }
-    }
-
     fn emit_number_bytecode(&mut self, value: u32) {
         self.text_segment.push(value.to_be_bytes());
     }
@@ -248,53 +209,25 @@ impl Assembler {
         self.text_segment.push(op_code_be_bytes);
     }
 
-    fn emit_register_bytecode(&mut self, register: u32) {
-        self.text_segment.push(register.to_be_bytes());
-    }
-
-    fn emit_immediate_bytecode(&mut self, immediate: &Immediate) {
-        let (immediate_type, value_be_bytes): (ImmediateType, Vec<[u8; 4]>) = match immediate {
-            Immediate::Number(value) => (ImmediateType::Number, vec![value.to_be_bytes()]),
-            Immediate::Register(value) => (ImmediateType::Register, vec![value.to_be_bytes()]),
-            Immediate::Text(value) => (
-                ImmediateType::Text,
-                format!("{}\0", value)
-                    .bytes()
-                    .map(|byte| u32::from(byte).to_be_bytes())
-                    .collect::<Vec<[u8; 4]>>(),
-            ),
-        };
-
-        let immediate_type_be_bytes = match immediate_type.to_be_bytes() {
-            Ok(bytes) => bytes,
-            Err(message) => {
-                self.error_at_current(message);
-
-                return;
-            }
-        };
-
-        self.text_segment.push(immediate_type_be_bytes);
-
-        if let ImmediateType::Text = immediate_type {
-            let value_be_bytes_address: u32 = match self.data_segment.len().try_into() {
-                Ok(length) => length,
-                _ => {
-                    self.error_at_current(&format!(
+    fn emit_string_bytecode(&mut self, value: &str) {
+        let value_be_bytes = format!("{}\0", value)
+            .bytes()
+            .map(|byte| u32::from(byte).to_be_bytes())
+            .collect::<Vec<[u8; 4]>>();
+        let value_be_bytes_address: u32 = match self.data_segment.len().try_into() {
+            Ok(length) => length,
+            _ => {
+                self.error_at_current(&format!(
                     "Failed to convert data segment length to u32. Data segment length exceeds {}. Found data segment length: {}.",
                     u32::MAX,
                     self.data_segment.len()
                 ));
-                    return;
-                }
-            };
+                return;
+            }
+        };
 
-            self.text_segment.push(value_be_bytes_address.to_be_bytes());
-
-            self.data_segment.extend(value_be_bytes);
-        } else {
-            self.text_segment.extend(value_be_bytes);
-        }
+        self.data_segment.extend(value_be_bytes);
+        self.text_segment.push(value_be_bytes_address.to_be_bytes());
     }
 
     fn upsert_unresolved_label(&mut self, key: u64) -> Result<(), String> {
@@ -349,8 +282,22 @@ impl Assembler {
         }
     }
 
-    fn load_immediate(&mut self) {
-        self.consume(&TokenType::LoadImmediate, "Expected 'li' keyword.");
+    fn l_type(&mut self, token_type: &TokenType) {
+        self.consume(
+            token_type,
+            format!("Expected '{:?}' keyword.", token_type).as_str(),
+        );
+
+        let opcode = match token_type {
+            TokenType::LoadString => OpCode::LoadString,
+            TokenType::LoadImmediate => OpCode::LoadImmediate,
+            TokenType::LoadFile => OpCode::LoadFile,
+            TokenType::Move => OpCode::Move,
+            _ => {
+                self.error_at_previous("Invalid l-type opcode instruction.");
+                return;
+            }
+        };
 
         let destination_register = match self.register("Expected destination register.") {
             Ok(register) => register,
@@ -365,71 +312,37 @@ impl Assembler {
             "Expected ',' after destination register.",
         );
 
-        let immediate = match self.immediate("Expected immediate after ','.") {
-            Ok(immediate) => immediate,
-            Err(message) => {
-                self.error_at_current(&message);
-                return;
-            }
-        };
+        if matches!(opcode, OpCode::LoadImmediate) {
+            let immediate = match self.number("Expected immediate after ','.") {
+                Ok(immediate) => immediate,
+                Err(message) => {
+                    self.error_at_current(&message);
+                    return;
+                }
+            };
 
-        self.emit_op_code_bytecode(OpCode::LoadImmediate);
-        self.emit_register_bytecode(destination_register);
-        self.emit_immediate_bytecode(&immediate);
-    }
+            self.emit_op_code_bytecode(opcode);
+            self.emit_number_bytecode(destination_register);
+            self.emit_number_bytecode(immediate);
+        } else if matches!(opcode, OpCode::Move) {
+            let source_register = match self.register("Expected source register after ','.") {
+                Ok(register) => register,
+                Err(message) => {
+                    self.error_at_current(&message);
+                    return;
+                }
+            };
 
-    fn load_file(&mut self) {
-        self.consume(&TokenType::LoadFile, "Expected 'lf' keyword.");
+            self.emit_op_code_bytecode(opcode);
+            self.emit_number_bytecode(destination_register);
+            self.emit_number_bytecode(source_register);
+        } else {
+            let string_value = self.string("Expected string after ','.");
 
-        let destination_register = match self.register("Expected destination register.") {
-            Ok(register) => register,
-            Err(message) => {
-                self.error_at_current(&message);
-                return;
-            }
-        };
-
-        self.consume(
-            &TokenType::Comma,
-            "Expected ',' after destination register.",
-        );
-
-        let file_path = self
-            .string("Expected file path string after ','.")
-            .to_string();
-
-        self.emit_op_code_bytecode(OpCode::LoadFile);
-        self.emit_register_bytecode(destination_register);
-        self.emit_immediate_bytecode(&Immediate::Text(file_path));
-    }
-
-    fn _move(&mut self) {
-        self.consume(&TokenType::Move, "Expected 'mv' keyword.");
-
-        let destination_register = match self.register("Expected destination register.") {
-            Ok(register) => register,
-            Err(message) => {
-                self.error_at_current(&message);
-                return;
-            }
-        };
-
-        self.consume(
-            &TokenType::Comma,
-            "Expected ',' after destination register.",
-        );
-
-        let source_register = match self.register("Expected source register after ','.") {
-            Ok(register) => register,
-            Err(message) => {
-                self.error_at_current(&message);
-                return;
-            }
-        };
-
-        self.emit_op_code_bytecode(OpCode::Move);
-        self.emit_register_bytecode(destination_register);
-        self.emit_register_bytecode(source_register);
+            self.emit_op_code_bytecode(opcode);
+            self.emit_number_bytecode(destination_register);
+            self.emit_string_bytecode(&string_value);
+        }
     }
 
     fn hash(value: &str) -> u64 {
@@ -486,7 +399,7 @@ impl Assembler {
             TokenType::Audit => OpCode::Audit,
             TokenType::Similarity => OpCode::Similarity,
             _ => {
-                self.error_at_previous("Invalid opcode instruction.");
+                self.error_at_previous("Invalid r-type opcode instruction.");
                 return;
             }
         };
@@ -510,18 +423,18 @@ impl Assembler {
             "Expected ',' after destination register.",
         );
 
-        let immediate_1 = match self.immediate("Expected immediate 1 after ','.") {
-            Ok(immediate) => immediate,
+        let source_register_1 = match self.register("Expected source register 1 after ','.") {
+            Ok(register) => register,
             Err(message) => {
                 self.error_at_current(&message);
                 return;
             }
         };
 
-        self.consume(&TokenType::Comma, "Expected ',' after immediate 1.");
+        self.consume(&TokenType::Comma, "Expected ',' after source register 1.");
 
-        let immediate_2 = match self.immediate("Expected immediate 2 after ','.") {
-            Ok(immediate) => immediate,
+        let source_register_2 = match self.register("Expected source register 2 after ','.") {
+            Ok(register) => register,
             Err(message) => {
                 self.error_at_current(&message);
                 return;
@@ -529,12 +442,12 @@ impl Assembler {
         };
 
         self.emit_op_code_bytecode(opcode);
-        self.emit_register_bytecode(destination_register);
-        self.emit_immediate_bytecode(&immediate_1);
-        self.emit_immediate_bytecode(&immediate_2);
+        self.emit_number_bytecode(destination_register);
+        self.emit_number_bytecode(source_register_1);
+        self.emit_number_bytecode(source_register_2);
     }
 
-    fn branch(&mut self, token_type: &TokenType) {
+    fn b_type(&mut self, token_type: &TokenType) {
         self.consume(
             token_type,
             format!("Expected '{:?}' keyword.", token_type).as_str(),
@@ -547,47 +460,51 @@ impl Assembler {
             TokenType::BranchGreater => OpCode::BranchGreater,
             TokenType::BranchGreaterEqual => OpCode::BranchGreaterEqual,
             _ => {
-                self.error_at_previous("Invalid branch instruction.");
+                self.error_at_previous("Invalid b-type opcode instruction.");
                 return;
             }
         };
 
-        let immediate_1 = match self
-            .immediate(format!("Expected immediate 1 after '{:?}' keyword.", token_type).as_str())
-        {
-            Ok(immediate) => immediate,
+        let source_register_1 = match self.register(
+            format!(
+                "Expected source register 1 after '{:?}' keyword.",
+                token_type
+            )
+            .as_str(),
+        ) {
+            Ok(register) => register,
             Err(message) => {
                 self.error_at_current(&message);
                 return;
             }
         };
 
-        self.consume(&TokenType::Comma, "Expected ',' after immediate 1.");
+        self.consume(&TokenType::Comma, "Expected ',' after source register 1.");
 
-        let immediate_2 = match self.immediate("Expected immediate 2 after ','.") {
-            Ok(immediate) => immediate,
+        let source_register_2 = match self.register("Expected source register 2 after ','.") {
+            Ok(register) => register,
             Err(message) => {
                 self.error_at_current(&message);
                 return;
             }
         };
 
-        self.consume(&TokenType::Comma, "Expected ',' after source immediate 2.");
+        self.consume(&TokenType::Comma, "Expected ',' after source register 2.");
 
         let label_name = self.identifier("Expected label name after ','.");
         let key = Self::hash(label_name);
 
         self.emit_op_code_bytecode(opcode);
-        self.emit_immediate_bytecode(&immediate_1);
-        self.emit_immediate_bytecode(&immediate_2);
+        self.emit_number_bytecode(source_register_1);
+        self.emit_number_bytecode(source_register_2);
         self.emit_label_bytecode(key);
     }
 
     fn output(&mut self) {
         self.consume(&TokenType::Out, "Expected 'out' keyword.");
 
-        let immediate = match self.immediate("Expected immediate after 'out'.") {
-            Ok(immediate) => immediate,
+        let source_register = match self.register("Expected source register after 'out'.") {
+            Ok(register) => register,
             Err(message) => {
                 self.error_at_current(&message);
                 return;
@@ -595,7 +512,7 @@ impl Assembler {
         };
 
         self.emit_op_code_bytecode(OpCode::Out);
-        self.emit_immediate_bytecode(&immediate);
+        self.emit_number_bytecode(source_register);
     }
 
     fn exit(&mut self) {
@@ -611,15 +528,16 @@ impl Assembler {
             if let Some(current_token) = &self.current {
                 match current_token.token_type() {
                     // Data movement.
-                    TokenType::LoadImmediate => self.load_immediate(),
-                    TokenType::LoadFile => self.load_file(),
-                    TokenType::Move => self._move(),
+                    TokenType::LoadString => self.l_type(&TokenType::LoadString),
+                    TokenType::LoadImmediate => self.l_type(&TokenType::LoadImmediate),
+                    TokenType::LoadFile => self.l_type(&TokenType::LoadFile),
+                    TokenType::Move => self.l_type(&TokenType::Move),
                     // Control flow.
-                    TokenType::BranchEqual => self.branch(&TokenType::BranchEqual),
-                    TokenType::BranchLess => self.branch(&TokenType::BranchLess),
-                    TokenType::BranchLessEqual => self.branch(&TokenType::BranchLessEqual),
-                    TokenType::BranchGreater => self.branch(&TokenType::BranchGreater),
-                    TokenType::BranchGreaterEqual => self.branch(&TokenType::BranchGreaterEqual),
+                    TokenType::BranchEqual => self.b_type(&TokenType::BranchEqual),
+                    TokenType::BranchLess => self.b_type(&TokenType::BranchLess),
+                    TokenType::BranchLessEqual => self.b_type(&TokenType::BranchLessEqual),
+                    TokenType::BranchGreater => self.b_type(&TokenType::BranchGreater),
+                    TokenType::BranchGreaterEqual => self.b_type(&TokenType::BranchGreaterEqual),
                     TokenType::Exit => self.exit(),
                     TokenType::Label => self.label(),
                     // I/O.

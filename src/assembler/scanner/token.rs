@@ -7,6 +7,7 @@ pub enum TokenType {
     String,
     Number,
     // Data movement keywords.
+    LoadString,
     LoadImmediate,
     LoadFile,
     Move,
@@ -34,8 +35,9 @@ pub enum TokenType {
     Error,
 }
 
-pub static TOKEN_TYPE_MAPPING: [(TokenType, &str); 16] = [
+pub static TOKEN_TYPE_MAPPING: [(TokenType, &str); 17] = [
     // Data movement.
+    (TokenType::LoadString, "ls"),
     (TokenType::LoadImmediate, "li"),
     (TokenType::LoadFile, "lf"),
     (TokenType::Move, "mv"),

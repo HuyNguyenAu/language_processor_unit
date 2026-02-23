@@ -21,7 +21,7 @@ MRF X6, X5, X3
 LI  X3, "The temperature and light values must be within the following ranges: temp_c between 18 and 24 degrees Celsius, and light between 0 and 100 percent."
 AUD X7, X6, X3
 
-BEQ X7, 100, RETRY
+BEQ X7, 0, RETRY
 
 ; Act: Implement the adjustments to achieve the desired physical comfort.
 OUT X6

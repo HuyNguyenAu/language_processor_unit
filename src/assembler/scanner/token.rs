@@ -2,71 +2,63 @@
 pub enum TokenType {
     // Single-character.
     Comma,
-
     // Literals.
     Identifier,
     String,
     Number,
-
     // Data movement keywords.
-    Li,
-    Lf,
-    Mv,
-    // Semantic operations keywords.
-    Add,
-    Sub,
-    Mul,
-    Div,
-    Inf,
-    Adt,
-    // Heuristic operations keywords.
-    Eqv,
-    Int,
-    Hal,
-    Sim,
+    LoadString,
+    LoadImmediate,
+    LoadFile,
+    Move,
     // Control flow keywords.
-    Beq,
-    Ble,
-    Blt,
-    Bge,
-    Bgt,
-    Label,
+    BranchEqual,
+    BranchLessEqual,
+    BranchLess,
+    BranchGreaterEqual,
+    BranchGreater,
+    Exit,
     // I/O keywords.
     Out,
-
-    // Misc.
+    // Generative operations keywords.
+    Morph,
+    Project,
+    // Cognitive operations keywords.
+    Distill,
+    Correlate,
+    // Guardrails operations keywords.
+    Audit,
+    Similarity,
+    // Misc keywords.
+    Label,
     Eof,
     Error,
-    Exit,
 }
 
-pub static TOKEN_TYPE_MAPPING: [(TokenType, &str); 20] = [
+pub static TOKEN_TYPE_MAPPING: [(TokenType, &str); 17] = [
     // Data movement.
-    (TokenType::Li, "li"),
-    (TokenType::Lf, "lf"),
-    (TokenType::Mv, "mv"),
-    // Semantic operations.
-    (TokenType::Add, "add"),
-    (TokenType::Sub, "sub"),
-    (TokenType::Mul, "mul"),
-    (TokenType::Div, "div"),
-    (TokenType::Inf, "inf"),
-    (TokenType::Adt, "adt"),
-    // Heuristic operations.
-    (TokenType::Eqv, "eqv"),
-    (TokenType::Int, "int"),
-    (TokenType::Hal, "hal"),
-    (TokenType::Sim, "sim"),
+    (TokenType::LoadString, "ls"),
+    (TokenType::LoadImmediate, "li"),
+    (TokenType::LoadFile, "lf"),
+    (TokenType::Move, "mv"),
     // Control flow.
-    (TokenType::Beq, "beq"),
-    (TokenType::Blt, "blt"),
-    (TokenType::Ble, "ble"),
-    (TokenType::Bge, "bge"),
-    (TokenType::Bgt, "bgt"),
+    (TokenType::BranchEqual, "beq"),
+    (TokenType::BranchLessEqual, "ble"),
+    (TokenType::BranchLess, "blt"),
+    (TokenType::BranchGreaterEqual, "bge"),
+    (TokenType::BranchGreater, "bgt"),
+    (TokenType::Exit, "exit"),
     // I/O.
     (TokenType::Out, "out"),
-    // Misc.
-    (TokenType::Exit, "exit"),
+    // Generative operations.
+    (TokenType::Morph, "mrf"),
+    (TokenType::Project, "prj"),
+    // Cognitive operations.
+    (TokenType::Distill, "dst"),
+    (TokenType::Correlate, "cor"),
+    // Guardrails operations.
+    (TokenType::Audit, "aud"),
+    (TokenType::Similarity, "sim"),
 ];
 
 #[derive(Clone, Debug)]

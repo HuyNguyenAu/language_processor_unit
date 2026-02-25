@@ -1,54 +1,37 @@
-use crate::assembler::opcode::OpCode;
+use crate::processor::control_unit::instruction::RType;
 
-pub fn true_values(opcode: &OpCode) -> Result<Vec<&'static str>, &'static str> {
-    match opcode {
-        OpCode::Eqv => Ok(vec!["IDENTICAL", "SYNONYMOUS", "RELATED"]),
-        OpCode::Int => Ok(vec!["TRUE"]),
-        OpCode::Hal => Ok(vec!["REAL"]),
-        _ => Err("Unsupported opcode for true values."),
+pub fn true_values(r_type: &RType) -> Result<Vec<&'static str>, &'static str> {
+    match r_type {
+        RType::Audit => Ok(vec!["PASS"]),
+        _ => Err("Unsupported r_type for true values."),
     }
 }
 
-pub fn search(opcode: &OpCode, value_a: &str, value_b: &str) -> Result<String, &'static str> {
-    match opcode {
-        // Semantic operations.
-        OpCode::Add => Ok(format!(
-            "Merge the essence, attributes, and presence of \"{}\" and \"{}\" into a single form.",
+pub fn search(r_type: &RType, value_a: &str, value_b: &str) -> Result<String, &'static str> {
+    match r_type {
+        // Generative operations.
+        RType::Morph => Ok(format!(
+            "Source: {}\nTarget Format: {}\nMorphed Data:",
             value_a, value_b
         )),
-        OpCode::Sub => Ok(format!(
-            "Strip the essence, attributes, and presence of \"{}\" away from \"{}\", leaving only the remainder.",
-            value_b, value_a
-        )),
-        OpCode::Mul => Ok(format!(
-            "Magnify the intensity, scale, and influence of \"{}\" using the defining traits of \"{}\".",
+        RType::Project => Ok(format!(
+            "Base Data: {}\nDirection/Trend: {}\nProjected Output:",
             value_a, value_b
         )),
-        OpCode::Div => Ok(format!(
-            "Deconstruct the complex concept \"{}\" into the specific units of \"{}\". List only the resulting components.",
+        // Cognitive operations.
+        RType::Distill => Ok(format!(
+            "Input: {}\nGoal/Criteria: {}\nDistilled Result:",
             value_a, value_b
         )),
-        OpCode::Inf => Ok(format!(
-            "Identify the pattern, sequence, or narrative trajectory in \"{}\". Project this trajectory forward by the amount specified in \"{}\".",
+        RType::Correlate => Ok(format!(
+            "Entity A: {}\nEntity B: {}\nRelational Analysis:",
             value_a, value_b
         )),
-        OpCode::Adt => Ok(format!(
-            "Hold the data in \"{}\" against the sacred light of the criteria \"{}\". List any fractures where the data fails to comply.",
+        // Guardrails operations.
+        RType::Audit => Ok(format!(
+            "Claim: {}\nEvidence: {}\nPASS/FAIL:",
             value_a, value_b
         )),
-        // Heuristic operations.
-        OpCode::Eqv => Ok(format!(
-            "Relation: \"{}\" vs \"{}\". Label: [IDENTICAL, SYNONYMOUS, RELATED, DISPARATE]. Result:",
-            value_a, value_b
-        )),
-        OpCode::Int => Ok(format!(
-            "Does the hidden intent behind \"{}\" align with the goal of \"{}\"? Answer TRUE or FALSE.",
-            value_a, value_b
-        )),
-        OpCode::Hal => Ok(format!(
-            "Does \"{}\" ring true with reality, or is it a hollow hallucination? Answer REAL or HOLLOW.",
-            value_a
-        )),
-        _ => Err("Unsupported opcode for micro prompt generation."),
+        _ => Err("Unsupported r_type for micro prompt generation."),
     }
 }

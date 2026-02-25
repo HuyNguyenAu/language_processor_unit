@@ -170,7 +170,20 @@ impl Scanner {
     }
 
     fn string(&mut self) -> Token {
-        while !self.is_at_end() && self.peek() != '"' {
+        while !self.is_at_end() {
+            // If we hit an unescaped quote, string ends.
+            if self.peek() == '"' {
+                break;
+            }
+
+            // Handle escaped double quote: skip the backslash and the quote.
+            if self.peek() == '\\' && self.peek_next() == '"' {
+                self.advance(); // Consumes the backslash.
+                self.advance(); // Consumes the escaped quote.
+
+                continue;
+            }
+
             if self.peek() == '\n' {
                 self.line += 1;
                 self.column = 0;

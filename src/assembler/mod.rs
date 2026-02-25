@@ -1,22 +1,23 @@
 use std::collections::HashMap;
 use std::hash::{DefaultHasher, Hash, Hasher};
 
-use crate::assembler::immediate::{Immediate, ImmediateType};
 use crate::assembler::opcode::OpCode;
 use crate::assembler::scanner::Scanner;
 use crate::assembler::scanner::token::{Token, TokenType};
 
-pub mod immediate;
 pub mod opcode;
 mod scanner;
 
+const HEADER_SIZE: u32 = 2;
+
 struct UnresolvedLabel {
-    bytecode_indices: Vec<usize>,
+    indices: Vec<usize>,
     token: Token,
 }
 
 pub struct Assembler {
-    byte_code: Vec<[u8; 4]>,
+    data_segment: Vec<[u8; 4]>,
+    text_segment: Vec<[u8; 4]>,
 
     source: &'static str,
     scanner: Scanner,
@@ -24,7 +25,7 @@ pub struct Assembler {
     previous: Option<Token>,
     current: Option<Token>,
 
-    byte_code_indices: HashMap<u64, usize>,
+    labels: HashMap<u64, usize>,
     unresolved_labels: HashMap<u64, UnresolvedLabel>,
 
     had_error: bool,
@@ -34,12 +35,13 @@ pub struct Assembler {
 impl Assembler {
     pub fn new(source: &'static str) -> Self {
         Assembler {
-            byte_code: Vec::new(),
+            data_segment: Vec::new(),
+            text_segment: Vec::new(),
             source,
             scanner: Scanner::new(source),
             previous: None,
             current: None,
-            byte_code_indices: HashMap::new(),
+            labels: HashMap::new(),
             unresolved_labels: HashMap::new(),
             had_error: false,
             panic_mode: false,
@@ -184,6 +186,7 @@ impl Assembler {
             .take(lexeme.chars().count() - 2)
             .collect::<String>()
             .replace("\\n", "\n")
+            .replace("\\\"", "\"")
     }
 
     fn identifier(&mut self, message: &str) -> &str {
@@ -192,45 +195,8 @@ impl Assembler {
         self.previous_lexeme()
     }
 
-    fn immediate(&mut self, message: &str) -> Result<Immediate, String> {
-        let current_type = match self.current {
-            Some(ref token) => token.token_type(),
-            None => {
-                return Err(format!(
-                    "Failed to parse immediate value. Current token is None. {}",
-                    message
-                ));
-            }
-        };
-
-        match current_type {
-            TokenType::String => Ok(Immediate::Text(self.string(message).to_string())),
-            TokenType::Number => {
-                let number = self.number(message);
-
-                if let Ok(number) = number {
-                    return Ok(Immediate::Number(number));
-                }
-
-                Err(format!("Failed to parse immediate number. {}", message))
-            }
-            TokenType::Identifier => {
-                let reg = self.register(message);
-                if let Ok(register) = reg {
-                    return Ok(Immediate::Register(register));
-                }
-
-                Err(format!("Failed to parse immediate register. {}", message))
-            }
-            _ => Err(format!(
-                "Invalid immediate value. Expected number, string or register. Found token type: {:?}. {}",
-                current_type, message
-            )),
-        }
-    }
-
     fn emit_number_bytecode(&mut self, value: u32) {
-        self.byte_code.push(value.to_be_bytes());
+        self.text_segment.push(value.to_be_bytes());
     }
 
     fn emit_op_code_bytecode(&mut self, op_code: OpCode) {
@@ -242,59 +208,35 @@ impl Assembler {
             }
         };
 
-        self.byte_code.push(op_code_be_bytes);
+        self.text_segment.push(op_code_be_bytes);
     }
 
-    fn emit_register_bytecode(&mut self, register: u32) {
-        self.byte_code.push(register.to_be_bytes());
-    }
-
-    fn emit_immediate_bytecode(&mut self, immediate: &Immediate) {
-        let (immediate_type, value_be_bytes): (ImmediateType, Vec<[u8; 4]>) = match immediate {
-            Immediate::Number(value) => (ImmediateType::Number, vec![value.to_be_bytes()]),
-            Immediate::Register(value) => (ImmediateType::Register, vec![value.to_be_bytes()]),
-            Immediate::Text(value) => (
-                ImmediateType::Text,
-                value
-                    .bytes()
-                    .map(|byte| u32::from(byte).to_be_bytes())
-                    .collect::<Vec<[u8; 4]>>(),
-            ),
-        };
-
-        let immediate_type_be_bytes = match immediate_type.to_be_bytes() {
-            Ok(bytes) => bytes,
-            Err(message) => {
-                self.error_at_current(message);
-
-                return;
-            }
-        };
-
-        self.byte_code.push(immediate_type_be_bytes);
-
-        let value_be_bytes_len: u32 = match value_be_bytes.len().try_into() {
+    fn emit_string_bytecode(&mut self, value: &str) {
+        let value_be_bytes = format!("{}\0", value)
+            .bytes()
+            .map(|byte| u32::from(byte).to_be_bytes())
+            .collect::<Vec<[u8; 4]>>();
+        let value_be_bytes_address: u32 = match self.data_segment.len().try_into() {
             Ok(length) => length,
             _ => {
                 self.error_at_current(&format!(
-                    "Failed to convert immediate byte length to u32. Byte length exceeds {}. Found byte length: {}.",
+                    "Failed to convert data segment length to u32. Data segment length exceeds {}. Found data segment length: {}.",
                     u32::MAX,
-                    value_be_bytes.len()
+                    self.data_segment.len()
                 ));
-
                 return;
             }
         };
 
-        self.byte_code.push(value_be_bytes_len.to_be_bytes());
-        self.byte_code.extend(value_be_bytes);
+        self.data_segment.extend(value_be_bytes);
+        self.text_segment.push(value_be_bytes_address.to_be_bytes());
     }
 
     fn upsert_unresolved_label(&mut self, key: u64) -> Result<(), String> {
-        let bytecode_index = self.byte_code.len() - 1;
+        let index = self.text_segment.len() - 1;
 
         if let Some(label) = self.unresolved_labels.get_mut(&key) {
-            label.bytecode_indices.push(bytecode_index);
+            label.indices.push(index);
         } else {
             let previous_token = match &self.previous {
                 Some(token) => token.clone(),
@@ -306,7 +248,7 @@ impl Assembler {
             self.unresolved_labels.insert(
                 key,
                 UnresolvedLabel {
-                    bytecode_indices: vec![bytecode_index],
+                    indices: vec![index],
                     token: previous_token,
                 },
             );
@@ -316,34 +258,33 @@ impl Assembler {
     }
 
     fn emit_label_bytecode(&mut self, key: u64) {
-        if let Some(index) = self.byte_code_indices.get(&key) {
-            let value: u32 = match (*index).try_into() {
-                Ok(value) => value,
-                Err(_) => {
-                    self.error_at_current(format!(
-                    "Failed to convert bytecode index to u32 for jump compare. Bytecode index exceeds {}. Found bytecode index: {}.",
-                    u32::MAX,
-                    index
-                ).as_str());
-                    return;
-                }
-            };
-            self.emit_number_bytecode(value);
-        } else {
-            // Placeholder for backpatching.
-            self.emit_number_bytecode(0);
-            // Record the current bytecode index for backpatching later.
-            match self.upsert_unresolved_label(key) {
-                Ok(()) => (),
-                Err(message) => {
-                    self.error_at_current(&message);
-                }
+        // Placeholder for backpatching.
+        self.emit_number_bytecode(0);
+        // Record the current bytecode index for backpatching later.
+        match self.upsert_unresolved_label(key) {
+            Ok(()) => (),
+            Err(message) => {
+                self.error_at_current(&message);
             }
         }
     }
 
-    fn load_immediate(&mut self) {
-        self.consume(&TokenType::Li, "Expected 'li' keyword.");
+    fn l_type(&mut self, token_type: &TokenType) {
+        self.consume(
+            token_type,
+            format!("Expected '{:?}' keyword.", token_type).as_str(),
+        );
+
+        let opcode = match token_type {
+            TokenType::LoadString => OpCode::LoadString,
+            TokenType::LoadImmediate => OpCode::LoadImmediate,
+            TokenType::LoadFile => OpCode::LoadFile,
+            TokenType::Move => OpCode::Move,
+            _ => {
+                self.error_at_previous("Invalid l-type opcode instruction.");
+                return;
+            }
+        };
 
         let destination_register = match self.register("Expected destination register.") {
             Ok(register) => register,
@@ -358,71 +299,40 @@ impl Assembler {
             "Expected ',' after destination register.",
         );
 
-        let immediate = match self.immediate("Expected immediate after ','.") {
-            Ok(immediate) => immediate,
-            Err(message) => {
-                self.error_at_current(&message);
-                return;
-            }
-        };
+        if matches!(opcode, OpCode::LoadImmediate) {
+            let immediate = match self.number("Expected immediate after ','.") {
+                Ok(immediate) => immediate,
+                Err(message) => {
+                    self.error_at_current(&message);
+                    return;
+                }
+            };
 
-        self.emit_op_code_bytecode(OpCode::Li);
-        self.emit_register_bytecode(destination_register);
-        self.emit_immediate_bytecode(&immediate);
-    }
+            self.emit_op_code_bytecode(opcode);
+            self.emit_number_bytecode(destination_register);
+            self.emit_number_bytecode(immediate);
+            self.emit_number_bytecode(0); // Padding for uniform instruction size.
+        } else if matches!(opcode, OpCode::Move) {
+            let source_register = match self.register("Expected source register after ','.") {
+                Ok(register) => register,
+                Err(message) => {
+                    self.error_at_current(&message);
+                    return;
+                }
+            };
 
-    fn load_file(&mut self) {
-        self.consume(&TokenType::Lf, "Expected 'lf' keyword.");
+            self.emit_op_code_bytecode(opcode);
+            self.emit_number_bytecode(destination_register);
+            self.emit_number_bytecode(source_register);
+            self.emit_number_bytecode(0); // Padding for uniform instruction size.
+        } else {
+            let string_value = self.string("Expected string after ','.");
 
-        let destination_register = match self.register("Expected destination register.") {
-            Ok(register) => register,
-            Err(message) => {
-                self.error_at_current(&message);
-                return;
-            }
-        };
-
-        self.consume(
-            &TokenType::Comma,
-            "Expected ',' after destination register.",
-        );
-
-        let file_path = self
-            .string("Expected file path string after ','.")
-            .to_string();
-
-        self.emit_op_code_bytecode(OpCode::Lf);
-        self.emit_register_bytecode(destination_register);
-        self.emit_immediate_bytecode(&Immediate::Text(file_path));
-    }
-
-    fn move_value(&mut self) {
-        self.consume(&TokenType::Mv, "Expected 'mv' keyword.");
-
-        let destination_register = match self.register("Expected destination register.") {
-            Ok(register) => register,
-            Err(message) => {
-                self.error_at_current(&message);
-                return;
-            }
-        };
-
-        self.consume(
-            &TokenType::Comma,
-            "Expected ',' after destination register.",
-        );
-
-        let source_register = match self.register("Expected source register after ','.") {
-            Ok(register) => register,
-            Err(message) => {
-                self.error_at_current(&message);
-                return;
-            }
-        };
-
-        self.emit_op_code_bytecode(OpCode::Mv);
-        self.emit_register_bytecode(destination_register);
-        self.emit_register_bytecode(source_register);
+            self.emit_op_code_bytecode(opcode);
+            self.emit_number_bytecode(destination_register);
+            self.emit_string_bytecode(&string_value);
+            self.emit_number_bytecode(0); // Padding for uniform instruction size.
+        }
     }
 
     fn hash(value: &str) -> u64 {
@@ -438,51 +348,29 @@ impl Assembler {
         let label_name = self.previous_lexeme();
         let value = label_name.trim_end_matches(':');
         let key = Self::hash(value);
-        let jump_destination_byte_code_index = self.byte_code.len();
+        let byte_code_index = self.text_segment.len();
 
-        // Backpatch any unresolved labels.
-        if let Some(unresolved) = self.unresolved_labels.remove(&key) {
-            let value: u32 = match jump_destination_byte_code_index.try_into() {
-                Ok(value) => value,
-                Err(_) => {
-                    self.error_at_current(&format!("Failed to convert bytecode index to u32 for backpatching. Bytecode index exceeds {}. Found bytecode index: {}.", u32::MAX, jump_destination_byte_code_index ));
-
-                    return;
-                }
-            };
-
-            let bytes = value.to_be_bytes();
-
-            for idx in unresolved.bytecode_indices {
-                self.byte_code[idx] = bytes;
-            }
-        }
-
-        self.byte_code_indices
-            .insert(key, jump_destination_byte_code_index);
+        self.labels.insert(key, byte_code_index);
     }
 
-    fn semantic_heuristic(&mut self, token_type: &TokenType) {
+    fn r_type(&mut self, token_type: &TokenType) {
         self.consume(
             token_type,
             format!("Expected '{:?}' keyword.", token_type).as_str(),
         );
 
         let opcode = match token_type {
-            // Semantic operations.
-            TokenType::Add => OpCode::Add,
-            TokenType::Sub => OpCode::Sub,
-            TokenType::Mul => OpCode::Mul,
-            TokenType::Div => OpCode::Div,
-            TokenType::Inf => OpCode::Inf,
-            TokenType::Adt => OpCode::Adt,
-            // Heuristic operations.
-            TokenType::Eqv => OpCode::Eqv,
-            TokenType::Int => OpCode::Int,
-            TokenType::Hal => OpCode::Hal,
-            TokenType::Sim => OpCode::Sim,
+            // Generative operations.
+            TokenType::Morph => OpCode::Morph,
+            TokenType::Project => OpCode::Project,
+            // Cognitive operations.
+            TokenType::Distill => OpCode::Distill,
+            TokenType::Correlate => OpCode::Correlate,
+            // Guardrails operations.
+            TokenType::Audit => OpCode::Audit,
+            TokenType::Similarity => OpCode::Similarity,
             _ => {
-                self.error_at_previous("Invalid semantic instruction.");
+                self.error_at_previous("Invalid r-type opcode instruction.");
                 return;
             }
         };
@@ -506,89 +394,88 @@ impl Assembler {
             "Expected ',' after destination register.",
         );
 
-        let immediate_1 = match self.immediate("Expected immediate 1 after ','.") {
-            Ok(immediate) => immediate,
+        let source_register_1 = match self.register("Expected source register 1 after ','.") {
+            Ok(register) => register,
             Err(message) => {
                 self.error_at_current(&message);
                 return;
             }
         };
 
-        let immediate_2 = if matches!(token_type, TokenType::Hal) {
-            // HAL only takes one source operand; use numeric 0 as a dummy immediate.
-            Immediate::Number(0)
-        } else {
-            self.consume(&TokenType::Comma, "Expected ',' after immediate 1.");
+        self.consume(&TokenType::Comma, "Expected ',' after source register 1.");
 
-            match self.immediate("Expected immediate 2 after ','.") {
-                Ok(immediate) => immediate,
-                Err(message) => {
-                    self.error_at_current(&message);
-                    return;
-                }
+        let source_register_2 = match self.register("Expected source register 2 after ','.") {
+            Ok(register) => register,
+            Err(message) => {
+                self.error_at_current(&message);
+                return;
             }
         };
 
         self.emit_op_code_bytecode(opcode);
-        self.emit_register_bytecode(destination_register);
-        self.emit_immediate_bytecode(&immediate_1);
-        self.emit_immediate_bytecode(&immediate_2);
+        self.emit_number_bytecode(destination_register);
+        self.emit_number_bytecode(source_register_1);
+        self.emit_number_bytecode(source_register_2);
     }
 
-    fn branch(&mut self, token_type: &TokenType) {
+    fn b_type(&mut self, token_type: &TokenType) {
         self.consume(
             token_type,
             format!("Expected '{:?}' keyword.", token_type).as_str(),
         );
 
         let opcode = match token_type {
-            TokenType::Beq => OpCode::Beq,
-            TokenType::Blt => OpCode::Blt,
-            TokenType::Ble => OpCode::Ble,
-            TokenType::Bgt => OpCode::Bgt,
-            TokenType::Bge => OpCode::Bge,
+            TokenType::BranchEqual => OpCode::BranchEqual,
+            TokenType::BranchLess => OpCode::BranchLess,
+            TokenType::BranchLessEqual => OpCode::BranchLessEqual,
+            TokenType::BranchGreater => OpCode::BranchGreater,
+            TokenType::BranchGreaterEqual => OpCode::BranchGreaterEqual,
             _ => {
-                self.error_at_previous("Invalid branch instruction.");
+                self.error_at_previous("Invalid b-type opcode instruction.");
                 return;
             }
         };
 
-        let immediate_1 = match self
-            .immediate(format!("Expected immediate 1 after '{:?}' keyword.", token_type).as_str())
-        {
-            Ok(immediate) => immediate,
+        let source_register_1 = match self.register(
+            format!(
+                "Expected source register 1 after '{:?}' keyword.",
+                token_type
+            )
+            .as_str(),
+        ) {
+            Ok(register) => register,
             Err(message) => {
                 self.error_at_current(&message);
                 return;
             }
         };
 
-        self.consume(&TokenType::Comma, "Expected ',' after immediate 1.");
+        self.consume(&TokenType::Comma, "Expected ',' after source register 1.");
 
-        let immediate_2 = match self.immediate("Expected immediate 2 after ','.") {
-            Ok(immediate) => immediate,
+        let source_register_2 = match self.register("Expected source register 2 after ','.") {
+            Ok(register) => register,
             Err(message) => {
                 self.error_at_current(&message);
                 return;
             }
         };
 
-        self.consume(&TokenType::Comma, "Expected ',' after source immediate 2.");
+        self.consume(&TokenType::Comma, "Expected ',' after source register 2.");
 
         let label_name = self.identifier("Expected label name after ','.");
         let key = Self::hash(label_name);
 
         self.emit_op_code_bytecode(opcode);
-        self.emit_immediate_bytecode(&immediate_1);
-        self.emit_immediate_bytecode(&immediate_2);
+        self.emit_number_bytecode(source_register_1);
+        self.emit_number_bytecode(source_register_2);
         self.emit_label_bytecode(key);
     }
 
     fn output(&mut self) {
         self.consume(&TokenType::Out, "Expected 'out' keyword.");
 
-        let immediate = match self.immediate("Expected immediate after 'out'.") {
-            Ok(immediate) => immediate,
+        let source_register = match self.register("Expected source register after 'out'.") {
+            Ok(register) => register,
             Err(message) => {
                 self.error_at_current(&message);
                 return;
@@ -596,13 +483,47 @@ impl Assembler {
         };
 
         self.emit_op_code_bytecode(OpCode::Out);
-        self.emit_immediate_bytecode(&immediate);
+        self.emit_number_bytecode(source_register);
+        self.emit_number_bytecode(0); // Padding for uniform instruction size.
+        self.emit_number_bytecode(0); // Padding for uniform instruction size.
     }
 
     fn exit(&mut self) {
         self.consume(&TokenType::Exit, "Expected 'exit' keyword.");
 
         self.emit_op_code_bytecode(OpCode::Exit);
+    }
+
+    fn backpatch_labels(&mut self) {
+        let mut resolved_labels: Vec<u64> = Vec::new();
+
+        for (key, unresolved) in &self.unresolved_labels {
+            if let Some(byte_code_index) = self.labels.get(key) {
+                let index: u32 = match (*byte_code_index).try_into() {
+                    Ok(value) => value,
+                    Err(_) => {
+                        self.error_at_current(format!(
+                            "Failed to convert bytecode index to u32 for backpatching. Bytecode index exceeds {}. Found bytecode index: {}.",
+                            u32::MAX,
+                            byte_code_index
+                        ).as_str());
+                        return;
+                    }
+                };
+
+                let bytes = (HEADER_SIZE + index).to_be_bytes();
+
+                for idx in &unresolved.indices {
+                    self.text_segment[*idx] = bytes;
+                }
+
+                resolved_labels.push(*key);
+            }
+        }
+
+        for key in resolved_labels {
+            self.unresolved_labels.remove(&key);
+        }
     }
 
     pub fn assemble(&mut self) -> Result<Vec<u8>, &'static str> {
@@ -612,32 +533,30 @@ impl Assembler {
             if let Some(current_token) = &self.current {
                 match current_token.token_type() {
                     // Data movement.
-                    TokenType::Li => self.load_immediate(),
-                    TokenType::Lf => self.load_file(),
-                    TokenType::Mv => self.move_value(),
-                    // Semantic operations.
-                    TokenType::Add => self.semantic_heuristic(&TokenType::Add),
-                    TokenType::Sub => self.semantic_heuristic(&TokenType::Sub),
-                    TokenType::Mul => self.semantic_heuristic(&TokenType::Mul),
-                    TokenType::Div => self.semantic_heuristic(&TokenType::Div),
-                    TokenType::Inf => self.semantic_heuristic(&TokenType::Inf),
-                    TokenType::Adt => self.semantic_heuristic(&TokenType::Adt),
-                    // Heuristic operations.
-                    TokenType::Eqv => self.semantic_heuristic(&TokenType::Eqv),
-                    TokenType::Int => self.semantic_heuristic(&TokenType::Int),
-                    TokenType::Hal => self.semantic_heuristic(&TokenType::Hal),
-                    TokenType::Sim => self.semantic_heuristic(&TokenType::Sim),
+                    TokenType::LoadString => self.l_type(&TokenType::LoadString),
+                    TokenType::LoadImmediate => self.l_type(&TokenType::LoadImmediate),
+                    TokenType::LoadFile => self.l_type(&TokenType::LoadFile),
+                    TokenType::Move => self.l_type(&TokenType::Move),
                     // Control flow.
-                    TokenType::Beq => self.branch(&TokenType::Beq),
-                    TokenType::Blt => self.branch(&TokenType::Blt),
-                    TokenType::Ble => self.branch(&TokenType::Ble),
-                    TokenType::Bgt => self.branch(&TokenType::Bgt),
-                    TokenType::Bge => self.branch(&TokenType::Bge),
+                    TokenType::BranchEqual => self.b_type(&TokenType::BranchEqual),
+                    TokenType::BranchLess => self.b_type(&TokenType::BranchLess),
+                    TokenType::BranchLessEqual => self.b_type(&TokenType::BranchLessEqual),
+                    TokenType::BranchGreater => self.b_type(&TokenType::BranchGreater),
+                    TokenType::BranchGreaterEqual => self.b_type(&TokenType::BranchGreaterEqual),
+                    TokenType::Exit => self.exit(),
                     TokenType::Label => self.label(),
                     // I/O.
                     TokenType::Out => self.output(),
+                    // Generative operations.
+                    TokenType::Morph => self.r_type(&TokenType::Morph),
+                    TokenType::Project => self.r_type(&TokenType::Project),
+                    // Cognitive operations.
+                    TokenType::Distill => self.r_type(&TokenType::Distill),
+                    TokenType::Correlate => self.r_type(&TokenType::Correlate),
+                    // Guardrails operations.
+                    TokenType::Audit => self.r_type(&TokenType::Audit),
+                    TokenType::Similarity => self.r_type(&TokenType::Similarity),
                     // Misc.
-                    TokenType::Exit => self.exit(),
                     TokenType::Eof => break,
                     _ => self.error_at_current("Unexpected keyword."),
                 }
@@ -650,6 +569,8 @@ impl Assembler {
             return Err("Assembly failed due to errors.");
         }
 
+        self.backpatch_labels();
+
         if let Some((_, unresolved_label)) = self.unresolved_labels.iter().nth(0) {
             let token = unresolved_label.token.clone();
 
@@ -658,11 +579,32 @@ impl Assembler {
             return Err("Assembly failed due to errors.");
         }
 
-        Ok(self
-            .byte_code
-            .iter()
-            .flat_map(|bytes| bytes.iter())
-            .copied()
-            .collect())
+        let mut byte_code: Vec<[u8; 4]> = Vec::new();
+
+        // Text segment starts after the header.
+        byte_code.push(HEADER_SIZE.to_be_bytes());
+
+        // Data segment starts after the header and text segment.
+        let text_segment_size: u32 = match self.text_segment.len().try_into() {
+            Ok(size) => size,
+            Err(_) => {
+                self.error_at_current(&format!(
+                    "Failed to convert text segment size to u32. Text segment size exceeds {}. Found text segment size: {}",
+                    u32::MAX,
+                    self.text_segment.len()
+                ));
+                return Err("Assembly failed due to errors.");
+            }
+        };
+
+        byte_code.push((HEADER_SIZE + text_segment_size).to_be_bytes());
+
+        // Append the text segment.
+        byte_code.extend(&self.text_segment);
+
+        // Append the data segment after the text segment.
+        byte_code.extend(&self.data_segment);
+
+        Ok(byte_code.into_iter().flatten().collect())
     }
 }

@@ -24,6 +24,7 @@ pub struct ModelTextConfig {
     pub samplers: Vec<String>,
     pub timings_per_token: bool,
 }
+
 pub struct ModelEmbeddingsConfig {
     pub model: String,
     pub encoding_format: String,

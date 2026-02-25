@@ -1,13 +1,16 @@
 use crate::{
     assembler::opcode::OpCode,
-    processor::control_unit::{
-        language_logic_unit::openai::{
-            OpenAIClient,
-            chat_completion_models::{
-                OpenAIChatCompletionRequest, OpenAIChatCompletionRequestText,
+    processor::{
+        control_unit::{
+            instruction::RType,
+            language_logic_unit::openai::{
+                OpenAIClient,
+                chat_completion_models::{
+                    OpenAIChatCompletionRequest, OpenAIChatCompletionRequestText,
+                },
+                embeddings_models::OpenAIEmbeddingsRequest,
+                model_config::{ModelConfig, ModelEmbeddingsConfig, ModelTextConfig},
             },
-            embeddings_models::OpenAIEmbeddingsRequest,
-            model_config::{ModelConfig, ModelEmbeddingsConfig, ModelTextConfig},
         },
         registers::Value,
     },
@@ -15,6 +18,8 @@ use crate::{
 
 mod micro_prompt;
 mod openai;
+
+const TRUTHY_THRESHOLD: u32 = 80;
 
 pub struct LanguageLogicUnit {
     system_prompt: &'static str,
@@ -171,11 +176,13 @@ impl LanguageLogicUnit {
     fn cosine_similarity(&self, value_a: &Value, value_b: &Value) -> Result<u32, String> {
         let value_a = match value_a {
             Value::Text(text) => text,
-            _ => return Err(format!("{:?} requires text value.", OpCode::Sim)),
+            Value::Number(number) => &number.to_string(),
+            _ => return Err(format!("{:?} requires text value.", OpCode::Similarity)),
         };
         let value_b = match value_b {
             Value::Text(text) => text,
-            _ => return Err(format!("{:?} requires text value.", OpCode::Sim)),
+            Value::Number(number) => &number.to_string(),
+            _ => return Err(format!("{:?} requires text value.", OpCode::Similarity)),
         };
 
         let value_a_embeddings = self.embeddings(value_a).map_err(|error| {
@@ -200,61 +207,78 @@ impl LanguageLogicUnit {
         Ok(percentage_similarity.round() as u32)
     }
 
-    fn execute(&self, opcode: &OpCode, value_a: &Value, value_b: &Value) -> Result<String, String> {
+    fn execute(&self, r_type: &RType, value_a: &Value, value_b: &Value) -> Result<String, String> {
         let value_a = match value_a {
             Value::Text(text) => text,
-            _ => return Err(format!("{:?} requires text value.", opcode)),
+            _ => return Err(format!("{:?} requires text value.", r_type)),
         };
         let value_b = match value_b {
             Value::Text(text) => text,
-            _ => return Err(format!("{:?} requires text value.", opcode)),
+            _ => return Err(format!("{:?} requires text value.", r_type)),
         };
 
-        let prompt = micro_prompt::search(opcode, value_a, value_b).map_err(|error| {
+        let prompt = micro_prompt::search(r_type, value_a, value_b).map_err(|error| {
             format!(
                 "Failed to generate micro prompt for {:?}. Error: {}",
-                opcode, error
+                r_type, error
             )
         })?;
 
         let result = self
             .chat(prompt.as_str())
-            .map_err(|error| format!("Failed to perform {:?}. Error: {}", opcode, error))?;
+            .map_err(|error| format!("Failed to perform {:?}. Error: {}", r_type, error))?;
 
         Ok(result.to_lowercase())
     }
 
-    fn boolean(&self, opcode: &OpCode, value: &str) -> Result<u32, String> {
-        let true_values = micro_prompt::true_values(opcode).map_err(|error| {
+    fn boolean(&self, r_type: &RType, value: &str) -> Result<u32, String> {
+        let true_values = micro_prompt::true_values(r_type).map_err(|error| {
             format!(
                 "Failed to get true values for {:?}. Error: {}",
-                opcode, error
+                r_type, error
             )
         })?;
 
-        Ok(if true_values.contains(&value.to_uppercase().as_str()) {
-            100
-        } else {
-            0
-        })
+        if true_values.contains(&value.to_uppercase().as_str()) {
+            return Ok(100);
+        }
+
+        // If not an exact match, check cosine similarity against true values.
+        for true_value in true_values {
+            let score = self.cosine_similarity(
+                    &Value::Text(value.to_lowercase().to_string()),
+                    &Value::Text(true_value.to_lowercase().to_string()))
+                    .map_err(|error| {
+                    format!(
+                        "Failed to compute cosine similarity for boolean evaluation of {:?}. Error: {}",
+                        r_type, error
+                    )
+                })?;
+
+            if score >= TRUTHY_THRESHOLD {
+                return Ok(100);
+            }
+        }
+
+        Ok(0)
     }
 
-    pub fn run(&self, opcode: &OpCode, value_a: &Value, value_b: &Value) -> Result<Value, String> {
-        if matches!(opcode, OpCode::Eqv | OpCode::Int | OpCode::Hal) {
-            let value = self.execute(opcode, value_a, value_b).map_err(|error| {
+    pub fn run(&self, r_type: &RType, value_a: &Value, value_b: &Value) -> Result<Value, String> {
+        if matches!(r_type, RType::Audit) {
+            let value = self.execute(r_type, value_a, value_b).map_err(|error| {
                 format!(
                     "Failed to execute {:?} for boolean operation. Error: {}",
-                    opcode, error
+                    r_type, error
                 )
             })?;
 
-            return self.boolean(opcode, &value).map(Value::Number);
+            return self.boolean(r_type, &value).map(Value::Number);
         }
 
-        if opcode == &OpCode::Sim {
+        if matches!(r_type, RType::Similarity) {
             return self.cosine_similarity(value_a, value_b).map(Value::Number);
         }
 
-        self.execute(opcode, value_a, value_b).map(Value::Text)
+        self.execute(r_type, value_a, value_b).map(Value::Text)
     }
 }

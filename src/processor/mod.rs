@@ -1,20 +1,22 @@
 use crate::processor::control_unit::ControlUnit;
 
 mod control_unit;
+mod memory;
+mod registers;
 
 pub struct Processor {
-    control: ControlUnit,
+    control_unit: ControlUnit,
 }
 
 impl Processor {
     pub fn new() -> Self {
         Processor {
-            control: ControlUnit::new(),
+            control_unit: ControlUnit::new(),
         }
     }
 
     pub fn load(&mut self, data: Vec<u8>) {
-        if data.len() % 4 != 0 {
+        if !data.len().is_multiple_of(4) {
             panic!(
                 "Invalid bytecode length: {}. Bytecode must be a multiple of 4 bytes.",
                 data.len()
@@ -30,12 +32,14 @@ impl Processor {
             })
             .collect();
 
-        self.control.load_byte_code(byte_code);
+        self.control_unit.load(byte_code);
     }
 
     pub fn run(&mut self, debug: bool) {
-        while let Some(instruction) = self.control.fetch_and_decode() {
-            self.control.execute(&instruction, debug);
+        while self.control_unit.fetch() {
+            let instruction = self.control_unit.decode();
+
+            self.control_unit.execute(instruction, debug);
         }
     }
 }

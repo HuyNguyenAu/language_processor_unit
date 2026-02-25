@@ -1,15 +1,18 @@
-use crate::assembler::immediate::Immediate;
-
+#[derive(Debug)]
+pub struct LoadStringInstruction {
+    pub destination_register: u32,
+    pub value: String,
+}
 #[derive(Debug)]
 pub struct LoadImmediateInstruction {
     pub destination_register: u32,
-    pub value: Immediate,
+    pub value: u32,
 }
 
 #[derive(Debug)]
 pub struct LoadFileInstruction {
     pub destination_register: u32,
-    pub value: String,
+    pub file_path: String,
 }
 
 #[derive(Debug)]
@@ -19,59 +22,46 @@ pub struct MoveInstruction {
 }
 
 #[derive(Debug)]
-pub enum SemanticType {
-    Add,
-    Sub,
-    Mul,
-    Div,
-    Inf,
-    Adt,
+pub enum RType {
+    // Generative operations.
+    Morph,
+    Project,
+    // Cognitive operations.
+    Distill,
+    Correlate,
+    // Guardrails operations.
+    Audit,
+    Similarity,
 }
 
 #[derive(Debug)]
-pub struct SemanticInstruction {
-    pub semantic_type: SemanticType,
+pub struct RTypeInstruction {
+    pub r_type: RType,
     pub destination_register: u32,
-    pub immediate_1: Immediate,
-    pub immediate_2: Immediate,
+    pub source_register_1: u32,
+    pub source_register_2: u32,
 }
 
 #[derive(Debug)]
-pub enum HeuristicType {
-    Eqv,
-    Int,
-    Hal,
-    Sim,
+pub enum BType {
+    Equal,
+    LessEqual,
+    Less,
+    GreaterEqual,
+    Greater,
 }
 
 #[derive(Debug)]
-pub struct HeuristicInstruction {
-    pub heuristic_type: HeuristicType,
-    pub destination_register: u32,
-    pub immediate_1: Immediate,
-    pub immediate_2: Immediate,
-}
-
-#[derive(Debug)]
-pub enum BranchType {
-    Eq,
-    Le,
-    Lt,
-    Ge,
-    Gt,
-}
-
-#[derive(Debug)]
-pub struct BranchInstruction {
-    pub branch_type: BranchType,
-    pub immediate_1: Immediate,
-    pub immediate_2: Immediate,
-    pub byte_code_index: u32,
+pub struct BTypeInstruction {
+    pub b_type: BType,
+    pub source_register_1: u32,
+    pub source_register_2: u32,
+    pub instruction_pointer_jump_index: u32,
 }
 
 #[derive(Debug)]
 pub struct OutputInstruction {
-    pub immediate: Immediate,
+    pub source_register: u32,
 }
 
 #[derive(Debug)]
@@ -79,12 +69,12 @@ pub struct ExitInstruction;
 
 #[derive(Debug)]
 pub enum Instruction {
+    LoadString(LoadStringInstruction),
     LoadImmediate(LoadImmediateInstruction),
     LoadFile(LoadFileInstruction),
     Move(MoveInstruction),
-    Semantic(SemanticInstruction),
-    Heuristic(HeuristicInstruction),
-    Branch(BranchInstruction),
+    RType(RTypeInstruction),
+    BType(BTypeInstruction),
     Output(OutputInstruction),
     Exit(ExitInstruction),
 }

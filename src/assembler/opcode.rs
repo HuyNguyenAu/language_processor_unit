@@ -1,60 +1,54 @@
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum OpCode {
     // Data movement.
-    Li,
-    Lf,
-    Mv,
-    // Semantic operations.
-    Add,
-    Sub,
-    Mul,
-    Div,
-    Inf,
-    Adt,
-    // Heuristic operations.
-    Eqv,
-    Int,
-    Hal,
-    Sim,
+    LoadString,
+    LoadImmediate,
+    LoadFile,
+    Move,
     // Control flow.
-    Beq,
-    Ble,
-    Blt,
-    Bge,
-    Bgt,
+    BranchEqual,
+    BranchLessEqual,
+    BranchLess,
+    BranchGreaterEqual,
+    BranchGreater,
+    Exit,
     // I/O.
     Out,
-    // Misc.
-    Exit,
+    // Generative operations.
+    Morph,
+    Project,
+    // Cognitive operations.
+    Distill,
+    Correlate,
+    // Guardrails operations.
+    Audit,
+    Similarity,
 }
 
-static OP_CODE_MAPPING: [(OpCode, u32); 20] = [
+static OP_CODE_MAPPING: [(OpCode, u32); 17] = [
     // Data movement.
-    (OpCode::Li, 0x00),
-    (OpCode::Lf, 0x01),
-    (OpCode::Mv, 0x02),
-    // Semantic operations.
-    (OpCode::Add, 0x03),
-    (OpCode::Sub, 0x04),
-    (OpCode::Mul, 0x05),
-    (OpCode::Div, 0x06),
-    (OpCode::Inf, 0x07),
-    (OpCode::Adt, 0x08),
-    // Heuristic operations.
-    (OpCode::Eqv, 0x09),
-    (OpCode::Int, 0x0A),
-    (OpCode::Hal, 0x0B),
-    (OpCode::Sim, 0x0C),
+    (OpCode::LoadString, 0x00),
+    (OpCode::LoadFile, 0x01),
+    (OpCode::LoadImmediate, 0x02),
+    (OpCode::Move, 0x03),
     // Control flow.
-    (OpCode::Beq, 0x0D),
-    (OpCode::Ble, 0x0E),
-    (OpCode::Blt, 0x0F),
-    (OpCode::Bge, 0x10),
-    (OpCode::Bgt, 0x11),
+    (OpCode::BranchEqual, 0x04),
+    (OpCode::BranchLessEqual, 0x05),
+    (OpCode::BranchLess, 0x06),
+    (OpCode::BranchGreaterEqual, 0x07),
+    (OpCode::BranchGreater, 0x08),
+    (OpCode::Exit, 0x09),
     // I/O.
-    (OpCode::Out, 0x12),
-    // Misc.
-    (OpCode::Exit, 0xFF),
+    (OpCode::Out, 0x0A),
+    // Generative operations.
+    (OpCode::Morph, 0x0B),
+    (OpCode::Project, 0x0C),
+    // Cognitive operations.
+    (OpCode::Distill, 0x0D),
+    (OpCode::Correlate, 0x0E),
+    // Guardrails operations.
+    (OpCode::Audit, 0x0F),
+    (OpCode::Similarity, 0x10),
 ];
 
 impl OpCode {

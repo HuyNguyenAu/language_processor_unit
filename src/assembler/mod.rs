@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::hash::{DefaultHasher, Hash, Hasher};
 
 use crate::assembler::opcode::OpCode;
 use crate::assembler::scanner::Scanner;
@@ -25,8 +24,8 @@ pub struct Assembler {
     previous: Option<Token>,
     current: Option<Token>,
 
-    labels: HashMap<u64, usize>,
-    unresolved_labels: HashMap<u64, UnresolvedLabel>,
+    labels: HashMap<String, usize>,
+    unresolved_labels: HashMap<String, UnresolvedLabel>,
 
     had_error: bool,
     panic_mode: bool,
@@ -68,7 +67,6 @@ impl Assembler {
         }
 
         eprint!(" at '{}'.", self.lexeme(token));
-
         eprintln!(" {}", message);
 
         self.had_error = true;
@@ -195,55 +193,48 @@ impl Assembler {
         self.previous_lexeme()
     }
 
-    fn emit_number_bytecode(&mut self, value: u32) {
+    fn emit_number(&mut self, value: u32) {
         self.text_segment.push(value.to_be_bytes());
     }
 
-    fn emit_op_code_bytecode(&mut self, op_code: OpCode) {
-        let op_code_be_bytes = match op_code.to_be_bytes() {
-            Ok(bytes) => bytes,
-            Err(message) => {
-                self.error_at_current(message);
-                return;
-            }
-        };
-
-        self.text_segment.push(op_code_be_bytes);
+    fn emit_opcode(&mut self, op_code: OpCode) {
+        self.emit_number(op_code.into());
     }
 
-    fn emit_string_bytecode(&mut self, value: &str) {
-        let value_be_bytes = format!("{}\0", value)
+    fn emit_string_bytecode(&mut self, value: &str) -> u32 {
+        let nulled_value = format!("{}\0", value);
+        let bytes: Vec<[u8; 4]> = nulled_value
             .bytes()
-            .map(|byte| u32::from(byte).to_be_bytes())
-            .collect::<Vec<[u8; 4]>>();
-        let value_be_bytes_address: u32 = match self.data_segment.len().try_into() {
-            Ok(length) => length,
-            _ => {
+            .map(|b| u32::from(b).to_be_bytes())
+            .collect();
+
+        let address: u32 = match self.data_segment.len().try_into() {
+            Ok(address) => address,
+            Err(_) => {
                 self.error_at_current(&format!(
                     "Failed to convert data segment length to u32. Data segment length exceeds {}. Found data segment length: {}.",
                     u32::MAX,
                     self.data_segment.len()
                 ));
-                return;
+                return 0;
             }
         };
 
-        self.data_segment.extend(value_be_bytes);
-        self.text_segment.push(value_be_bytes_address.to_be_bytes());
+        self.data_segment.extend(bytes);
+
+        address
     }
 
-    fn upsert_unresolved_label(&mut self, key: u64) -> Result<(), String> {
+    fn upsert_unresolved_label(&mut self, key: String) -> Result<(), String> {
         let index = self.text_segment.len() - 1;
 
         if let Some(label) = self.unresolved_labels.get_mut(&key) {
             label.indices.push(index);
         } else {
-            let previous_token = match &self.previous {
-                Some(token) => token.clone(),
-                None => {
-                    return Err("Failed to get current token for unresolved label.".to_string());
-                }
-            };
+            let previous_token = self
+                .previous
+                .clone()
+                .ok_or_else(|| "Failed to get current token for unresolved label.".to_string())?;
 
             self.unresolved_labels.insert(
                 key,
@@ -257,15 +248,13 @@ impl Assembler {
         Ok(())
     }
 
-    fn emit_label_bytecode(&mut self, key: u64) {
+    fn emit_label_bytecode(&mut self, key: String) {
         // Placeholder for backpatching.
-        self.emit_number_bytecode(0);
+        self.emit_number(0);
+
         // Record the current bytecode index for backpatching later.
-        match self.upsert_unresolved_label(key) {
-            Ok(()) => (),
-            Err(message) => {
-                self.error_at_current(&message);
-            }
+        if let Err(message) = self.upsert_unresolved_label(key) {
+            self.error_at_current(&message);
         }
     }
 
@@ -299,58 +288,52 @@ impl Assembler {
             "Expected ',' after destination register.",
         );
 
-        if matches!(opcode, OpCode::LoadImmediate) {
-            let immediate = match self.number("Expected immediate after ','.") {
-                Ok(immediate) => immediate,
-                Err(message) => {
-                    self.error_at_current(&message);
-                    return;
-                }
-            };
+        self.emit_opcode(opcode);
+        self.emit_number(destination_register);
 
-            self.emit_op_code_bytecode(opcode);
-            self.emit_number_bytecode(destination_register);
-            self.emit_number_bytecode(immediate);
-            self.emit_number_bytecode(0); // Padding for uniform instruction size.
-        } else if matches!(opcode, OpCode::Move) {
-            let source_register = match self.register("Expected source register after ','.") {
-                Ok(register) => register,
-                Err(message) => {
-                    self.error_at_current(&message);
-                    return;
-                }
-            };
+        match opcode {
+            OpCode::LoadImmediate => {
+                let immediate = match self.number("Expected immediate after ','.") {
+                    Ok(value) => value,
+                    Err(message) => {
+                        self.error_at_current(&message);
+                        return;
+                    }
+                };
 
-            self.emit_op_code_bytecode(opcode);
-            self.emit_number_bytecode(destination_register);
-            self.emit_number_bytecode(source_register);
-            self.emit_number_bytecode(0); // Padding for uniform instruction size.
-        } else {
-            let string_value = self.string("Expected string after ','.");
+                self.emit_number(immediate);
+                self.emit_number(0); // Pad the instruction to 16 bytes.
+            }
+            OpCode::Move => {
+                let source_register = match self.register("Expected source register after ','.") {
+                    Ok(register) => register,
+                    Err(message) => {
+                        self.error_at_current(&message);
+                        return;
+                    }
+                };
 
-            self.emit_op_code_bytecode(opcode);
-            self.emit_number_bytecode(destination_register);
-            self.emit_string_bytecode(&string_value);
-            self.emit_number_bytecode(0); // Padding for uniform instruction size.
+                self.emit_number(source_register);
+                self.emit_number(0); // Pad the instruction to 16 bytes.
+            }
+            _ => {
+                let value = self.string("Expected string after ','.");
+                let pointer = self.emit_string_bytecode(&value);
+
+                self.emit_number(pointer);
+                self.emit_number(0); // Pad the instruction to 16 bytes.
+            }
         }
-    }
-
-    fn hash(value: &str) -> u64 {
-        let mut hasher = DefaultHasher::new();
-        value.hash(&mut hasher);
-
-        hasher.finish()
     }
 
     fn label(&mut self) {
         self.consume(&TokenType::Label, "Expected label name.");
 
         let label_name = self.previous_lexeme();
-        let value = label_name.trim_end_matches(':');
-        let key = Self::hash(value);
+        let value = label_name.trim_end_matches(':').to_string();
         let byte_code_index = self.text_segment.len();
 
-        self.labels.insert(key, byte_code_index);
+        self.labels.insert(value, byte_code_index);
     }
 
     fn r_type(&mut self, token_type: &TokenType) {
@@ -412,10 +395,10 @@ impl Assembler {
             }
         };
 
-        self.emit_op_code_bytecode(opcode);
-        self.emit_number_bytecode(destination_register);
-        self.emit_number_bytecode(source_register_1);
-        self.emit_number_bytecode(source_register_2);
+        self.emit_opcode(opcode);
+        self.emit_number(destination_register);
+        self.emit_number(source_register_1);
+        self.emit_number(source_register_2);
     }
 
     fn b_type(&mut self, token_type: &TokenType) {
@@ -462,12 +445,14 @@ impl Assembler {
 
         self.consume(&TokenType::Comma, "Expected ',' after source register 2.");
 
-        let label_name = self.identifier("Expected label name after ','.");
-        let key = Self::hash(label_name);
+        let label_name = self
+            .identifier("Expected label name after ','.")
+            .to_string();
+        let key = label_name;
 
-        self.emit_op_code_bytecode(opcode);
-        self.emit_number_bytecode(source_register_1);
-        self.emit_number_bytecode(source_register_2);
+        self.emit_opcode(opcode);
+        self.emit_number(source_register_1);
+        self.emit_number(source_register_2);
         self.emit_label_bytecode(key);
     }
 
@@ -482,20 +467,23 @@ impl Assembler {
             }
         };
 
-        self.emit_op_code_bytecode(OpCode::Out);
-        self.emit_number_bytecode(source_register);
-        self.emit_number_bytecode(0); // Padding for uniform instruction size.
-        self.emit_number_bytecode(0); // Padding for uniform instruction size.
+        self.emit_opcode(OpCode::Out);
+        self.emit_number(source_register);
+        self.emit_number(0); // Pad the instruction to 16 bytes.
+        self.emit_number(0); // Pad the instruction to 16 bytes.
     }
 
     fn exit(&mut self) {
         self.consume(&TokenType::Exit, "Expected 'exit' keyword.");
 
-        self.emit_op_code_bytecode(OpCode::Exit);
+        self.emit_opcode(OpCode::Exit);
+        self.emit_number(0); // Pad the instruction to 16 bytes.
+        self.emit_number(0); // Pad the instruction to 16 bytes.
+        self.emit_number(0); // Pad the instruction to 16 bytes.
     }
 
     fn backpatch_labels(&mut self) {
-        let mut resolved_labels: Vec<u64> = Vec::new();
+        let mut resolved_labels: Vec<String> = Vec::new();
 
         for (key, unresolved) in &self.unresolved_labels {
             if let Some(byte_code_index) = self.labels.get(key) {
@@ -517,7 +505,7 @@ impl Assembler {
                     self.text_segment[*idx] = bytes;
                 }
 
-                resolved_labels.push(*key);
+                resolved_labels.push(key.clone());
             }
         }
 
@@ -571,7 +559,7 @@ impl Assembler {
 
         self.backpatch_labels();
 
-        if let Some((_, unresolved_label)) = self.unresolved_labels.iter().nth(0) {
+        if let Some((_, unresolved_label)) = self.unresolved_labels.iter().next() {
             let token = unresolved_label.token.clone();
 
             self.error_at(&token, "Undefined label referenced here.");

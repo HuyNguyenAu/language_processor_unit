@@ -203,7 +203,7 @@ impl Assembler {
 
     fn emit_string_bytecode(&mut self, value: &str) -> u32 {
         let nulled_value = format!("{}\0", value);
-        let bytes: Vec<[u8; 4]> = nulled_value
+        let words: Vec<[u8; 4]> = nulled_value
             .bytes()
             .map(|b| u32::from(b).to_be_bytes())
             .collect();
@@ -220,7 +220,7 @@ impl Assembler {
             }
         };
 
-        self.data_segment.extend(bytes);
+        self.data_segment.extend(words);
 
         address
     }

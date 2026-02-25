@@ -1,20 +1,21 @@
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use crate::processor::{
-    control_unit::{decoder::Decoder, instruction::Instruction},
+    control_unit::{decoder::Decoder, executer::Executer, instruction::Instruction},
     memory::Memory,
     registers::Registers,
 };
 
 mod decoder;
-// mod executer;
+mod executer;
 mod instruction;
+mod language_logic_unit;
 
 pub struct ControlUnit {
     memory: Arc<Mutex<Memory>>,
     registers: Arc<Mutex<Registers>>,
     decoder: Decoder,
-    // executer: Executer,
+    executer: Executer,
 }
 
 impl ControlUnit {
@@ -23,7 +24,7 @@ impl ControlUnit {
             memory: Arc::clone(&memory),
             registers: Arc::clone(&registers),
             decoder: Decoder::new(memory, registers),
-            // executer: Executer::new(),
+            executer: Executer::new(memory, registers),
         }
     }
 
@@ -145,5 +146,7 @@ impl ControlUnit {
         self.decoder.decode(instruction_bytes)
     }
 
-    pub fn execute(&mut self, instruction: Instruction) {}
+    pub fn execute(&mut self, instruction: Instruction, debug: bool) {
+        self.executer.execute(&instruction, debug);
+    }
 }

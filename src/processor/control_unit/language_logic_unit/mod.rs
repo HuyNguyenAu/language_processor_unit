@@ -1,15 +1,18 @@
 use crate::{
     assembler::opcode::OpCode,
-    processor::control_unit::{
-        instruction::RType,
-        language_logic_unit::openai::{
-            OpenAIClient,
-            chat_completion_models::{
-                OpenAIChatCompletionRequest, OpenAIChatCompletionRequestText,
+    processor::{
+        control_unit::{
+            instruction::RType,
+            language_logic_unit::openai::{
+                OpenAIClient,
+                chat_completion_models::{
+                    OpenAIChatCompletionRequest, OpenAIChatCompletionRequestText,
+                },
+                embeddings_models::OpenAIEmbeddingsRequest,
+                model_config::{ModelConfig, ModelEmbeddingsConfig, ModelTextConfig},
             },
-            embeddings_models::OpenAIEmbeddingsRequest,
-            model_config::{ModelConfig, ModelEmbeddingsConfig, ModelTextConfig},
         },
+        registers::Value,
     },
 };
 

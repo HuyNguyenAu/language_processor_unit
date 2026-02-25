@@ -7,8 +7,6 @@ mod memory;
 mod registers;
 
 pub struct Processor {
-    memory: Arc<Mutex<Memory>>,
-    registers: Arc<Mutex<Registers>>,
     control_unit: ControlUnit,
 }
 
@@ -18,8 +16,6 @@ impl Processor {
         let registers = Arc::new(Mutex::new(Registers::new()));
 
         Processor {
-            memory: Arc::clone(&memory),
-            registers: Arc::clone(&registers),
             control_unit: ControlUnit::new(&memory, &registers),
         }
     }
@@ -47,8 +43,8 @@ impl Processor {
     pub fn run(&mut self, debug: bool) {
         while self.control_unit.fetch() {
             let instruction = self.control_unit.decode();
-            println!("Fetched instruction: {:?}", instruction);
-            // self.control_unit.execute(instruction);
+
+            self.control_unit.execute(instruction, debug);
         }
     }
 }

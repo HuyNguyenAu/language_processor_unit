@@ -12,7 +12,7 @@ pub struct LoadImmediateInstruction {
 #[derive(Debug)]
 pub struct LoadFileInstruction {
     pub destination_register: u32,
-    pub value: String,
+    pub file_path: String,
 }
 
 #[derive(Debug)]

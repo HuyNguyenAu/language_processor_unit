@@ -90,7 +90,6 @@ impl Decoder {
 
             // Check for null terminator.
             if data_byte == &[0, 0, 0, 0] {
-                println!("Read text bytes: {:?}.", text_bytes);
                 return match String::from_utf8(text_bytes) {
                     Ok(text) => text.trim_matches(char::from(0)).to_string(),
                     Err(error) => panic!(
@@ -154,7 +153,7 @@ impl Decoder {
                         op_code, error, instruction_bytes[2]
                     ),
                 };
-                let value = self.text(
+                let file_path = self.text(
                     pointer,
                     &format!(
                         "Failed to decode file path for {:?} instruction with pointer {}.",
@@ -164,7 +163,7 @@ impl Decoder {
 
                 Instruction::LoadFile(LoadFileInstruction {
                     destination_register,
-                    value,
+                    file_path,
                 })
             }
             OpCode::Move => {

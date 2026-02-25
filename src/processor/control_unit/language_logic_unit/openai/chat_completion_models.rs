@@ -1,6 +1,6 @@
 use miniserde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct OpenAIChatCompletionRequestText {
     pub role: String,
     pub content: String,

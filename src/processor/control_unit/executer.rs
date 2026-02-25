@@ -12,9 +12,17 @@ use crate::processor::{
     registers::{Registers, Value},
 };
 
-pub struct Executer {}
+pub struct Executer {
+    language_logic: LanguageLogicUnit,
+}
 
 impl Executer {
+    pub fn new() -> Self {
+        Executer {
+            language_logic: LanguageLogicUnit::new(),
+        }
+    }
+
     fn load_string(registers: &mut Registers, instruction: &LoadStringInstruction, debug: bool) {
         registers
             .set_register(
@@ -98,7 +106,7 @@ impl Executer {
         }
     }
 
-    fn r_type(registers: &mut Registers, instruction: &RTypeInstruction, debug: bool) {
+    fn r_type(&mut self, registers: &mut Registers, instruction: &RTypeInstruction, debug: bool) {
         let value_a = match registers
             .get_register(instruction.source_register_1)
             .unwrap_or_else(|err| {
@@ -128,10 +136,9 @@ impl Executer {
             ),
         };
 
-        let language_logic = LanguageLogicUnit::new();
-
-        let result = language_logic
-            .run(&instruction.r_type, value_a, value_b)
+        let result = self
+            .language_logic
+            .run(instruction.id, &instruction.r_type, value_a, value_b)
             .unwrap_or_else(|err| {
                 panic!("Failed to perform {:?}. Error: {}", instruction.r_type, err)
             });
@@ -247,6 +254,7 @@ impl Executer {
     }
 
     pub fn execute(
+        &mut self,
         memory: &mut Memory,
         registers: &mut Registers,
         instruction: &Instruction,
@@ -260,7 +268,7 @@ impl Executer {
             Instruction::BType(i) => Self::b_type(registers, i, debug),
             Instruction::Exit(_i) => Self::exit(memory, registers, debug),
             Instruction::Output(i) => Self::output(registers, i, debug),
-            Instruction::RType(i) => Self::r_type(registers, i, debug),
+            Instruction::RType(i) => Self::r_type(self, registers, i, debug),
         }
     }
 }

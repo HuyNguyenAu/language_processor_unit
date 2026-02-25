@@ -1,36 +1,37 @@
-use crate::{
-    processor::{
-        control_unit::{
-            instruction::RType,
-            language_logic_unit::openai::{
-                OpenAIClient,
-                chat_completion_models::{
-                    OpenAIChatCompletionRequest, OpenAIChatCompletionRequestText,
-                },
-                embeddings_models::OpenAIEmbeddingsRequest,
-                model_config::{ModelConfig, ModelEmbeddingsConfig, ModelTextConfig},
+use crate::processor::{
+    control_unit::{
+        instruction::RType,
+        language_logic_unit::openai::{
+            OpenAIClient,
+            chat_completion_models::{
+                OpenAIChatCompletionRequest, OpenAIChatCompletionRequestText,
             },
+            embeddings_models::OpenAIEmbeddingsRequest,
+            model_config::{ModelConfig, ModelEmbeddingsConfig, ModelTextConfig},
         },
-        registers::Value,
     },
+    registers::Value,
 };
 
 mod micro_prompt;
 mod openai;
 
+const SYSTEM_ROLE: &str = "system";
+const USER_ROLE: &str = "user";
+const ASSISTANT_ROLE: &str = "assistant";
+
 const TRUTHY_THRESHOLD: u32 = 80;
 
 pub struct LanguageLogicUnit {
-    system_prompt: &'static str,
     openai_client: OpenAIClient,
     text_model: ModelConfig,
     embeddings_model: ModelConfig,
+    history: Vec<OpenAIChatCompletionRequestText>,
 }
 
 impl LanguageLogicUnit {
     pub fn new() -> Self {
         Self {
-            system_prompt: "Output ONLY the answer. No intro. No fluff. No punctuation unless required. Answer with a single word if appropriate, otherwise a single sentence.",
             openai_client: OpenAIClient::new(),
             text_model: ModelConfig::Text(ModelTextConfig {
                 stream: false,
@@ -73,6 +74,12 @@ impl LanguageLogicUnit {
                 model: "Qwen3-Embedding-0.6B-Q4_1-imat.gguf".to_string(),
                 encoding_format: "float".to_string(),
             }),
+            history: vec![
+                OpenAIChatCompletionRequestText {
+                    role: SYSTEM_ROLE.to_string(),
+                    content: "Output ONLY the answer. No intro. No fluff. No punctuation unless required. Answer with a single word if appropriate, otherwise a single sentence.".to_string(),
+                }
+            ],
         }
     }
 
@@ -80,23 +87,19 @@ impl LanguageLogicUnit {
         value.trim().replace("\n", "").to_string()
     }
 
-    fn chat(&self, content: &str) -> Result<String, String> {
+    fn chat(&mut self, content: &str) -> Result<String, String> {
         let model = match &self.text_model {
             ModelConfig::Text(config) => config,
             _ => return Err("Text model configuration is required for chat.".to_string()),
         };
 
+        self.history.push(OpenAIChatCompletionRequestText {
+            role: USER_ROLE.to_string(),
+            content: content.to_string(),
+        });
+
         let request = OpenAIChatCompletionRequest {
-            messages: vec![
-                OpenAIChatCompletionRequestText {
-                    role: "system".to_string(),
-                    content: self.system_prompt.to_string(),
-                },
-                OpenAIChatCompletionRequestText {
-                    role: "user".to_string(),
-                    content: content.to_string(),
-                },
-            ],
+            messages: self.history.clone(),
             stream: model.stream,
             return_progress: model.return_progress,
             model: model.model.clone(),
@@ -134,8 +137,22 @@ impl LanguageLogicUnit {
             .choices
             .first()
             .ok_or_else(|| "No choices returned from client.".to_string())?;
+        let result = self.clean_string(&choice.message.content);
 
-        Ok(self.clean_string(&choice.message.content))
+        self.history.push(OpenAIChatCompletionRequestText {
+            role: ASSISTANT_ROLE.to_string(),
+            content: result.clone(),
+        });
+
+        println!("History:");
+        for message in &self.history {
+            println!("{}: {}", message.role, message.content);
+            println!("---");
+        }
+
+        println!();
+
+        Ok(result)
     }
 
     fn embeddings(&self, content: &str) -> Result<Vec<f32>, String> {
@@ -195,7 +212,7 @@ impl LanguageLogicUnit {
         Ok(percentage_similarity.round() as u32)
     }
 
-    fn execute(&self, r_type: &RType, value_a: &str, value_b: &str) -> Result<String, String> {
+    fn execute(&mut self, r_type: &RType, value_a: &str, value_b: &str) -> Result<String, String> {
         let prompt = micro_prompt::create(r_type, value_a, value_b).map_err(|error| {
             format!(
                 "Failed to generate micro prompt for {:?}. Error: {}",
@@ -242,7 +259,13 @@ impl LanguageLogicUnit {
         Ok(0)
     }
 
-    pub fn run(&self, r_type: &RType, value_a: &str, value_b: &str) -> Result<Value, String> {
+    pub fn run(
+        &mut self,
+        id: usize,
+        r_type: &RType,
+        value_a: &str,
+        value_b: &str,
+    ) -> Result<Value, String> {
         if matches!(r_type, RType::Audit) {
             let value = self.execute(r_type, value_a, value_b).map_err(|error| {
                 format!(

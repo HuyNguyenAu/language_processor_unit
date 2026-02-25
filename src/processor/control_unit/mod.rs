@@ -12,6 +12,7 @@ mod language_logic_unit;
 pub struct ControlUnit {
     memory: Memory,
     registers: Registers,
+    executer: Executer,
 }
 
 impl ControlUnit {
@@ -19,6 +20,7 @@ impl ControlUnit {
         ControlUnit {
             memory: Memory::new(),
             registers: Registers::new(),
+            executer: Executer::new(),
         }
     }
 
@@ -96,6 +98,7 @@ impl ControlUnit {
     }
 
     pub fn execute(&mut self, instruction: Instruction, debug: bool) {
-        Executer::execute(&mut self.memory, &mut self.registers, &instruction, debug);
+        self.executer
+            .execute(&mut self.memory, &mut self.registers, &instruction, debug);
     }
 }

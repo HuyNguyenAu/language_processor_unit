@@ -129,9 +129,7 @@ impl LanguageLogicUnit {
         let response = self
             .openai_client
             .create_chat_completion(request)
-            .map_err(|error| {
-                format!("Failed to get chat response from client. Error: {}", error)
-            })?;
+            .map_err(|error| format!("Failed to get chat response from client. Error: {}", error))?;
 
         let choice = response
             .choices
@@ -143,14 +141,6 @@ impl LanguageLogicUnit {
             role: ASSISTANT_ROLE.to_string(),
             content: result.clone(),
         });
-
-        println!("History:");
-        for message in &self.history {
-            println!("{}: {}", message.role, message.content);
-            println!("---");
-        }
-
-        println!();
 
         Ok(result)
     }
@@ -261,7 +251,6 @@ impl LanguageLogicUnit {
 
     pub fn run(
         &mut self,
-        id: usize,
         r_type: &RType,
         value_a: &str,
         value_b: &str,

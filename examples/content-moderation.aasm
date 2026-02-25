@@ -1,6 +1,6 @@
 ; Program: Content Moderation System
 ; Objective: Filter content to ensure it matches human-generated authenticity.
-; Expected Outcome: Only content that is verified against human standards is accepted, while others are rejected with specific feedback.
+; Output: A status of "ACCEPTED" or "REJECTED" along with reasons for rejection if applicable.
 
 START:
     ; --- Data Ingestion ---
@@ -8,26 +8,28 @@ START:
     LF  X2, "examples/data/human_standard.txt"  ; The "Source of Truth" for authenticity
 
     ; --- Verification ---
-    VFY X3, X1, X2                              ; If X1 aligns with X2, X3 = 1, else X3 = 0.
-
-    ; Boolean Conversion
-    SIM X5, X3, 1                               ; If X3 is identical to 1, X5 = 100 (100% similarity).
+    AUD X3, X1, X2                              ; If X1 aligns with X2, X3 = 100, else X3 = 0.
 
     ; --- Branching Logic ---
-    BLT X5, 100, REJECT                         ; If similarity is less than 100%, jump to REJECT.
+    LI  X4, 100                                 ; Load the acceptance threshold (100%) into X4
+    BLT X3, X4, REJECT                         ; If similarity is less than 100%, jump to REJECT.
 
     ; --- Approval Path ---
-    OUT "STATUS: ACCEPTED"
+    LS  X4, "STATUS: ACCEPTED"
+    OUT X4
     EXIT
 
 REJECT:
-    OUT "STATUS: REJECTED"
+    LS  X4, "STATUS: REJECTED"
+    OUT X4
     
     ; --- Detailed Conflict Analysis ---
-    ; Use CMP to extract the specific stylistic or factual "deltas" 
+    ; Use COR to extract the specific stylistic or factual "deltas" 
     ; that caused the rejection.
-    CMP X5, X1, X2                  
+    COR X5, X1, X2                  
     
-    OUT "REASON FOR REJECTION:"
-    OUT X5                                  ; Prints the specific contradictions/AI markers
+    ; --- Output Rejection Reasons ---
+    LS  X4, "REASON FOR REJECTION:"
+    OUT X4
+    OUT X5
     EXIT

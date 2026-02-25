@@ -61,6 +61,10 @@ impl Registers {
         self.instruction_pointer = address;
     }
 
+    pub fn advance_instruction_pointer(&mut self, offset: usize) {
+        self.instruction_pointer += offset;
+    }
+
     pub fn get_instruction(&self) -> Option<[[u8; 4]; 4]> {
         self.instruction
     }

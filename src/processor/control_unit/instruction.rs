@@ -1,7 +1,7 @@
 #[derive(Debug)]
 pub struct LoadStringInstruction {
     pub destination_register: u32,
-    pub pointer: usize,
+    pub value: String,
 }
 #[derive(Debug)]
 pub struct LoadImmediateInstruction {
@@ -12,7 +12,7 @@ pub struct LoadImmediateInstruction {
 #[derive(Debug)]
 pub struct LoadFileInstruction {
     pub destination_register: u32,
-    pub pointer: usize,
+    pub value: String,
 }
 
 #[derive(Debug)]

@@ -1,17 +1,50 @@
+use std::sync::{Arc, Mutex, MutexGuard};
+
 use crate::{
     assembler::opcode::OpCode,
-    processor::control_unit::instruction::{
-        BType, BTypeInstruction, ExitInstruction, Instruction, LoadFileInstruction,
-        LoadImmediateInstruction, LoadStringInstruction, MoveInstruction, OutputInstruction, RType,
-        RTypeInstruction,
+    processor::{
+        control_unit::instruction::{
+            BType, BTypeInstruction, ExitInstruction, Instruction, LoadFileInstruction,
+            LoadImmediateInstruction, LoadStringInstruction, MoveInstruction, OutputInstruction,
+            RType, RTypeInstruction,
+        },
+        memory::Memory,
+        registers::Registers,
     },
 };
 
-pub struct Decoder;
+pub struct Decoder {
+    memory: Arc<Mutex<Memory>>,
+    registers: Arc<Mutex<Registers>>,
+}
 
 impl Decoder {
-    pub fn new() -> Self {
-        Decoder
+    pub fn new(memory: &Arc<Mutex<Memory>>, registers: &Arc<Mutex<Registers>>) -> Self {
+        Decoder {
+            memory: Arc::clone(memory),
+            registers: Arc::clone(registers),
+        }
+    }
+
+    fn memory_lock(&self) -> MutexGuard<'_, Memory> {
+        match self.memory.lock() {
+            Ok(memory) => memory,
+            Err(error) => {
+                panic!("Failed to access memory: memory lock error: {}", error);
+            }
+        }
+    }
+
+    fn registers_lock(&self) -> MutexGuard<'_, Registers> {
+        match self.registers.lock() {
+            Ok(registers) => registers,
+            Err(error) => {
+                panic!(
+                    "Failed to access registers: registers lock error: {}",
+                    error
+                );
+            }
+        }
     }
 
     fn op_code(&mut self, bytes: &[u8; 4]) -> OpCode {
@@ -28,6 +61,54 @@ impl Decoder {
         u32::from_be_bytes(*bytes)
     }
 
+    fn text(&mut self, pointer: usize, message: &str) -> String {
+        let memory = self.memory_lock();
+        let registers = self.registers_lock();
+
+        let mut text_bytes: Vec<u8> = Vec::new();
+
+        let memory_length = memory.length();
+        let mut address = pointer + registers.get_data_section_pointer();
+
+        while address < memory_length {
+            let data_byte = match memory.read(address) {
+                Ok(bytes) => bytes,
+                Err(error) => panic!(
+                    "Failed to read text from memory at address {}: {}. Message: {}.",
+                    address, error, message
+                ),
+            };
+            let text_byte: u8 = match u32::from_be_bytes(*data_byte).try_into() {
+                Ok(byte) => byte,
+                Err(error) => panic!(
+                    "Failed to decode text byte from memory at address {}: {}. Message: {}.",
+                    address, error, message
+                ),
+            };
+
+            text_bytes.push(text_byte);
+
+            // Check for null terminator.
+            if data_byte == &[0, 0, 0, 0] {
+                println!("Read text bytes: {:?}.", text_bytes);
+                return match String::from_utf8(text_bytes) {
+                    Ok(text) => text.trim_matches(char::from(0)).to_string(),
+                    Err(error) => panic!(
+                        "Failed to read text from byte code. Error: {}. Byte code: {:?}. Message: {}.",
+                        error, data_byte, message
+                    ),
+                };
+            }
+
+            address += 1;
+        }
+
+        panic!(
+            "Failed to read text. Reached end of data bytes without encountering null terminator. Error: {}",
+            message
+        );
+    }
+
     fn l_type(&mut self, op_code: OpCode, instruction_bytes: [[u8; 4]; 4]) -> Instruction {
         // Decode the destination register.
         let destination_register = self.number(&instruction_bytes[1]);
@@ -42,10 +123,17 @@ impl Decoder {
                         op_code, error, instruction_bytes[2]
                     ),
                 };
+                let value = self.text(
+                    pointer,
+                    &format!(
+                        "Failed to decode string for {:?} instruction with pointer {}.",
+                        op_code, pointer
+                    ),
+                );
 
                 Instruction::LoadString(LoadStringInstruction {
                     destination_register,
-                    pointer,
+                    value,
                 })
             }
             OpCode::LoadImmediate => {
@@ -66,10 +154,17 @@ impl Decoder {
                         op_code, error, instruction_bytes[2]
                     ),
                 };
+                let value = self.text(
+                    pointer,
+                    &format!(
+                        "Failed to decode file path for {:?} instruction with pointer {}.",
+                        op_code, pointer
+                    ),
+                );
 
                 Instruction::LoadFile(LoadFileInstruction {
                     destination_register,
-                    pointer,
+                    value,
                 })
             }
             OpCode::Move => {

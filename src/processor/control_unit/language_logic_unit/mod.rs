@@ -10,7 +10,6 @@ use crate::{
             embeddings_models::OpenAIEmbeddingsRequest,
             model_config::{ModelConfig, ModelEmbeddingsConfig, ModelTextConfig},
         },
-        registers::Value,
     },
 };
 

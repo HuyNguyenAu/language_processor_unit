@@ -1,37 +1,62 @@
-use crate::processor::control_unit::{
-    decoder::Decoder, instruction::Instruction, memory::Memory, registers::Registers,
+use std::sync::{Arc, Mutex, MutexGuard};
+
+use crate::processor::{
+    control_unit::{decoder::Decoder, instruction::Instruction},
+    memory::Memory,
+    registers::Registers,
 };
 
 mod decoder;
 // mod executer;
 mod instruction;
-mod language_logic_unit;
-mod memory;
-mod registers;
 
 pub struct ControlUnit {
-    memory: Memory,
-    registers: Registers,
+    memory: Arc<Mutex<Memory>>,
+    registers: Arc<Mutex<Registers>>,
     decoder: Decoder,
-    // execution_unit: ExecutionUnit,
+    // executer: Executer,
 }
 
 impl ControlUnit {
-    pub fn new() -> Self {
+    pub fn new(memory: &Arc<Mutex<Memory>>, registers: &Arc<Mutex<Registers>>) -> Self {
         ControlUnit {
-            memory: Memory::new(),
-            registers: Registers::new(),
-            decoder: Decoder::new(),
-            // execution_unit: ExecutionUnit::new(registers, memory),
+            memory: Arc::clone(&memory),
+            registers: Arc::clone(&registers),
+            decoder: Decoder::new(memory, registers),
+            // executer: Executer::new(),
+        }
+    }
+
+    fn memory_lock(&self) -> MutexGuard<'_, Memory> {
+        match self.memory.lock() {
+            Ok(memory) => memory,
+            Err(error) => {
+                panic!("Failed to access memory: memory lock error: {}", error);
+            }
+        }
+    }
+
+    fn registers_lock(&self) -> MutexGuard<'_, Registers> {
+        match self.registers.lock() {
+            Ok(registers) => registers,
+            Err(error) => {
+                panic!(
+                    "Failed to access registers: registers lock error: {}",
+                    error
+                );
+            }
         }
     }
 
     fn read_instruction(&mut self) -> Result<[[u8; 4]; 4], String> {
+        let memory = self.memory_lock();
+        let registers = self.registers_lock();
+
         let mut instruction_bytes: [[u8; 4]; 4] = [[0; 4], [0; 4], [0; 4], [0; 4]];
-        let mut address = self.registers.get_instruction_pointer();
+        let mut address = registers.get_instruction_pointer();
 
         for i in 0..4 {
-            match self.memory.read(address) {
+            match memory.read(address) {
                 Ok(bytes) => instruction_bytes[i] = *bytes,
                 Err(error) => {
                     return Err(format!(
@@ -71,20 +96,26 @@ impl ControlUnit {
             data_section_pointer, instruction_section_pointer
         );
 
-        self.memory.load(byte_code);
+        let mut memory = self.memory_lock();
+        let mut registers = self.registers_lock();
 
-        self.registers
-            .set_instruction_pointer(instruction_section_pointer);
-        self.registers.set_instruction(None);
+        memory.load(byte_code);
 
-        self.registers
-            .set_instruction_section_pointer(instruction_section_pointer);
-        self.registers
-            .set_data_section_pointer(data_section_pointer);
+        registers.set_instruction_pointer(instruction_section_pointer);
+        registers.set_instruction(None);
+
+        registers.set_instruction_section_pointer(instruction_section_pointer);
+        registers.set_data_section_pointer(data_section_pointer);
     }
 
     pub fn fetch(&mut self) -> bool {
-        if self.registers.get_instruction_pointer() >= self.registers.get_data_section_pointer() {
+        let should_continue = {
+            let registers = self.registers_lock();
+
+            registers.get_instruction_pointer() < registers.get_data_section_pointer()
+        };
+
+        if !should_continue {
             return false;
         }
 
@@ -93,19 +124,26 @@ impl ControlUnit {
             Err(error) => panic!("Failed to fetch instruction: {}", error),
         };
 
-        self.registers.set_instruction(Some(instruction_bytes));
-        self.registers
-            .set_instruction_pointer(self.registers.get_instruction_pointer() + 4);
+        let mut registers = self.registers_lock();
+
+        registers.set_instruction(Some(instruction_bytes));
+        registers.advance_instruction_pointer(4);
 
         true
     }
 
     pub fn decode(&mut self) -> Instruction {
-        let instruction_bytes = match self.registers.get_instruction() {
-            Some(bytes) => bytes,
-            None => panic!("Failed to decode instruction: no instruction loaded."),
+        let instruction_bytes = {
+            let registers = self.registers_lock();
+
+            match registers.get_instruction() {
+                Some(bytes) => bytes,
+                None => panic!("Failed to decode instruction: no instruction loaded."),
+            }
         };
 
         self.decoder.decode(instruction_bytes)
     }
+
+    pub fn execute(&mut self, instruction: Instruction) {}
 }

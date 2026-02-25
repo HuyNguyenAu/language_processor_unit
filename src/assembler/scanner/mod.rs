@@ -1,4 +1,4 @@
-use crate::assembler::scanner::token::{TOKEN_TYPE_MAPPING, Token, TokenType};
+use crate::assembler::scanner::token::{Token, TokenType};
 
 pub mod token;
 
@@ -132,13 +132,9 @@ impl Scanner {
             return self.label();
         }
 
-        let matched_token = TOKEN_TYPE_MAPPING
-            .iter()
-            .find(|(_, name)| *name == identifier.to_lowercase());
-
-        match matched_token {
-            Some((token_type, _)) => self.make_token(token_type.clone()),
-            None => self.make_token(TokenType::Identifier),
+        match TokenType::try_from(identifier.to_lowercase().as_str()) {
+            Ok(token_type) => self.make_token(token_type),
+            Err(_) => self.make_token(TokenType::Identifier),
         }
     }
 

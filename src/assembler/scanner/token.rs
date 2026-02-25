@@ -35,31 +35,39 @@ pub enum TokenType {
     Error,
 }
 
-pub static TOKEN_TYPE_MAPPING: [(TokenType, &str); 17] = [
-    // Data movement.
-    (TokenType::LoadString, "ls"),
-    (TokenType::LoadImmediate, "li"),
-    (TokenType::LoadFile, "lf"),
-    (TokenType::Move, "mv"),
-    // Control flow.
-    (TokenType::BranchEqual, "beq"),
-    (TokenType::BranchLessEqual, "ble"),
-    (TokenType::BranchLess, "blt"),
-    (TokenType::BranchGreaterEqual, "bge"),
-    (TokenType::BranchGreater, "bgt"),
-    (TokenType::Exit, "exit"),
-    // I/O.
-    (TokenType::Out, "out"),
-    // Generative operations.
-    (TokenType::Morph, "mrf"),
-    (TokenType::Project, "prj"),
-    // Cognitive operations.
-    (TokenType::Distill, "dst"),
-    (TokenType::Correlate, "cor"),
-    // Guardrails operations.
-    (TokenType::Audit, "aud"),
-    (TokenType::Similarity, "sim"),
-];
+impl TryFrom<&str> for TokenType {
+    type Error = &'static str;
+    
+    fn try_from(value: &str) -> Result<Self, <TokenType as TryFrom<&str>>::Error> {
+        match value {
+            // Data movement.
+            "ls" => Ok(TokenType::LoadString),
+            "lf" => Ok(TokenType::LoadFile),
+            "li" => Ok(TokenType::LoadImmediate),
+            "mv" => Ok(TokenType::Move),
+            // Control flow.
+            "beq" => Ok(TokenType::BranchEqual),
+            "ble" => Ok(TokenType::BranchLessEqual),
+            "blt" => Ok(TokenType::BranchLess),
+            "bge" => Ok(TokenType::BranchGreaterEqual),
+            "bgt" => Ok(TokenType::BranchGreater),
+            "exit" => Ok(TokenType::Exit),
+            // I/O.
+            "out" => Ok(TokenType::Out),
+            // Generative operations.
+            "mrf" => Ok(TokenType::Morph),
+            "prj" => Ok(TokenType::Project),
+            // Cognitive operations.
+            "dst" => Ok(TokenType::Distill),
+            "cor" => Ok(TokenType::Correlate),
+            // Guardrails operations.
+            "aud" => Ok(TokenType::Audit),
+            "sim" => Ok(TokenType::Similarity),
+            _ => Err("String does not correspond to any known token type."),
+        }
+    }
+    
+}
 
 #[derive(Clone, Debug)]
 pub struct Token {

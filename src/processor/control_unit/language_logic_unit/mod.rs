@@ -1,5 +1,4 @@
 use crate::{
-    assembler::opcode::OpCode,
     processor::{
         control_unit::{
             instruction::RType,
@@ -173,18 +172,7 @@ impl LanguageLogicUnit {
         Ok(embeddings.embedding.to_owned())
     }
 
-    fn cosine_similarity(&self, value_a: &Value, value_b: &Value) -> Result<u32, String> {
-        let value_a = match value_a {
-            Value::Text(text) => text,
-            Value::Number(number) => &number.to_string(),
-            _ => return Err(format!("{:?} requires text value.", OpCode::Similarity)),
-        };
-        let value_b = match value_b {
-            Value::Text(text) => text,
-            Value::Number(number) => &number.to_string(),
-            _ => return Err(format!("{:?} requires text value.", OpCode::Similarity)),
-        };
-
+    fn cosine_similarity(&self, value_a: &str, value_b: &str) -> Result<u32, String> {
         let value_a_embeddings = self.embeddings(value_a).map_err(|error| {
             format!("Failed to get embedding for {}. Error: {}", value_a, error)
         })?;
@@ -207,17 +195,8 @@ impl LanguageLogicUnit {
         Ok(percentage_similarity.round() as u32)
     }
 
-    fn execute(&self, r_type: &RType, value_a: &Value, value_b: &Value) -> Result<String, String> {
-        let value_a = match value_a {
-            Value::Text(text) => text,
-            _ => return Err(format!("{:?} requires text value.", r_type)),
-        };
-        let value_b = match value_b {
-            Value::Text(text) => text,
-            _ => return Err(format!("{:?} requires text value.", r_type)),
-        };
-
-        let prompt = micro_prompt::search(r_type, value_a, value_b).map_err(|error| {
+    fn execute(&self, r_type: &RType, value_a: &str, value_b: &str) -> Result<String, String> {
+        let prompt = micro_prompt::create(r_type, value_a, value_b).map_err(|error| {
             format!(
                 "Failed to generate micro prompt for {:?}. Error: {}",
                 r_type, error
@@ -246,8 +225,8 @@ impl LanguageLogicUnit {
         // If not an exact match, check cosine similarity against true values.
         for true_value in true_values {
             let score = self.cosine_similarity(
-                    &Value::Text(value.to_lowercase().to_string()),
-                    &Value::Text(true_value.to_lowercase().to_string()))
+                    &value.to_lowercase(),
+                    &true_value.to_lowercase())
                     .map_err(|error| {
                     format!(
                         "Failed to compute cosine similarity for boolean evaluation of {:?}. Error: {}",
@@ -263,7 +242,7 @@ impl LanguageLogicUnit {
         Ok(0)
     }
 
-    pub fn run(&self, r_type: &RType, value_a: &Value, value_b: &Value) -> Result<Value, String> {
+    pub fn run(&self, r_type: &RType, value_a: &str, value_b: &str) -> Result<Value, String> {
         if matches!(r_type, RType::Audit) {
             let value = self.execute(r_type, value_a, value_b).map_err(|error| {
                 format!(

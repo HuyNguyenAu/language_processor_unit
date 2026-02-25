@@ -99,23 +99,34 @@ impl Executer {
     }
 
     fn r_type(registers: &mut Registers, instruction: &RTypeInstruction, debug: bool) {
-        let value_a = registers
+        let value_a = match registers
             .get_register(instruction.source_register_1)
             .unwrap_or_else(|err| {
                 panic!(
                     "Failed to read source register r{} for R-type instruction. Error: {}",
                     instruction.source_register_1, err
                 )
-            });
-
-        let value_b = registers
+            }) {
+            Value::Text(text) => text,
+            _ => panic!(
+                "{:?} operation requires text value in source register r{}.",
+                instruction.r_type, instruction.source_register_1
+            ),
+        };
+        let value_b = match registers
             .get_register(instruction.source_register_2)
             .unwrap_or_else(|err| {
                 panic!(
                     "Failed to read source register r{} for R-type instruction. Error: {}",
                     instruction.source_register_2, err
                 )
-            });
+            }) {
+            Value::Text(text) => text,
+            _ => panic!(
+                "{:?} operation requires text value in source register r{}.",
+                instruction.r_type, instruction.source_register_2
+            ),
+        };
 
         let language_logic = LanguageLogicUnit::new();
 

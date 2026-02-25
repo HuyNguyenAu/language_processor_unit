@@ -7,7 +7,7 @@ pub fn true_values(r_type: &RType) -> Result<Vec<&'static str>, &'static str> {
     }
 }
 
-pub fn search(r_type: &RType, value_a: &str, value_b: &str) -> Result<String, &'static str> {
+pub fn create(r_type: &RType, value_a: &str, value_b: &str) -> Result<String, &'static str> {
     match r_type {
         // Generative operations.
         RType::Morph => Ok(format!(

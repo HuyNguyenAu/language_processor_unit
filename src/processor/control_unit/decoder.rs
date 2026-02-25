@@ -1,4 +1,6 @@
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::{Arc, Mutex};
+
+use crate::processor::control_unit::locks::{memory_lock, registers_lock};
 
 use crate::{
     assembler::opcode::OpCode,
@@ -26,17 +28,6 @@ impl Decoder {
         }
     }
 
-    fn memory_lock(&self) -> MutexGuard<'_, Memory> {
-        self.memory
-            .lock()
-            .expect("Failed to access memory: memory lock error")
-    }
-
-    fn registers_lock(&self) -> MutexGuard<'_, Registers> {
-        self.registers
-            .lock()
-            .expect("Failed to access registers: registers lock error")
-    }
 
     fn op_code(&mut self, bytes: &[u8; 4]) -> OpCode {
         match OpCode::from_be_bytes(*bytes) {
@@ -53,8 +44,8 @@ impl Decoder {
     }
 
     fn text(&mut self, pointer: usize, message: &str) -> String {
-        let memory = self.memory_lock();
-        let registers = self.registers_lock();
+        let memory = memory_lock(&self.memory);
+        let registers = registers_lock(&self.registers);
 
         let mut text_bytes: Vec<u8> = Vec::new();
 

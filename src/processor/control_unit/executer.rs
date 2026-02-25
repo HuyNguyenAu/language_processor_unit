@@ -1,7 +1,9 @@
 use std::{
     fs::read_to_string,
-    sync::{Arc, Mutex, MutexGuard},
+    sync::{Arc, Mutex},
 };
+
+use crate::processor::control_unit::locks::{memory_lock, registers_lock};
 
 use crate::processor::{
     control_unit::{
@@ -31,20 +33,9 @@ impl Executer {
         }
     }
 
-    fn memory_lock(&self) -> MutexGuard<'_, Memory> {
-        self.memory
-            .lock()
-            .expect("Failed to access memory: memory lock error")
-    }
-
-    fn registers_lock(&self) -> MutexGuard<'_, Registers> {
-        self.registers
-            .lock()
-            .expect("Failed to access registers: registers lock error")
-    }
 
     fn load_string(&mut self, instruction: &LoadStringInstruction, debug: bool) {
-        let mut registers = self.registers_lock();
+        let mut registers = registers_lock(&self.registers);
 
         match registers.set_register(
             instruction.destination_register,
@@ -67,7 +58,7 @@ impl Executer {
     }
 
     fn load_immediate(&mut self, instruction: &LoadImmediateInstruction, debug: bool) {
-        let mut registers = self.registers_lock();
+        let mut registers = registers_lock(&self.registers);
 
         match registers.set_register(
             instruction.destination_register,
@@ -90,7 +81,7 @@ impl Executer {
     }
 
     fn load_file(&mut self, instruction: &LoadFileInstruction, debug: bool) {
-        let mut registers = self.registers_lock();
+        let mut registers = registers_lock(&self.registers);
 
         let file_contents = match read_to_string(&instruction.file_path) {
             Ok(value) => value,
@@ -118,7 +109,7 @@ impl Executer {
     }
 
     fn _move(&mut self, instruction: &MoveInstruction, debug: bool) {
-        let mut registers = self.registers_lock();
+        let mut registers = registers_lock(&self.registers);
 
         let value = match registers.get_register(instruction.source_register) {
             Ok(value) => value.to_owned(),
@@ -143,7 +134,7 @@ impl Executer {
     }
 
     fn r_type(&mut self, instruction: &RTypeInstruction, debug: bool) {
-        let mut registers = self.registers_lock();
+        let mut registers = registers_lock(&self.registers);
 
         let value_a = match registers.get_register(instruction.source_register_1) {
             Ok(value) => value,
@@ -194,7 +185,7 @@ impl Executer {
     }
 
     fn b_type(&mut self, instruction: &BTypeInstruction, debug: bool) {
-        let mut registers = self.registers_lock();
+        let mut registers = registers_lock(&self.registers);
 
         let value_a = match registers.get_register(instruction.source_register_1) {
             Ok(Value::Number(value)) => *value,
@@ -297,7 +288,7 @@ impl Executer {
     }
 
     fn output(&mut self, instruction: &OutputInstruction, debug: bool) {
-        let registers = self.registers_lock();
+        let registers = registers_lock(&self.registers);
 
         let value_a = match registers.get_register(instruction.source_register) {
             Ok(Value::Text(value)) => value.clone(),
@@ -320,8 +311,8 @@ impl Executer {
     }
 
     fn exit(&mut self, _instruction: &ExitInstruction, debug: bool) {
-        let memory = self.memory_lock();
-        let mut registers = self.registers_lock();
+        let memory = memory_lock(&self.memory);
+        let mut registers = registers_lock(&self.registers);
 
         if debug {
             println!("Executed EXIT: Halting execution.");

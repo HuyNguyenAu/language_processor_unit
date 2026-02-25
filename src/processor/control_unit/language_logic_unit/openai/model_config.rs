@@ -1,4 +1,3 @@
-#[derive(Debug)]
 pub struct ModelTextConfig {
     pub stream: bool,
     pub return_progress: bool,
@@ -26,13 +25,11 @@ pub struct ModelTextConfig {
     pub timings_per_token: bool,
 }
 
-#[derive(Debug)]
 pub struct ModelEmbeddingsConfig {
     pub model: String,
     pub encoding_format: String,
 }
 
-#[derive(Debug)]
 pub enum ModelConfig {
     Text(ModelTextConfig),
     Embeddings(ModelEmbeddingsConfig),

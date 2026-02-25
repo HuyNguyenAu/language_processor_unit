@@ -1,4 +1,4 @@
-use crate::processor::{control_unit::ControlUnit};
+use crate::processor::control_unit::ControlUnit;
 
 mod control_unit;
 mod memory;

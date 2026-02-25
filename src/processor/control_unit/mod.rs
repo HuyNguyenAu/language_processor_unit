@@ -9,7 +9,6 @@ mod executer;
 mod instruction;
 mod language_logic_unit;
 
-#[derive(Debug)]
 pub struct ControlUnit {
     memory: Memory,
     registers: Registers,

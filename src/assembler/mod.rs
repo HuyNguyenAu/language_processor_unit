@@ -10,7 +10,6 @@ mod scanner;
 
 const HEADER_SIZE: u32 = 2;
 
-#[derive(Debug)]
 struct UnresolvedLabel {
     indices: Vec<usize>,
     token: Token,

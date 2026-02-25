@@ -184,7 +184,7 @@ impl Decoder {
 
     fn output(instruction_bytes: [[u8; 4]; 4]) -> Instruction {
         let source_register = Self::number(&instruction_bytes[1]);
-        
+
         Instruction::Output(OutputInstruction { source_register })
     }
 

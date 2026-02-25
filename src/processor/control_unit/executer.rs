@@ -12,7 +12,6 @@ use crate::processor::{
     registers::{Registers, Value},
 };
 
-#[derive(Debug)]
 pub struct Executer {}
 
 impl Executer {

@@ -19,7 +19,6 @@ use crate::{
 mod micro_prompt;
 mod openai;
 
-#[derive(Debug)]
 pub struct LanguageLogicUnit {
     system_prompt: &'static str,
     openai_client: OpenAIClient,

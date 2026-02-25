@@ -123,8 +123,8 @@ impl Decoder {
         // Decode source register 2.
         let source_register_2 = self.number(&instruction_bytes[2]);
 
-        // Decode the program counter jump index.
-        let program_counter_jump_index = self.number(&instruction_bytes[3]);
+        // Decode the instruction pointer jump index.
+        let instruction_pointer_jump_index = self.number(&instruction_bytes[3]);
 
         let b_type = match op_code {
             OpCode::BranchEqual => BType::Equal,
@@ -139,7 +139,7 @@ impl Decoder {
             b_type,
             source_register_1,
             source_register_2,
-            program_counter_jump_index,
+            instruction_pointer_jump_index,
         })
     }
 

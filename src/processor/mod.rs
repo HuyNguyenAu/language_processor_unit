@@ -3,13 +3,13 @@ use crate::processor::control_unit::ControlUnit;
 mod control_unit;
 
 pub struct Processor {
-    control: ControlUnit,
+    control_unit: ControlUnit,
 }
 
 impl Processor {
     pub fn new() -> Self {
         Processor {
-            control: ControlUnit::new(),
+            control_unit: ControlUnit::new(),
         }
     }
 
@@ -30,12 +30,13 @@ impl Processor {
             })
             .collect();
 
-        self.control.load_byte_code(byte_code);
+        self.control_unit.load(byte_code);
     }
 
     pub fn run(&mut self, debug: bool) {
-        while let Some(instruction) = self.control.fetch_and_decode() {
-            self.control.execute(&instruction, debug);
+        while self.control_unit.fetch() {
+            let instruction = self.control_unit.decode();
+            println!("Decoded instruction: {:?}", instruction);
         }
     }
 }

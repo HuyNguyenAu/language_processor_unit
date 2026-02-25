@@ -56,7 +56,7 @@ pub struct BTypeInstruction {
     pub b_type: BType,
     pub source_register_1: u32,
     pub source_register_2: u32,
-    pub program_counter_jump_index: u32,
+    pub instruction_pointer_jump_index: u32,
 }
 
 #[derive(Debug)]

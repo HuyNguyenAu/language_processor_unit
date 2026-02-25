@@ -63,8 +63,8 @@ impl ControlUnit {
     }
 
     pub fn load(&mut self, byte_code: Vec<[u8; 4]>) {
-        let data_section_pointer = self.header_pointer(0, &byte_code);
-        let instruction_section_pointer = self.header_pointer(1, &byte_code);
+        let instruction_section_pointer = self.header_pointer(0, &byte_code);
+        let data_section_pointer = self.header_pointer(1, &byte_code);
 
         println!(
             "Loading byte code. Data section starts at address {}, instruction section starts at address {}.",
@@ -84,7 +84,7 @@ impl ControlUnit {
     }
 
     pub fn fetch(&mut self) -> bool {
-        if self.registers.get_instruction_pointer() >= self.memory.length() {
+        if self.registers.get_instruction_pointer() >= self.registers.get_data_section_pointer() {
             return false;
         }
 

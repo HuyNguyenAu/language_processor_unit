@@ -577,31 +577,32 @@ impl Assembler {
             return Err("Assembly failed due to errors.");
         }
 
+        let header_size = 2_u32;
         let mut byte_code: Vec<[u8; 4]> = Vec::new();
 
-        // Data segment starts at address 3, after the headers.
-        let header_size = 2_u32;
+        // Text segment starts after the header.
         byte_code.push(header_size.to_be_bytes());
 
-        // Text segment starts after the data segment, which starts at address 3. So text segment starts at address 3 + data segment size.
-        let data_segment_size: u32 = match self.data_segment.len().try_into() {
+        // Data segment starts after the header and text segment.
+        let text_segment_size: u32 = match self.text_segment.len().try_into() {
             Ok(size) => size,
             Err(_) => {
                 self.error_at_current(&format!(
-                    "Failed to convert data segment size to u32. Data segment size exceeds {}. Found data segment size: {}",
+                    "Failed to convert text segment size to u32. Text segment size exceeds {}. Found text segment size: {}",
                     u32::MAX,
-                    self.data_segment.len()
+                    self.text_segment.len()
                 ));
                 return Err("Assembly failed due to errors.");
             }
         };
-        byte_code.push((header_size + data_segment_size).to_be_bytes());
 
-        // Append the data segment.
-        byte_code.extend(&self.data_segment);
+        byte_code.push((header_size + text_segment_size).to_be_bytes());
 
         // Append the text segment.
         byte_code.extend(&self.text_segment);
+
+        // Append the data segment after the text segment.
+        byte_code.extend(&self.data_segment);
 
         Ok(byte_code.into_iter().flatten().collect())
     }

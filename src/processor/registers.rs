@@ -10,7 +10,6 @@ pub struct Registers {
     instruction_pointer: usize,
     instruction: Option<[[u8; 4]; 4]>,
     data_section_pointer: usize,
-    instruction_section_pointer: usize,
 }
 
 impl Registers {
@@ -20,7 +19,6 @@ impl Registers {
             instruction_pointer: 0,
             instruction: None,
             data_section_pointer: 0,
-            instruction_section_pointer: 0,
         }
     }
 
@@ -79,13 +77,5 @@ impl Registers {
 
     pub fn set_data_section_pointer(&mut self, address: usize) {
         self.data_section_pointer = address;
-    }
-
-    pub fn get_instruction_section_pointer(&self) -> usize {
-        self.instruction_section_pointer
-    }
-
-    pub fn set_instruction_section_pointer(&mut self, address: usize) {
-        self.instruction_section_pointer = address;
     }
 }

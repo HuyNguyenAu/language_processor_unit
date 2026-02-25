@@ -16,7 +16,7 @@ impl Processor {
         let registers = Arc::new(Mutex::new(Registers::new()));
 
         Processor {
-            control_unit: ControlUnit::new(&memory, &registers),
+            control_unit: ControlUnit::new(memory, registers),
         }
     }
 

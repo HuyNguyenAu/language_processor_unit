@@ -19,12 +19,12 @@ pub struct ControlUnit {
 }
 
 impl ControlUnit {
-    pub fn new(memory: &Arc<Mutex<Memory>>, registers: &Arc<Mutex<Registers>>) -> Self {
+    pub fn new(memory: Arc<Mutex<Memory>>, registers: Arc<Mutex<Registers>>) -> Self {
         ControlUnit {
-            memory: Arc::clone(&memory),
-            registers: Arc::clone(&registers),
-            decoder: Decoder::new(memory, registers),
-            executer: Executer::new(memory, registers),
+            memory: memory.clone(),
+            registers: registers.clone(),
+            decoder: Decoder::new(&memory, &registers),
+            executer: Executer::new(&memory, &registers),
         }
     }
 
@@ -49,16 +49,16 @@ impl ControlUnit {
         }
     }
 
-    fn read_instruction(&mut self) -> Result<[[u8; 4]; 4], String> {
+    fn read_instruction(&self) -> Result<[[u8; 4]; 4], String> {
         let memory = self.memory_lock();
         let registers = self.registers_lock();
 
-        let mut instruction_bytes: [[u8; 4]; 4] = [[0; 4], [0; 4], [0; 4], [0; 4]];
+        let mut instruction_bytes: [[u8; 4]; 4] = [[0; 4]; 4];
         let mut address = registers.get_instruction_pointer();
 
-        for i in 0..4 {
+        for slot in instruction_bytes.iter_mut() {
             match memory.read(address) {
-                Ok(bytes) => instruction_bytes[i] = *bytes,
+                Ok(bytes) => *slot = *bytes,
                 Err(error) => {
                     return Err(format!(
                         "Failed to read instruction: memory read error at address {}: {}",
@@ -66,26 +66,25 @@ impl ControlUnit {
                     ));
                 }
             }
-
             address += 1;
         }
 
         Ok(instruction_bytes)
     }
 
-    fn header_pointer(&mut self, index: usize, byte_code: &Vec<[u8; 4]>) -> usize {
-        let pointer_bytes = match byte_code.get(index) {
-            Some(bytes) => bytes,
-            None => panic!("Failed to read header pointer from memory."),
-        };
+    fn header_pointer(&self, index: usize, byte_code: &[[u8; 4]]) -> usize {
+        let pointer_bytes = byte_code
+            .get(index)
+            .unwrap_or_else(|| panic!("Failed to read header pointer from memory."));
 
-        match u32::from_be_bytes(*pointer_bytes).try_into() {
-            Ok(pointer) => pointer,
-            Err(error) => panic!(
-                "Failed to decode header pointer from byte code. Error: {}. Byte code: {:?}.",
-                error, pointer_bytes
-            ),
-        }
+        u32::from_be_bytes(*pointer_bytes)
+            .try_into()
+            .unwrap_or_else(|error| {
+                panic!(
+                    "Failed to decode header pointer from byte code. Error: {}. Byte code: {:?}.",
+                    error, pointer_bytes
+                )
+            })
     }
 
     pub fn load(&mut self, byte_code: Vec<[u8; 4]>) {
@@ -104,8 +103,6 @@ impl ControlUnit {
 
         registers.set_instruction_pointer(instruction_section_pointer);
         registers.set_instruction(None);
-
-        registers.set_instruction_section_pointer(instruction_section_pointer);
         registers.set_data_section_pointer(data_section_pointer);
     }
 

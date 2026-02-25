@@ -180,7 +180,7 @@ impl Scanner {
             if self.peek() == '\\' && self.peek_next() == '"' {
                 self.advance(); // Consumes the backslash.
                 self.advance(); // Consumes the escaped quote.
-                
+
                 continue;
             }
 

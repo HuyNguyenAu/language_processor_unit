@@ -2,6 +2,7 @@
 ; Objective: Adjust the room's temperature and lighting based on sensor data to achieve optimal physical comfort.
 ; Output: Adjusted temperature and lighting settings.
 
+; Load sensor data and user feedback.
 LF  X1, "examples/data/room_sensor_data.json"
 LS  X2, "It's too dark to read and I am sweating."
 

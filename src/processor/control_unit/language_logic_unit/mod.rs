@@ -19,6 +19,8 @@ use crate::{
 mod micro_prompt;
 mod openai;
 
+const TRUTHY_THRESHOLD: u32 = 80;
+
 pub struct LanguageLogicUnit {
     system_prompt: &'static str,
     openai_client: OpenAIClient,
@@ -237,11 +239,28 @@ impl LanguageLogicUnit {
             )
         })?;
 
-        Ok(if true_values.contains(&value.to_uppercase().as_str()) {
-            100
-        } else {
-            0
-        })
+        if true_values.contains(&value.to_uppercase().as_str()) {
+            return Ok(100);
+        }
+
+        // If not an exact match, check cosine similarity against true values.
+        for true_value in true_values {
+            let score = self.cosine_similarity(
+                    &Value::Text(value.to_lowercase().to_string()),
+                    &Value::Text(true_value.to_lowercase().to_string()))
+                    .map_err(|error| {
+                    format!(
+                        "Failed to compute cosine similarity for boolean evaluation of {:?}. Error: {}",
+                        r_type, error
+                    )
+                })?;
+
+            if score >= TRUTHY_THRESHOLD {
+                return Ok(100);
+            }
+        }
+
+        Ok(0)
     }
 
     pub fn run(&self, r_type: &RType, value_a: &Value, value_b: &Value) -> Result<Value, String> {

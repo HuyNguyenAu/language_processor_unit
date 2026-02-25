@@ -29,7 +29,7 @@ pub fn search(r_type: &RType, value_a: &str, value_b: &str) -> Result<String, &'
         )),
         // Guardrails operations.
         RType::Audit => Ok(format!(
-            "Claim: {}\nEvidence: {}\nAudit Status [Pass/Fail]:",
+            "Claim: {}\nEvidence: {}\nPASS/FAIL:",
             value_a, value_b
         )),
         _ => Err("Unsupported r_type for micro prompt generation."),

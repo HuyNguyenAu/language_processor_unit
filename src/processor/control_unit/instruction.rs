@@ -1,15 +1,18 @@
-use crate::assembler::immediate::Immediate;
-
+#[derive(Debug)]
+pub struct LoadStringInstruction {
+    pub destination_register: u32,
+    pub pointer: usize,
+}
 #[derive(Debug)]
 pub struct LoadImmediateInstruction {
     pub destination_register: u32,
-    pub value: Immediate,
+    pub value: u32,
 }
 
 #[derive(Debug)]
 pub struct LoadFileInstruction {
     pub destination_register: u32,
-    pub value: String,
+    pub pointer: usize,
 }
 
 #[derive(Debug)]
@@ -35,12 +38,12 @@ pub enum RType {
 pub struct RTypeInstruction {
     pub r_type: RType,
     pub destination_register: u32,
-    pub immediate_1: Immediate,
-    pub immediate_2: Immediate,
+    pub source_register_1: u32,
+    pub source_register_2: u32,
 }
 
 #[derive(Debug)]
-pub enum BranchType {
+pub enum BType {
     Equal,
     LessEqual,
     Less,
@@ -49,16 +52,16 @@ pub enum BranchType {
 }
 
 #[derive(Debug)]
-pub struct BranchInstruction {
-    pub branch_type: BranchType,
-    pub immediate_1: Immediate,
-    pub immediate_2: Immediate,
-    pub byte_code_index: u32,
+pub struct BTypeInstruction {
+    pub b_type: BType,
+    pub source_register_1: u32,
+    pub source_register_2: u32,
+    pub program_counter_jump_index: u32,
 }
 
 #[derive(Debug)]
 pub struct OutputInstruction {
-    pub immediate: Immediate,
+    pub source_register: u32,
 }
 
 #[derive(Debug)]
@@ -66,11 +69,12 @@ pub struct ExitInstruction;
 
 #[derive(Debug)]
 pub enum Instruction {
+    LoadString(LoadStringInstruction),
     LoadImmediate(LoadImmediateInstruction),
     LoadFile(LoadFileInstruction),
     Move(MoveInstruction),
     RType(RTypeInstruction),
-    Branch(BranchInstruction),
+    BType(BTypeInstruction),
     Output(OutputInstruction),
     Exit(ExitInstruction),
 }

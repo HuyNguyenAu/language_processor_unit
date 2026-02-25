@@ -1,10 +1,10 @@
-pub struct MemoryUnit {
+pub struct Memory {
     data: Vec<[u8; 4]>,
 }
 
-impl MemoryUnit {
+impl Memory {
     pub fn new() -> Self {
-        MemoryUnit { data: Vec::new() }
+        Memory { data: Vec::new() }
     }
 
     pub fn load(&mut self, byte_code: Vec<[u8; 4]>) {

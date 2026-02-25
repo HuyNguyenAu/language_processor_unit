@@ -6,15 +6,21 @@ pub enum Value {
 }
 
 pub struct Registers {
-    general_purpose_registers: [Value; 32],
+    general_purpose: [Value; 32],
     instruction_pointer: usize,
+    instruction: Option<[[u8; 4]; 4]>,
+    data_section_pointer: Option<usize>,
+    instruction_section_pointer: Option<usize>,
 }
 
 impl Registers {
     pub fn new() -> Self {
         Registers {
-            general_purpose_registers: [const { Value::None }; 32],
+            general_purpose: [const { Value::None }; 32],
             instruction_pointer: 0,
+            instruction: None,
+            data_section_pointer: None,
+            instruction_section_pointer: None,
         }
     }
 
@@ -38,12 +44,12 @@ impl Registers {
 
     pub fn get_register(&self, register_number: u32) -> Result<&Value, String> {
         let idx = Self::to_index(register_number)?;
-        Ok(&self.general_purpose_registers[idx])
+        Ok(&self.general_purpose[idx])
     }
 
     pub fn set_register(&mut self, register_number: u32, value: &Value) -> Result<(), String> {
         let idx = Self::to_index(register_number)?;
-        self.general_purpose_registers[idx] = value.clone();
+        self.general_purpose[idx] = value.clone();
         Ok(())
     }
 
@@ -55,7 +61,27 @@ impl Registers {
         self.instruction_pointer = address;
     }
 
-    pub fn advance_instruction_pointer(&mut self) {
-        self.instruction_pointer += 1;
+    pub fn get_instruction(&self) -> Option<[[u8; 4]; 4]> {
+        self.instruction
+    }
+
+    pub fn set_instruction(&mut self, be_bytes: Option<[[u8; 4]; 4]>) {
+        self.instruction = be_bytes;
+    }
+
+    pub fn get_data_section_pointer(&self) -> Option<usize> {
+        self.data_section_pointer
+    }
+
+    pub fn set_data_section_pointer(&mut self, address: usize) {
+        self.data_section_pointer = Some(address);
+    }
+
+    pub fn get_instruction_section_pointer(&self) -> Option<usize> {
+        self.instruction_section_pointer
+    }
+
+    pub fn set_instruction_section_pointer(&mut self, address: usize) {
+        self.instruction_section_pointer = Some(address);
     }
 }

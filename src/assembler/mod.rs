@@ -324,6 +324,7 @@ impl Assembler {
             self.emit_op_code_bytecode(opcode);
             self.emit_number_bytecode(destination_register);
             self.emit_number_bytecode(immediate);
+            self.emit_number_bytecode(0); // Padding for uniform instruction size.
         } else if matches!(opcode, OpCode::Move) {
             let source_register = match self.register("Expected source register after ','.") {
                 Ok(register) => register,
@@ -336,12 +337,14 @@ impl Assembler {
             self.emit_op_code_bytecode(opcode);
             self.emit_number_bytecode(destination_register);
             self.emit_number_bytecode(source_register);
+            self.emit_number_bytecode(0); // Padding for uniform instruction size.
         } else {
             let string_value = self.string("Expected string after ','.");
 
             self.emit_op_code_bytecode(opcode);
             self.emit_number_bytecode(destination_register);
             self.emit_string_bytecode(&string_value);
+            self.emit_number_bytecode(0); // Padding for uniform instruction size.
         }
     }
 
@@ -513,6 +516,8 @@ impl Assembler {
 
         self.emit_op_code_bytecode(OpCode::Out);
         self.emit_number_bytecode(source_register);
+        self.emit_number_bytecode(0); // Padding for uniform instruction size.
+        self.emit_number_bytecode(0); // Padding for uniform instruction size.
     }
 
     fn exit(&mut self) {
@@ -574,33 +579,23 @@ impl Assembler {
 
         let mut byte_code: Vec<[u8; 4]> = Vec::new();
 
-        // Append the data segment size.
+        // Data segment starts at address 3, after the headers.
+        let header_size = 2_u32;
+        byte_code.push(header_size.to_be_bytes());
+
+        // Text segment starts after the data segment, which starts at address 3. So text segment starts at address 3 + data segment size.
         let data_segment_size: u32 = match self.data_segment.len().try_into() {
             Ok(size) => size,
             Err(_) => {
                 self.error_at_current(&format!(
-                    "Failed to convert data segment size to u32. Data segment size exceeds {}. Found data segment size: {}.",
+                    "Failed to convert data segment size to u32. Data segment size exceeds {}. Found data segment size: {}",
                     u32::MAX,
                     self.data_segment.len()
                 ));
                 return Err("Assembly failed due to errors.");
             }
         };
-        byte_code.push(data_segment_size.to_be_bytes());
-
-        // Append the text segment size.
-        let text_segment_size: u32 = match self.text_segment.len().try_into() {
-            Ok(size) => size,
-            Err(_) => {
-                self.error_at_current(&format!(
-                    "Failed to convert text segment size to u32. Text segment size exceeds {}. Found text segment size: {}.",
-                    u32::MAX,
-                    self.text_segment.len()
-                ));
-                return Err("Assembly failed due to errors.");
-            }
-        };
-        byte_code.push(text_segment_size.to_be_bytes());
+        byte_code.push((header_size + data_segment_size).to_be_bytes());
 
         // Append the data segment.
         byte_code.extend(&self.data_segment);

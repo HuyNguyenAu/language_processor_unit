@@ -27,24 +27,15 @@ impl Decoder {
     }
 
     fn memory_lock(&self) -> MutexGuard<'_, Memory> {
-        match self.memory.lock() {
-            Ok(memory) => memory,
-            Err(error) => {
-                panic!("Failed to access memory: memory lock error: {}", error);
-            }
-        }
+        self.memory
+            .lock()
+            .expect("Failed to access memory: memory lock error")
     }
 
     fn registers_lock(&self) -> MutexGuard<'_, Registers> {
-        match self.registers.lock() {
-            Ok(registers) => registers,
-            Err(error) => {
-                panic!(
-                    "Failed to access registers: registers lock error: {}",
-                    error
-                );
-            }
-        }
+        self.registers
+            .lock()
+            .expect("Failed to access registers: registers lock error")
     }
 
     fn op_code(&mut self, bytes: &[u8; 4]) -> OpCode {

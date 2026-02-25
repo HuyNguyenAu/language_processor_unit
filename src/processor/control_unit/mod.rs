@@ -61,11 +61,6 @@ impl ControlUnit {
         let instruction_section_pointer = self.header_pointer(0, &byte_code);
         let data_section_pointer = self.header_pointer(1, &byte_code);
 
-        println!(
-            "Loading byte code. Data section starts at address {}, instruction section starts at address {}.",
-            data_section_pointer, instruction_section_pointer
-        );
-
         self.memory.load(byte_code);
 
         self.registers

@@ -1,46 +1,34 @@
-use std::sync::{Arc, Mutex};
+use crate::processor::control_unit::decoder::Decoder;
+use crate::processor::control_unit::executer::Executer;
+use crate::processor::{memory::Memory, registers::Registers};
 
-use crate::processor::{
-    control_unit::{decoder::Decoder, executer::Executer, instruction::Instruction},
-    memory::Memory,
-    registers::Registers,
-};
-
-use crate::processor::control_unit::locks::{memory_lock, registers_lock};
+use crate::processor::control_unit::instruction::Instruction;
 
 mod decoder;
 mod executer;
 mod instruction;
 mod language_logic_unit;
-mod locks;
 
+#[derive(Debug)]
 pub struct ControlUnit {
-    memory: Arc<Mutex<Memory>>,
-    registers: Arc<Mutex<Registers>>,
-    decoder: Decoder,
-    executer: Executer,
+    memory: Memory,
+    registers: Registers,
 }
 
 impl ControlUnit {
-    pub fn new(memory: Arc<Mutex<Memory>>, registers: Arc<Mutex<Registers>>) -> Self {
+    pub fn new() -> Self {
         ControlUnit {
-            memory: memory.clone(),
-            registers: registers.clone(),
-            decoder: Decoder::new(&memory, &registers),
-            executer: Executer::new(&memory, &registers),
+            memory: Memory::new(),
+            registers: Registers::new(),
         }
     }
 
-
     fn read_instruction(&self) -> Result<[[u8; 4]; 4], String> {
-        let memory = memory_lock(&self.memory);
-        let registers = registers_lock(&self.registers);
-
         let mut instruction_bytes: [[u8; 4]; 4] = [[0; 4]; 4];
-        let mut address = registers.get_instruction_pointer();
+        let mut address = self.registers.get_instruction_pointer();
 
         for slot in instruction_bytes.iter_mut() {
-            match memory.read(address) {
+            match self.memory.read(address) {
                 Ok(bytes) => *slot = *bytes,
                 Err(error) => {
                     return Err(format!(
@@ -79,24 +67,17 @@ impl ControlUnit {
             data_section_pointer, instruction_section_pointer
         );
 
-        let mut memory = memory_lock(&self.memory);
-        let mut registers = registers_lock(&self.registers);
+        self.memory.load(byte_code);
 
-        memory.load(byte_code);
-
-        registers.set_instruction_pointer(instruction_section_pointer);
-        registers.set_instruction(None);
-        registers.set_data_section_pointer(data_section_pointer);
+        self.registers
+            .set_instruction_pointer(instruction_section_pointer);
+        self.registers.set_instruction(None);
+        self.registers
+            .set_data_section_pointer(data_section_pointer);
     }
 
     pub fn fetch(&mut self) -> bool {
-        let should_continue = {
-            let registers = registers_lock(&self.registers);
-
-            registers.get_instruction_pointer() < registers.get_data_section_pointer()
-        };
-
-        if !should_continue {
+        if self.registers.get_instruction_pointer() >= self.registers.get_data_section_pointer() {
             return false;
         }
 
@@ -105,28 +86,22 @@ impl ControlUnit {
             Err(error) => panic!("Failed to fetch instruction: {}", error),
         };
 
-        let mut registers = registers_lock(&self.registers);
-
-        registers.set_instruction(Some(instruction_bytes));
-        registers.advance_instruction_pointer(4);
+        self.registers.set_instruction(Some(instruction_bytes));
+        self.registers.advance_instruction_pointer(4);
 
         true
     }
 
-    pub fn decode(&mut self) -> Instruction {
-        let instruction_bytes = {
-            let registers = registers_lock(&self.registers);
+    pub fn decode(&self) -> Instruction {
+        let bytes = self
+            .registers
+            .get_instruction()
+            .expect("Failed to decode instruction: no instruction loaded.");
 
-            match registers.get_instruction() {
-                Some(bytes) => bytes,
-                None => panic!("Failed to decode instruction: no instruction loaded."),
-            }
-        };
-
-        self.decoder.decode(instruction_bytes)
+        Decoder::decode(&self.memory, &self.registers, bytes)
     }
 
     pub fn execute(&mut self, instruction: Instruction, debug: bool) {
-        self.executer.execute(&instruction, debug);
+        Executer::execute(&mut self.memory, &mut self.registers, &instruction, debug);
     }
 }

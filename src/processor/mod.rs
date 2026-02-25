@@ -1,6 +1,4 @@
-use std::sync::{Arc, Mutex};
-
-use crate::processor::{control_unit::ControlUnit, memory::Memory, registers::Registers};
+use crate::processor::{control_unit::ControlUnit};
 
 mod control_unit;
 mod memory;
@@ -12,11 +10,8 @@ pub struct Processor {
 
 impl Processor {
     pub fn new() -> Self {
-        let memory = Arc::new(Mutex::new(Memory::new()));
-        let registers = Arc::new(Mutex::new(Registers::new()));
-
         Processor {
-            control_unit: ControlUnit::new(memory, registers),
+            control_unit: ControlUnit::new(),
         }
     }
 

@@ -5,6 +5,7 @@ pub enum Value {
     None,
 }
 
+#[derive(Debug)]
 pub struct Registers {
     general_purpose: [Value; 32],
     instruction_pointer: usize,

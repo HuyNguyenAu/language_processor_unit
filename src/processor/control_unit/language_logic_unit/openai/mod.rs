@@ -10,6 +10,7 @@ pub mod chat_completion_models;
 pub mod embeddings_models;
 pub mod model_config;
 
+#[derive(Debug)]
 pub struct OpenAIClient {
     base_url: &'static str,
     chat_completion_endpoint: &'static str,

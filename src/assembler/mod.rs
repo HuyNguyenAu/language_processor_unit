@@ -8,8 +8,11 @@ use crate::assembler::scanner::token::{Token, TokenType};
 pub mod opcode;
 mod scanner;
 
+const HEADER_SIZE: u32 = 2;
+
+#[derive(Debug)]
 struct UnresolvedLabel {
-    bytecode_indices: Vec<usize>,
+    indices: Vec<usize>,
     token: Token,
 }
 
@@ -23,7 +26,7 @@ pub struct Assembler {
     previous: Option<Token>,
     current: Option<Token>,
 
-    byte_code_indices: HashMap<u64, usize>,
+    labels: HashMap<u64, usize>,
     unresolved_labels: HashMap<u64, UnresolvedLabel>,
 
     had_error: bool,
@@ -39,7 +42,7 @@ impl Assembler {
             scanner: Scanner::new(source),
             previous: None,
             current: None,
-            byte_code_indices: HashMap::new(),
+            labels: HashMap::new(),
             unresolved_labels: HashMap::new(),
             had_error: false,
             panic_mode: false,
@@ -231,10 +234,10 @@ impl Assembler {
     }
 
     fn upsert_unresolved_label(&mut self, key: u64) -> Result<(), String> {
-        let bytecode_index = self.text_segment.len() - 1;
+        let index = self.text_segment.len() - 1;
 
         if let Some(label) = self.unresolved_labels.get_mut(&key) {
-            label.bytecode_indices.push(bytecode_index);
+            label.indices.push(index);
         } else {
             let previous_token = match &self.previous {
                 Some(token) => token.clone(),
@@ -246,7 +249,7 @@ impl Assembler {
             self.unresolved_labels.insert(
                 key,
                 UnresolvedLabel {
-                    bytecode_indices: vec![bytecode_index],
+                    indices: vec![index],
                     token: previous_token,
                 },
             );
@@ -256,28 +259,13 @@ impl Assembler {
     }
 
     fn emit_label_bytecode(&mut self, key: u64) {
-        if let Some(index) = self.byte_code_indices.get(&key) {
-            let value: u32 = match (*index).try_into() {
-                Ok(value) => value,
-                Err(_) => {
-                    self.error_at_current(format!(
-                    "Failed to convert bytecode index to u32 for jump compare. Bytecode index exceeds {}. Found bytecode index: {}.",
-                    u32::MAX,
-                    index
-                ).as_str());
-                    return;
-                }
-            };
-            self.emit_number_bytecode(value);
-        } else {
-            // Placeholder for backpatching.
-            self.emit_number_bytecode(0);
-            // Record the current bytecode index for backpatching later.
-            match self.upsert_unresolved_label(key) {
-                Ok(()) => (),
-                Err(message) => {
-                    self.error_at_current(&message);
-                }
+        // Placeholder for backpatching.
+        self.emit_number_bytecode(0);
+        // Record the current bytecode index for backpatching later.
+        match self.upsert_unresolved_label(key) {
+            Ok(()) => (),
+            Err(message) => {
+                self.error_at_current(&message);
             }
         }
     }
@@ -361,28 +349,9 @@ impl Assembler {
         let label_name = self.previous_lexeme();
         let value = label_name.trim_end_matches(':');
         let key = Self::hash(value);
-        let jump_destination_byte_code_index = self.text_segment.len();
+        let byte_code_index = self.text_segment.len();
 
-        // Backpatch any unresolved labels.
-        if let Some(unresolved) = self.unresolved_labels.remove(&key) {
-            let value: u32 = match jump_destination_byte_code_index.try_into() {
-                Ok(value) => value,
-                Err(_) => {
-                    self.error_at_current(&format!("Failed to convert bytecode index to u32 for backpatching. Bytecode index exceeds {}. Found bytecode index: {}.", u32::MAX, jump_destination_byte_code_index ));
-
-                    return;
-                }
-            };
-
-            let bytes = value.to_be_bytes();
-
-            for idx in unresolved.bytecode_indices {
-                self.text_segment[idx] = bytes;
-            }
-        }
-
-        self.byte_code_indices
-            .insert(key, jump_destination_byte_code_index);
+        self.labels.insert(key, byte_code_index);
     }
 
     fn r_type(&mut self, token_type: &TokenType) {
@@ -526,6 +495,38 @@ impl Assembler {
         self.emit_op_code_bytecode(OpCode::Exit);
     }
 
+    fn backpatch_labels(&mut self) {
+        let mut resolved_labels: Vec<u64> = Vec::new();
+
+        for (key, unresolved) in &self.unresolved_labels {
+            if let Some(byte_code_index) = self.labels.get(key) {
+                let index: u32 = match (*byte_code_index).try_into() {
+                    Ok(value) => value,
+                    Err(_) => {
+                        self.error_at_current(format!(
+                            "Failed to convert bytecode index to u32 for backpatching. Bytecode index exceeds {}. Found bytecode index: {}.",
+                            u32::MAX,
+                            byte_code_index
+                        ).as_str());
+                        return;
+                    }
+                };
+
+                let bytes = (HEADER_SIZE + index).to_be_bytes();
+
+                for idx in &unresolved.indices {
+                    self.text_segment[*idx] = bytes;
+                }
+
+                resolved_labels.push(*key);
+            }
+        }
+
+        for key in resolved_labels {
+            self.unresolved_labels.remove(&key);
+        }
+    }
+
     pub fn assemble(&mut self) -> Result<Vec<u8>, &'static str> {
         self.advance();
 
@@ -569,6 +570,8 @@ impl Assembler {
             return Err("Assembly failed due to errors.");
         }
 
+        self.backpatch_labels();
+
         if let Some((_, unresolved_label)) = self.unresolved_labels.iter().nth(0) {
             let token = unresolved_label.token.clone();
 
@@ -577,11 +580,10 @@ impl Assembler {
             return Err("Assembly failed due to errors.");
         }
 
-        let header_size = 2_u32;
         let mut byte_code: Vec<[u8; 4]> = Vec::new();
 
         // Text segment starts after the header.
-        byte_code.push(header_size.to_be_bytes());
+        byte_code.push(HEADER_SIZE.to_be_bytes());
 
         // Data segment starts after the header and text segment.
         let text_segment_size: u32 = match self.text_segment.len().try_into() {
@@ -596,7 +598,7 @@ impl Assembler {
             }
         };
 
-        byte_code.push((header_size + text_segment_size).to_be_bytes());
+        byte_code.push((HEADER_SIZE + text_segment_size).to_be_bytes());
 
         // Append the text segment.
         byte_code.extend(&self.text_segment);

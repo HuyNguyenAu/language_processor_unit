@@ -1,6 +1,6 @@
-; -- - Customer Claim Assessment ---
+; Program: Customer Claim Assessment
 ; Objective: Determine if a customer's claim about a damaged package is valid.
-; OUTPUT: A statement indicating whether the claim is valid or invalid.
+; Output: A statement indicating whether the claim is valid or invalid.
 
 ; Initialisation
 LS X1, "The package arrived, but it looks like it went through a blender."

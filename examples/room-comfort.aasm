@@ -7,13 +7,13 @@ LF  X1, "examples/data/room_sensor_data.json"
 LS  X2, "It's too dark to read and I am sweating."
 
 ; Sense: Brief description of the current state of the room based on sensor data.
-LS  X3, "A sentence that describes the current state of the room."
+LS  X3, "A sentence that describes the current state of the room. Include details about temperature, lighting, and any other relevant factors."
 MRF X4, X1, X3
 
 RETRY:
 ; Think: Analyze the sensed state and determine necessary adjustments for physical comfort.
-LS  X3, "New temperature and light adjustments values for physical comfort."
-DST X5, X4, X3 
+LS  X3, "Changes to make to the room's temperature and lighting to achieve optimal physical comfort based on the current state and user feedback."
+PRJ X5, X4, X3 
 
 ; Guardrails: Ensure that the adjustments are within safe and reasonable limits.
 LS  X3, "{ \"temp_celsius\": number, \"light_percent\": number }"

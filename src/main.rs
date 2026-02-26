@@ -1,7 +1,6 @@
 mod assembler;
 mod constants;
 mod processor;
-mod utils;
 
 use std::{
     env,

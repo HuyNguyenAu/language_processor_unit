@@ -8,6 +8,7 @@ mod decoder;
 mod executor;
 mod instruction;
 mod language_logic_unit;
+mod utils;
 
 pub struct ControlUnit {
     memory: Memory,

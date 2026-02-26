@@ -25,6 +25,7 @@ impl Executer {
 
     fn load_string(registers: &mut Registers, instruction: &LoadStringInstruction, debug: bool) {
         let value = Value::Text(instruction.value.clone());
+       
         registers
             .set_register(instruction.destination_register, &value)
             .unwrap_or_else(|e| panic!("Failed to set register: {}", e));
@@ -44,6 +45,7 @@ impl Executer {
         debug: bool,
     ) {
         let value = Value::Number(instruction.value);
+       
         registers
             .set_register(instruction.destination_register, &value)
             .unwrap_or_else(|error| panic!("Failed to set register: {}", error));
@@ -156,7 +158,14 @@ impl Executer {
 
         if is_true {
             registers.set_instruction_pointer(
-                usize::try_from(instruction.instruction_pointer_jump_index).unwrap(),
+                usize::try_from(instruction.instruction_pointer_jump_index).unwrap_or_else(
+                    |error| {
+                        panic!(
+                            "Failed to convert instruction pointer jump index to usize. Error: {}",
+                            error
+                        )
+                    },
+                ),
             );
         }
 

@@ -2,7 +2,7 @@ use crate::processor::control_unit::instruction::RType;
 
 pub fn true_values(r_type: &RType) -> Result<Vec<&'static str>, &'static str> {
     match r_type {
-        RType::Audit => Ok(vec!["PASS"]),
+        RType::Audit => Ok(vec!["YES"]),
         _ => Err("Unsupported r_type for true values."),
     }
 }
@@ -11,11 +11,11 @@ pub fn create(r_type: &RType, value_a: &str, value_b: &str) -> Result<String, &'
     match r_type {
         // Generative operations.
         RType::Morph => Ok(format!(
-            "Source: {}\nTarget Format: {}\nMorphed Data:",
+            "Take the following:\n{}\n\nAnd transform it into the following format:\n{}\n\nTransformed Output:",
             value_a, value_b
         )),
         RType::Project => Ok(format!(
-            "Base Data: {}\nDirection/Trend: {}\nProjected Output:",
+            "Take the following data:\n{}\n\nProject how it might evolve based on this direction or trend:\n{}\n\nProjected Output:",
             value_a, value_b
         )),
         // Cognitive operations.
@@ -29,7 +29,7 @@ pub fn create(r_type: &RType, value_a: &str, value_b: &str) -> Result<String, &'
         )),
         // Guardrails operations.
         RType::Audit => Ok(format!(
-            "Claim: {}\nEvidence: {}\nPASS/FAIL:",
+            "Does the claim:\n{}\n\nComply with the evidence:\n{}\n\nYES/NO:",
             value_a, value_b
         )),
         _ => Err("Unsupported r_type for micro prompt generation."),

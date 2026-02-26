@@ -1,26 +1,22 @@
 #[derive(Debug)]
 pub struct LoadStringInstruction {
-    pub id: u32,
     pub destination_register: u32,
     pub value: String,
 }
 #[derive(Debug)]
 pub struct LoadImmediateInstruction {
-    pub id: u32,
     pub destination_register: u32,
     pub value: u32,
 }
 
 #[derive(Debug)]
 pub struct LoadFileInstruction {
-    pub id: u32,
     pub destination_register: u32,
     pub file_path: String,
 }
 
 #[derive(Debug)]
 pub struct MoveInstruction {
-    pub id: u32,
     pub destination_register: u32,
     pub source_register: u32,
 }

@@ -54,10 +54,6 @@ impl Decoder {
         op_code: OpCode,
         instruction_bytes: [[u8; 4]; 4],
     ) -> Instruction {
-        let id: u32 = registers
-            .get_instruction_pointer()
-            .try_into()
-            .expect("Instruction pointer did not fit in u32");
         let destination_register = u32::from_be_bytes(instruction_bytes[1]);
 
         match op_code {
@@ -67,25 +63,21 @@ impl Decoder {
                 let text = Self::text(memory, registers, pointer, &message);
                 if op_code == OpCode::LoadString {
                     Instruction::LoadString(LoadStringInstruction {
-                        id,
                         destination_register,
                         value: text,
                     })
                 } else {
                     Instruction::LoadFile(LoadFileInstruction {
-                        id,
                         destination_register,
                         file_path: text,
                     })
                 }
             }
             OpCode::LoadImmediate => Instruction::LoadImmediate(LoadImmediateInstruction {
-                id,
                 destination_register,
                 value: u32::from_be_bytes(instruction_bytes[2]),
             }),
             OpCode::Move => Instruction::Move(MoveInstruction {
-                id,
                 destination_register,
                 source_register: u32::from_be_bytes(instruction_bytes[2]),
             }),

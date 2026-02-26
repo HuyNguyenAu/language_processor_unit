@@ -8,86 +8,69 @@ use std::{
     path::Path,
 };
 
-fn build(file_path: &str, debug: bool) {
-    let source = match read_to_string(file_path) {
-        Ok(content) => Box::leak(Box::new(content)).as_str(),
-        Err(error) => panic!("Build failed. Error: {}", error),
-    };
+fn build(file_path: &str, debug: bool) -> Result<(), String> {
+    let source = read_to_string(file_path).map_err(|error| format!("Build failed: {}", error))?;
+    let source: &'static str = Box::leak(Box::new(source));
 
     let mut compiler = assembler::Assembler::new(source);
-
-    let byte_code = match compiler.assemble() {
-        Ok(byte_code) => byte_code,
-        Err(error) => panic!("Build failed. Error: {}", error),
-    };
+    let byte_code = compiler
+        .assemble()
+        .map_err(|error| format!("Build failed: {}", error))?;
 
     if debug {
         println!("Assembled byte code ({} bytes):", byte_code.len());
-
-        // Print every 4 bytes as a single instruction
-        for (chuck_index, byte) in byte_code.chunks(4).enumerate() {
-            let index = chuck_index * 4;
-
-            print!("{} {:02X} ({}): ", chuck_index, index, index);
-            println!("{:?} ", byte);
+        for (chunk_idx, chunk) in byte_code.chunks(4).enumerate() {
+            let index = chunk_idx * 4;
+            println!("{} {:02X} ({}): {:?}", chunk_idx, index, index, chunk);
         }
-
         println!();
     }
 
     let path = Path::new(file_path);
-    let file_stem = match path.file_stem() {
-        Some(value) => value,
-        None => panic!("Build failed. Error: Could not determine file stem"),
-    };
-    let output_file_name = match file_stem.to_str() {
-        Some(value) => format!("{}/{}.lpu", constants::BUILD_DIR, value),
-        None => panic!("Build failed. Error: Could not convert file stem to string"),
-    };
+    let stem = path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .ok_or_else(|| "Build failed: could not determine output filename".to_string())?;
 
-    match write(&output_file_name, byte_code) {
-        Ok(_) => println!("Build successful! Output written to {}", &output_file_name),
-        Err(error) => panic!("Build failed. Error: {}", error),
-    }
+    let output_file_name = format!("{}/{}.lpu", constants::BUILD_DIR, stem);
+    write(&output_file_name, byte_code).map_err(|error| format!("Build failed: {}", error))?;
+
+    println!("Build successful! Output written to {}", output_file_name);
+
+    Ok(())
 }
 
-fn run(file_path: &str, debug: bool) {
-    let data = match read(file_path) {
-        Ok(value) => value,
-        Err(error) => panic!("Run failed. Error: {}", error),
-    };
+fn run(file_path: &str, debug: bool) -> Result<(), String> {
+    let data = read(file_path).map_err(|error| format!("Run failed: {}", error))?;
 
     let mut processor = processor::Processor::new();
-
-    processor.load(data);
+    processor.load(data)?;
     processor.run(debug);
+
+    Ok(())
 }
 
 fn startup() {
-    if !Path::new(constants::BUILD_DIR).exists()
-        && let Err(error) = std::fs::create_dir_all(constants::BUILD_DIR)
-    {
-        panic!("Failed to create build directory. Error: {}", error);
+    if let Err(error) = std::fs::create_dir_all(constants::BUILD_DIR) {
+        panic!("Failed to create build directory: {}", error);
     }
 }
 
-fn main() {
+fn main() -> Result<(), String> {
     startup();
 
     let args: Vec<String> = env::args().collect();
-    let command = match args.get(1) {
-        Some(value) => value,
-        None => panic!("No command provided"),
-    };
-    let file_path = match args.get(2) {
-        Some(value) => value,
-        None => panic!("No file path provided"),
-    };
+    let command = args
+        .get(1)
+        .ok_or_else(|| "No command provided".to_string())?;
+    let file_path = args
+        .get(2)
+        .ok_or_else(|| "No file path provided".to_string())?;
     let debug = args.get(3).is_some_and(|arg| arg == "--debug");
 
     match command.as_str() {
         "build" => build(file_path, debug),
         "run" => run(file_path, debug),
-        _ => panic!("Unknown command: {}", command),
+        other => Err(format!("Unknown command: {}", other)),
     }
 }

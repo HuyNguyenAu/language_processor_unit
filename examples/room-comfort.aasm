@@ -16,7 +16,7 @@ LS  X3, "New temperature and light adjustments values for physical comfort."
 DST X5, X4, X3 
 
 ; Guardrails: Ensure that the adjustments are within safe and reasonable limits.
-LS  X3, "{ \"temp_c\": number, \"light%\": number }"
+LS  X3, "{ \"temp_celsius\": number, \"light_percent\": number }"
 MRF X6, X5, X3
 
 LS  X3, "The temperature must be between 18 and 24 degrees Celsius."

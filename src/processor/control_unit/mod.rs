@@ -1,17 +1,19 @@
 use crate::processor::control_unit::decoder::Decoder;
-use crate::processor::control_unit::executer::Executer;
+use crate::processor::control_unit::executor::Executor;
 use crate::processor::{memory::Memory, registers::Registers};
 
 use crate::processor::control_unit::instruction::Instruction;
 
 mod decoder;
-mod executer;
+mod executor;
 mod instruction;
 mod language_logic_unit;
+mod utils;
 
 pub struct ControlUnit {
     memory: Memory,
     registers: Registers,
+    executor: Executor,
 }
 
 impl ControlUnit {
@@ -19,52 +21,37 @@ impl ControlUnit {
         ControlUnit {
             memory: Memory::new(),
             registers: Registers::new(),
+            executor: Executor::new(),
         }
     }
 
     fn read_instruction(&self) -> Result<[[u8; 4]; 4], String> {
-        let mut instruction_bytes: [[u8; 4]; 4] = [[0; 4]; 4];
-        let mut address = self.registers.get_instruction_pointer();
+        let instruction_pointer = self.registers.get_instruction_pointer();
+        let mut buffer = [[0u8; 4]; 4];
 
-        for slot in instruction_bytes.iter_mut() {
-            match self.memory.read(address) {
-                Ok(bytes) => *slot = *bytes,
-                Err(error) => {
-                    return Err(format!(
-                        "Failed to read instruction: memory read error at address {}: {}",
-                        address, error
-                    ));
-                }
-            }
-            address += 1;
+        for (i, slot) in buffer.iter_mut().enumerate() {
+            *slot = *self.memory.read(instruction_pointer + i).map_err(|error| {
+                format!(
+                    "Failed to read instruction at {}: {}",
+                    instruction_pointer + i,
+                    error
+                )
+            })?;
         }
 
-        Ok(instruction_bytes)
+        Ok(buffer)
     }
 
     fn header_pointer(&self, index: usize, byte_code: &[[u8; 4]]) -> usize {
-        let pointer_bytes = byte_code
-            .get(index)
-            .unwrap_or_else(|| panic!("Failed to read header pointer from memory."));
-
+        let pointer_bytes = byte_code.get(index).expect("Missing header pointer");
         u32::from_be_bytes(*pointer_bytes)
             .try_into()
-            .unwrap_or_else(|error| {
-                panic!(
-                    "Failed to decode header pointer from byte code. Error: {}. Byte code: {:?}.",
-                    error, pointer_bytes
-                )
-            })
+            .expect("Header pointer did not fit in usize")
     }
 
     pub fn load(&mut self, byte_code: Vec<[u8; 4]>) {
         let instruction_section_pointer = self.header_pointer(0, &byte_code);
         let data_section_pointer = self.header_pointer(1, &byte_code);
-
-        println!(
-            "Loading byte code. Data section starts at address {}, instruction section starts at address {}.",
-            data_section_pointer, instruction_section_pointer
-        );
 
         self.memory.load(byte_code);
 
@@ -101,6 +88,7 @@ impl ControlUnit {
     }
 
     pub fn execute(&mut self, instruction: Instruction, debug: bool) {
-        Executer::execute(&mut self.memory, &mut self.registers, &instruction, debug);
+        self.executor
+            .execute(&mut self.memory, &mut self.registers, &instruction, debug);
     }
 }

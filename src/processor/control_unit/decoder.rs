@@ -15,53 +15,35 @@ pub struct Decoder;
 
 impl Decoder {
     fn op_code(bytes: &[u8; 4]) -> OpCode {
-        OpCode::from_be_bytes(*bytes).unwrap_or_else(|error| {
+        let value = u32::from_be_bytes(*bytes);
+
+        OpCode::try_from(value).unwrap_or_else(|error| {
             panic!(
-                "Failed to decode opcode from byte code. Error: {}. Byte code: {:?}.",
-                error, bytes
+                "Failed to decode opcode from byte code. Error: {}. Word: 0x{:08X}",
+                error, value
             )
         })
     }
 
-    fn number(bytes: &[u8; 4]) -> u32 {
-        u32::from_be_bytes(*bytes)
-    }
-
     fn text(memory: &Memory, registers: &Registers, pointer: usize, message: &str) -> String {
-        let mut text_bytes = Vec::new();
+        let mut bytes = Vec::new();
         let mut address = pointer + registers.get_data_section_pointer();
 
-        while address < memory.length() {
-            let data_byte = memory.read(address).unwrap_or_else(|err| {
-                panic!(
-                    "Failed to read text from memory at address {}: {}. Message: {}.",
-                    address, err, message
-                )
-            });
-            let text_byte: u8 = u32::from_be_bytes(*data_byte)
+        while let Ok(word) = memory.read(address) {
+            let value: u8 = u32::from_be_bytes(*word)
                 .try_into()
-                .unwrap_or_else(|err| {
-                    panic!(
-                        "Failed to decode text byte from memory at address {}: {}. Message: {}.",
-                        address, err, message
-                    )
-                });
+                .expect("Failed to convert word to byte");
 
-            if data_byte == &[0, 0, 0, 0] {
-                let s = String::from_utf8(text_bytes)
-                    .unwrap_or_else(|err| panic!(
-                        "Failed to read text from byte code. Error: {}. Byte code: {:?}. Message: {}.",
-                        err, data_byte, message
-                    ));
-                return s.trim_matches(char::from(0)).to_string();
+            if value == 0 {
+                return String::from_utf8(bytes).expect("Failed to decode string bytes");
             }
 
-            text_bytes.push(text_byte);
+            bytes.push(value);
             address += 1;
         }
 
         panic!(
-            "Failed to read text. Reached end of data bytes without encountering null terminator. Error: {}",
+            "Failed to read text: reached end of data segment without null terminator. {}",
             message
         );
     }
@@ -72,75 +54,49 @@ impl Decoder {
         op_code: OpCode,
         instruction_bytes: [[u8; 4]; 4],
     ) -> Instruction {
-        let destination_register = Self::number(&instruction_bytes[1]);
+        let destination_register = u32::from_be_bytes(instruction_bytes[1]);
 
         match op_code {
-            OpCode::LoadString => {
-                let pointer: usize = Self::number(&instruction_bytes[2])
-                    .try_into()
-                    .unwrap_or_else(|err| panic!(
-                        "Failed to decode pointer for {:?} instruction. Error: {}. Byte code: {:?}.",
-                        op_code, err, instruction_bytes[2]
-                    ));
-                let value = Self::text(
-                    memory,
-                    registers,
-                    pointer,
-                    &format!(
-                        "Failed to decode string for {:?} instruction with pointer {}.",
-                        op_code, pointer
-                    ),
-                );
-
-                Instruction::LoadString(LoadStringInstruction {
-                    destination_register,
-                    value,
-                })
+            OpCode::LoadString | OpCode::LoadFile => {
+                let pointer = u32::from_be_bytes(instruction_bytes[2]) as usize;
+                let message = format!("Failed to decode {:?} string/file", op_code);
+                let text = Self::text(memory, registers, pointer, &message);
+                if op_code == OpCode::LoadString {
+                    Instruction::LoadString(LoadStringInstruction {
+                        destination_register,
+                        value: text,
+                    })
+                } else {
+                    Instruction::LoadFile(LoadFileInstruction {
+                        destination_register,
+                        file_path: text,
+                    })
+                }
             }
-            OpCode::LoadImmediate => {
-                let immediate_value = Self::number(&instruction_bytes[2]);
-                Instruction::LoadImmediate(LoadImmediateInstruction {
-                    destination_register,
-                    value: immediate_value,
-                })
-            }
-            OpCode::LoadFile => {
-                let pointer: usize = Self::number(&instruction_bytes[2])
-                    .try_into()
-                    .unwrap_or_else(|err| panic!(
-                        "Failed to decode pointer for {:?} instruction. Error: {}. Byte code: {:?}.",
-                        op_code, err, instruction_bytes[2]
-                    ));
-                let file_path = Self::text(
-                    memory,
-                    registers,
-                    pointer,
-                    &format!(
-                        "Failed to decode file path for {:?} instruction with pointer {}.",
-                        op_code, pointer
-                    ),
-                );
-
-                Instruction::LoadFile(LoadFileInstruction {
-                    destination_register,
-                    file_path,
-                })
-            }
-            OpCode::Move => {
-                let source_register = Self::number(&instruction_bytes[2]);
-                Instruction::Move(MoveInstruction {
-                    destination_register,
-                    source_register,
-                })
-            }
+            OpCode::LoadImmediate => Instruction::LoadImmediate(LoadImmediateInstruction {
+                destination_register,
+                value: u32::from_be_bytes(instruction_bytes[2]),
+            }),
+            OpCode::Move => Instruction::Move(MoveInstruction {
+                destination_register,
+                source_register: u32::from_be_bytes(instruction_bytes[2]),
+            }),
             _ => panic!("Invalid opcode '{:?}' for L-type instruction.", op_code),
         }
     }
 
-    fn r_type(op_code: OpCode, instruction_bytes: [[u8; 4]; 4]) -> Instruction {
-        let destination_register = Self::number(&instruction_bytes[1]);
-        let source_register_1 = Self::number(&instruction_bytes[2]);
-        let source_register_2 = Self::number(&instruction_bytes[3]);
+    fn r_type(
+        registers: &Registers,
+        op_code: OpCode,
+        instruction_bytes: [[u8; 4]; 4],
+    ) -> Instruction {
+        let id: u32 = registers
+            .get_instruction_pointer()
+            .try_into()
+            .expect("Instruction pointer did not fit in u32");
+        let destination_register = u32::from_be_bytes(instruction_bytes[1]);
+        let source_register_1 = u32::from_be_bytes(instruction_bytes[2]);
+        let source_register_2 = u32::from_be_bytes(instruction_bytes[3]);
 
         let r_type = match op_code {
             OpCode::Morph => RType::Morph,
@@ -153,6 +109,7 @@ impl Decoder {
         };
 
         Instruction::RType(RTypeInstruction {
+            id,
             r_type,
             destination_register,
             source_register_1,
@@ -161,9 +118,9 @@ impl Decoder {
     }
 
     fn b_type(op_code: OpCode, instruction_bytes: [[u8; 4]; 4]) -> Instruction {
-        let source_register_1 = Self::number(&instruction_bytes[1]);
-        let source_register_2 = Self::number(&instruction_bytes[2]);
-        let instruction_pointer_jump_index = Self::number(&instruction_bytes[3]);
+        let source_register_1 = u32::from_be_bytes(instruction_bytes[1]);
+        let source_register_2 = u32::from_be_bytes(instruction_bytes[2]);
+        let instruction_pointer_jump_index = u32::from_be_bytes(instruction_bytes[3]);
 
         let b_type = match op_code {
             OpCode::BranchEqual => BType::Equal,
@@ -183,7 +140,7 @@ impl Decoder {
     }
 
     fn output(instruction_bytes: [[u8; 4]; 4]) -> Instruction {
-        let source_register = Self::number(&instruction_bytes[1]);
+        let source_register = u32::from_be_bytes(instruction_bytes[1]);
 
         Instruction::Output(OutputInstruction { source_register })
     }
@@ -215,7 +172,7 @@ impl Decoder {
             | OpCode::Distill
             | OpCode::Correlate
             | OpCode::Audit
-            | OpCode::Similarity => Self::r_type(op_code, instruction_bytes),
+            | OpCode::Similarity => Self::r_type(registers, op_code, instruction_bytes),
         }
     }
 }

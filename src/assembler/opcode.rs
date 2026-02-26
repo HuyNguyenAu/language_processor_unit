@@ -1,76 +1,70 @@
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum OpCode {
     // Data movement.
-    LoadString,
-    LoadImmediate,
-    LoadFile,
-    Move,
+    LoadString = 0x00,
+    LoadFile = 0x01,
+    LoadImmediate = 0x02,
+    Move = 0x03,
     // Control flow.
-    BranchEqual,
-    BranchLessEqual,
-    BranchLess,
-    BranchGreaterEqual,
-    BranchGreater,
-    Exit,
+    BranchEqual = 0x04,
+    BranchLessEqual = 0x05,
+    BranchLess = 0x06,
+    BranchGreaterEqual = 0x07,
+    BranchGreater = 0x08,
+    Exit = 0x09,
     // I/O.
-    Out,
+    Out = 0x0A,
     // Generative operations.
-    Morph,
-    Project,
+    Morph = 0x0B,
+    Project = 0x0C,
     // Cognitive operations.
-    Distill,
-    Correlate,
+    Distill = 0x0D,
+    Correlate = 0x0E,
     // Guardrails operations.
-    Audit,
-    Similarity,
+    Audit = 0x0F,
+    Similarity = 0x10,
 }
 
-static OP_CODE_MAPPING: [(OpCode, u32); 17] = [
-    // Data movement.
-    (OpCode::LoadString, 0x00),
-    (OpCode::LoadFile, 0x01),
-    (OpCode::LoadImmediate, 0x02),
-    (OpCode::Move, 0x03),
-    // Control flow.
-    (OpCode::BranchEqual, 0x04),
-    (OpCode::BranchLessEqual, 0x05),
-    (OpCode::BranchLess, 0x06),
-    (OpCode::BranchGreaterEqual, 0x07),
-    (OpCode::BranchGreater, 0x08),
-    (OpCode::Exit, 0x09),
-    // I/O.
-    (OpCode::Out, 0x0A),
-    // Generative operations.
-    (OpCode::Morph, 0x0B),
-    (OpCode::Project, 0x0C),
-    // Cognitive operations.
-    (OpCode::Distill, 0x0D),
-    (OpCode::Correlate, 0x0E),
-    // Guardrails operations.
-    (OpCode::Audit, 0x0F),
-    (OpCode::Similarity, 0x10),
-];
+impl TryFrom<u32> for OpCode {
+    type Error = &'static str;
+
+    fn try_from(value: u32) -> Result<Self, <OpCode as TryFrom<u32>>::Error> {
+        match value {
+            x if x == OpCode::LoadString as u32 => Ok(OpCode::LoadString),
+            x if x == OpCode::LoadFile as u32 => Ok(OpCode::LoadFile),
+            x if x == OpCode::LoadImmediate as u32 => Ok(OpCode::LoadImmediate),
+            x if x == OpCode::Move as u32 => Ok(OpCode::Move),
+            x if x == OpCode::BranchEqual as u32 => Ok(OpCode::BranchEqual),
+            x if x == OpCode::BranchLessEqual as u32 => Ok(OpCode::BranchLessEqual),
+            x if x == OpCode::BranchLess as u32 => Ok(OpCode::BranchLess),
+            x if x == OpCode::BranchGreaterEqual as u32 => Ok(OpCode::BranchGreaterEqual),
+            x if x == OpCode::BranchGreater as u32 => Ok(OpCode::BranchGreater),
+            x if x == OpCode::Exit as u32 => Ok(OpCode::Exit),
+            x if x == OpCode::Out as u32 => Ok(OpCode::Out),
+            x if x == OpCode::Morph as u32 => Ok(OpCode::Morph),
+            x if x == OpCode::Project as u32 => Ok(OpCode::Project),
+            x if x == OpCode::Distill as u32 => Ok(OpCode::Distill),
+            x if x == OpCode::Correlate as u32 => Ok(OpCode::Correlate),
+            x if x == OpCode::Audit as u32 => Ok(OpCode::Audit),
+            x if x == OpCode::Similarity as u32 => Ok(OpCode::Similarity),
+            _ => Err("Byte value does not correspond to any known opcode."),
+        }
+    }
+}
+
+impl From<OpCode> for u32 {
+    fn from(op: OpCode) -> u32 {
+        op as u32
+    }
+}
 
 impl OpCode {
-    pub fn from_be_bytes(be_bytes: [u8; 4]) -> Result<OpCode, &'static str> {
-        let value = u32::from_be_bytes(be_bytes);
-
-        for (opcode, code_value) in OP_CODE_MAPPING.iter() {
-            if code_value == &value {
-                return Ok(opcode.clone());
-            }
-        }
-
-        Err("Byte value does not correspond to any known opcode.")
+    pub fn to_be_bytes(self) -> [u8; 4] {
+        (self as u32).to_be_bytes()
     }
 
-    pub fn to_be_bytes(&self) -> Result<[u8; 4], &'static str> {
-        for (opcode, code_value) in OP_CODE_MAPPING.iter() {
-            if opcode == self {
-                return Ok(code_value.to_be_bytes());
-            }
-        }
-
-        Err("Opcode not found in mapping.")
+    pub fn from_be_bytes(bytes: [u8; 4]) -> Result<OpCode, &'static str> {
+        let value = u32::from_be_bytes(bytes);
+        OpCode::try_from(value)
     }
 }

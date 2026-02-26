@@ -1,103 +1,131 @@
-use crate::{
-    assembler::opcode::OpCode,
-    processor::{
-        control_unit::{
-            instruction::RType,
-            language_logic_unit::openai::{
-                OpenAIClient,
-                chat_completion_models::{
-                    OpenAIChatCompletionRequest, OpenAIChatCompletionRequestText,
-                },
-                embeddings_models::OpenAIEmbeddingsRequest,
-                model_config::{ModelConfig, ModelEmbeddingsConfig, ModelTextConfig},
+use crate::processor::{
+    control_unit::{
+        instruction::RType,
+        language_logic_unit::openai::{
+            OpenAIClient,
+            chat_completion_models::{
+                OpenAIChatCompletionRequest, OpenAIChatCompletionRequestText,
             },
+            embeddings_models::OpenAIEmbeddingsRequest,
+            model_config::{ModelConfig, ModelEmbeddingsConfig, ModelTextConfig},
         },
-        registers::Value,
     },
+    registers::Value,
 };
 
 mod micro_prompt;
 mod openai;
 
+const SYSTEM_ROLE: &str = "system";
+const USER_ROLE: &str = "user";
+const ASSISTANT_ROLE: &str = "assistant";
+
 const TRUTHY_THRESHOLD: u32 = 80;
 
+struct Messages {
+    id: u32,
+    request: OpenAIChatCompletionRequestText,
+}
+
 pub struct LanguageLogicUnit {
-    system_prompt: &'static str,
     openai_client: OpenAIClient,
     text_model: ModelConfig,
     embeddings_model: ModelConfig,
+    history: Vec<Messages>,
 }
 
 impl LanguageLogicUnit {
-    pub fn new() -> Self {
-        Self {
-            system_prompt: "Output ONLY the answer. No intro. No fluff. No punctuation unless required. Answer with a single word if appropriate, otherwise a single sentence.",
-            openai_client: OpenAIClient::new(),
-            text_model: ModelConfig::Text(ModelTextConfig {
-                stream: false,
-                return_progress: false,
-                model: "LFM2-2.6B-Q5_K_M.gguf".to_string(),
-                reasoning_format: "auto".to_string(),
-                temperature: 0.3,
-                max_tokens: -1,
-                dynatemp_range: 0.0,
-                dynatemp_exponent: 1.0,
-                top_k: 40,
-                top_p: 0.95,
-                min_p: 0.15,
-                xtc_probability: 0.0,
-                xtc_threshold: 0.1,
-                typ_p: 1.0,
-                repeat_last_n: 64,
-                repeat_penalty: 1.05,
-                presence_penalty: 0.0,
-                frequency_penalty: 0.0,
-                dry_multiplier: 0.0,
-                dry_base: 1.75,
-                dry_allowed_length: 2,
-                dry_penalty_last_n: -1,
-                samplers: [
-                    "penalties".to_string(),
-                    "dry".to_string(),
-                    "top_n_sigma".to_string(),
-                    "top_k".to_string(),
-                    "typ_p".to_string(),
-                    "top_p".to_string(),
-                    "min_p".to_string(),
-                    "xtc".to_string(),
-                    "temperature".to_string(),
-                ]
-                .to_vec(),
-                timings_per_token: false,
-            }),
-            embeddings_model: ModelConfig::Embeddings(ModelEmbeddingsConfig {
-                model: "Qwen3-Embedding-0.6B-Q4_1-imat.gguf".to_string(),
-                encoding_format: "float".to_string(),
-            }),
-        }
+    fn default_text_model() -> ModelConfig {
+        ModelConfig::Text(ModelTextConfig {
+            stream: false,
+            return_progress: false,
+            model: "LFM2-2.6B-Q5_K_M.gguf".to_string(),
+            reasoning_format: "auto".to_string(),
+            temperature: 0.3,
+            max_tokens: -1,
+            dynatemp_range: 0.0,
+            dynatemp_exponent: 1.0,
+            top_k: 40,
+            top_p: 0.95,
+            min_p: 0.15,
+            xtc_probability: 0.0,
+            xtc_threshold: 0.1,
+            typ_p: 1.0,
+            repeat_last_n: 64,
+            repeat_penalty: 1.05,
+            presence_penalty: 0.0,
+            frequency_penalty: 0.0,
+            dry_multiplier: 0.0,
+            dry_base: 1.75,
+            dry_allowed_length: 2,
+            dry_penalty_last_n: -1,
+            samplers: vec![
+                "penalties".to_string(),
+                "dry".to_string(),
+                "top_n_sigma".to_string(),
+                "top_k".to_string(),
+                "typ_p".to_string(),
+                "top_p".to_string(),
+                "min_p".to_string(),
+                "xtc".to_string(),
+                "temperature".to_string(),
+            ],
+            timings_per_token: false,
+        })
     }
 
+    fn default_embeddings_model() -> ModelConfig {
+        ModelConfig::Embeddings(ModelEmbeddingsConfig {
+            model: "Qwen3-Embedding-0.6B-Q4_1-imat.gguf".to_string(),
+            encoding_format: "float".to_string(),
+        })
+    }
+
+    pub fn new() -> Self {
+        Self {
+            openai_client: OpenAIClient::new(),
+            text_model: Self::default_text_model(),
+            embeddings_model: Self::default_embeddings_model(),
+            history: vec![Messages {
+                id: 0,
+                request: OpenAIChatCompletionRequestText {
+                    role: SYSTEM_ROLE.to_string(),
+                    content: "Output ONLY the answer. No intro. No fluff. No punctuation unless required. Answer with a single word if appropriate, otherwise a single sentence.".to_string(),
+                },
+            }],
+        }
+    }
     fn clean_string(&self, value: &str) -> String {
         value.trim().replace("\n", "").to_string()
     }
 
-    fn chat(&self, content: &str) -> Result<String, String> {
+    // Truncate all messages in the history after the id of the current instruction, to prevent the history from growing indefinitely.
+    fn truncate_history(&mut self, id: u32) {
+        self.history.retain(|message| message.id < id);
+    }
+
+    fn chat(&mut self, id: u32, content: &str) -> Result<String, String> {
+        self.truncate_history(id);
+
         let model = match &self.text_model {
             ModelConfig::Text(config) => config,
             _ => return Err("Text model configuration is required for chat.".to_string()),
         };
 
+        self.history.push(Messages {
+            id,
+            request: OpenAIChatCompletionRequestText {
+                role: USER_ROLE.to_string(),
+                content: content.to_string(),
+            },
+        });
+
         let request = OpenAIChatCompletionRequest {
-            messages: vec![
-                OpenAIChatCompletionRequestText {
-                    role: "system".to_string(),
-                    content: self.system_prompt.to_string(),
-                },
-                OpenAIChatCompletionRequestText {
-                    role: "user".to_string(),
-                    content: content.to_string(),
-                },
-            ],
+            messages: self
+                .history
+                .iter()
+                .map(|message| message.request.clone())
+                .collect(),
             stream: model.stream,
             return_progress: model.return_progress,
             model: model.model.clone(),
@@ -135,8 +163,17 @@ impl LanguageLogicUnit {
             .choices
             .first()
             .ok_or_else(|| "No choices returned from client.".to_string())?;
+        let result = self.clean_string(&choice.message.content);
 
-        Ok(self.clean_string(&choice.message.content))
+        self.history.push(Messages {
+            id,
+            request: OpenAIChatCompletionRequestText {
+                role: ASSISTANT_ROLE.to_string(),
+                content: result.clone(),
+            },
+        });
+
+        Ok(result)
     }
 
     fn embeddings(&self, content: &str) -> Result<Vec<f32>, String> {
@@ -173,18 +210,7 @@ impl LanguageLogicUnit {
         Ok(embeddings.embedding.to_owned())
     }
 
-    fn cosine_similarity(&self, value_a: &Value, value_b: &Value) -> Result<u32, String> {
-        let value_a = match value_a {
-            Value::Text(text) => text,
-            Value::Number(number) => &number.to_string(),
-            _ => return Err(format!("{:?} requires text value.", OpCode::Similarity)),
-        };
-        let value_b = match value_b {
-            Value::Text(text) => text,
-            Value::Number(number) => &number.to_string(),
-            _ => return Err(format!("{:?} requires text value.", OpCode::Similarity)),
-        };
-
+    fn cosine_similarity(&self, value_a: &str, value_b: &str) -> Result<u32, String> {
         let value_a_embeddings = self.embeddings(value_a).map_err(|error| {
             format!("Failed to get embedding for {}. Error: {}", value_a, error)
         })?;
@@ -207,17 +233,14 @@ impl LanguageLogicUnit {
         Ok(percentage_similarity.round() as u32)
     }
 
-    fn execute(&self, r_type: &RType, value_a: &Value, value_b: &Value) -> Result<String, String> {
-        let value_a = match value_a {
-            Value::Text(text) => text,
-            _ => return Err(format!("{:?} requires text value.", r_type)),
-        };
-        let value_b = match value_b {
-            Value::Text(text) => text,
-            _ => return Err(format!("{:?} requires text value.", r_type)),
-        };
-
-        let prompt = micro_prompt::search(r_type, value_a, value_b).map_err(|error| {
+    fn execute(
+        &mut self,
+        id: u32,
+        r_type: &RType,
+        value_a: &str,
+        value_b: &str,
+    ) -> Result<String, String> {
+        let prompt = micro_prompt::create(r_type, value_a, value_b).map_err(|error| {
             format!(
                 "Failed to generate micro prompt for {:?}. Error: {}",
                 r_type, error
@@ -225,7 +248,7 @@ impl LanguageLogicUnit {
         })?;
 
         let result = self
-            .chat(prompt.as_str())
+            .chat(id, prompt.as_str())
             .map_err(|error| format!("Failed to perform {:?}. Error: {}", r_type, error))?;
 
         Ok(result.to_lowercase())
@@ -246,8 +269,8 @@ impl LanguageLogicUnit {
         // If not an exact match, check cosine similarity against true values.
         for true_value in true_values {
             let score = self.cosine_similarity(
-                    &Value::Text(value.to_lowercase().to_string()),
-                    &Value::Text(true_value.to_lowercase().to_string()))
+                    &value.to_lowercase(),
+                    &true_value.to_lowercase())
                     .map_err(|error| {
                     format!(
                         "Failed to compute cosine similarity for boolean evaluation of {:?}. Error: {}",
@@ -263,14 +286,22 @@ impl LanguageLogicUnit {
         Ok(0)
     }
 
-    pub fn run(&self, r_type: &RType, value_a: &Value, value_b: &Value) -> Result<Value, String> {
+    pub fn run(
+        &mut self,
+        id: u32,
+        r_type: &RType,
+        value_a: &str,
+        value_b: &str,
+    ) -> Result<Value, String> {
         if matches!(r_type, RType::Audit) {
-            let value = self.execute(r_type, value_a, value_b).map_err(|error| {
-                format!(
-                    "Failed to execute {:?} for boolean operation. Error: {}",
-                    r_type, error
-                )
-            })?;
+            let value = self
+                .execute(id, r_type, value_a, value_b)
+                .map_err(|error| {
+                    format!(
+                        "Failed to execute {:?} for boolean operation. Error: {}",
+                        r_type, error
+                    )
+                })?;
 
             return self.boolean(r_type, &value).map(Value::Number);
         }
@@ -279,6 +310,12 @@ impl LanguageLogicUnit {
             return self.cosine_similarity(value_a, value_b).map(Value::Number);
         }
 
-        self.execute(r_type, value_a, value_b).map(Value::Text)
+        self.execute(id, r_type, value_a, value_b).map(Value::Text)
+    }
+}
+
+impl Default for LanguageLogicUnit {
+    fn default() -> Self {
+        Self::new()
     }
 }

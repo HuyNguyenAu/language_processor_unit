@@ -36,6 +36,7 @@ pub enum RType {
 
 #[derive(Debug)]
 pub struct RTypeInstruction {
+    pub id: u32,
     pub r_type: RType,
     pub destination_register: u32,
     pub source_register_1: u32,

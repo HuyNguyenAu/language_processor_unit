@@ -1,8 +1,20 @@
+use std::fmt;
+
 #[derive(Debug, Clone)]
 pub enum Value {
     Text(String),
     Number(u32),
     None,
+}
+
+impl fmt::Display for Value {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Value::Text(text) => write!(formatter, "{}", text),
+            Value::Number(number) => write!(formatter, "{}", number),
+            Value::None => write!(formatter, ""),
+        }
+    }
 }
 
 pub struct Registers {
@@ -30,7 +42,7 @@ impl Registers {
             )
         })?;
 
-        if idx == 0 || idx > 32 {
+        if !(1..=32).contains(&idx) {
             return Err(format!(
                 "Invalid register number: {}. Valid register numbers are 1-32.",
                 register_number
@@ -42,12 +54,14 @@ impl Registers {
 
     pub fn get_register(&self, register_number: u32) -> Result<&Value, String> {
         let idx = Self::to_index(register_number)?;
+
         Ok(&self.general_purpose[idx])
     }
 
     pub fn set_register(&mut self, register_number: u32, value: &Value) -> Result<(), String> {
         let idx = Self::to_index(register_number)?;
         self.general_purpose[idx] = value.clone();
+
         Ok(())
     }
 
@@ -61,6 +75,26 @@ impl Registers {
 
     pub fn advance_instruction_pointer(&mut self, offset: usize) {
         self.instruction_pointer += offset;
+    }
+
+    pub fn read_text(&self, register_number: u32) -> Result<&String, String> {
+        match self.get_register(register_number)? {
+            Value::Text(text) => Ok(text),
+            other => Err(format!(
+                "Register r{} contains {:?}, expected text.",
+                register_number, other
+            )),
+        }
+    }
+
+    pub fn read_number(&self, register_number: u32) -> Result<u32, String> {
+        match self.get_register(register_number)? {
+            Value::Number(number) => Ok(*number),
+            other => Err(format!(
+                "Register r{} contains {:?}, expected number.",
+                register_number, other
+            )),
+        }
     }
 
     pub fn get_instruction(&self) -> Option<[[u8; 4]; 4]> {

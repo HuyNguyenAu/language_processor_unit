@@ -30,59 +30,63 @@ pub struct LanguageLogicUnit {
 }
 
 impl LanguageLogicUnit {
+    fn default_text_model() -> ModelConfig {
+        ModelConfig::Text(ModelTextConfig {
+            stream: false,
+            return_progress: false,
+            model: "LFM2-2.6B-Q5_K_M.gguf".to_string(),
+            reasoning_format: "auto".to_string(),
+            temperature: 0.3,
+            max_tokens: -1,
+            dynatemp_range: 0.0,
+            dynatemp_exponent: 1.0,
+            top_k: 40,
+            top_p: 0.95,
+            min_p: 0.15,
+            xtc_probability: 0.0,
+            xtc_threshold: 0.1,
+            typ_p: 1.0,
+            repeat_last_n: 64,
+            repeat_penalty: 1.05,
+            presence_penalty: 0.0,
+            frequency_penalty: 0.0,
+            dry_multiplier: 0.0,
+            dry_base: 1.75,
+            dry_allowed_length: 2,
+            dry_penalty_last_n: -1,
+            samplers: vec![
+                "penalties".to_string(),
+                "dry".to_string(),
+                "top_n_sigma".to_string(),
+                "top_k".to_string(),
+                "typ_p".to_string(),
+                "top_p".to_string(),
+                "min_p".to_string(),
+                "xtc".to_string(),
+                "temperature".to_string(),
+            ],
+            timings_per_token: false,
+        })
+    }
+
+    fn default_embeddings_model() -> ModelConfig {
+        ModelConfig::Embeddings(ModelEmbeddingsConfig {
+            model: "Qwen3-Embedding-0.6B-Q4_1-imat.gguf".to_string(),
+            encoding_format: "float".to_string(),
+        })
+    }
+
     pub fn new() -> Self {
         Self {
             openai_client: OpenAIClient::new(),
-            text_model: ModelConfig::Text(ModelTextConfig {
-                stream: false,
-                return_progress: false,
-                model: "LFM2-2.6B-Q5_K_M.gguf".to_string(),
-                reasoning_format: "auto".to_string(),
-                temperature: 0.3,
-                max_tokens: -1,
-                dynatemp_range: 0.0,
-                dynatemp_exponent: 1.0,
-                top_k: 40,
-                top_p: 0.95,
-                min_p: 0.15,
-                xtc_probability: 0.0,
-                xtc_threshold: 0.1,
-                typ_p: 1.0,
-                repeat_last_n: 64,
-                repeat_penalty: 1.05,
-                presence_penalty: 0.0,
-                frequency_penalty: 0.0,
-                dry_multiplier: 0.0,
-                dry_base: 1.75,
-                dry_allowed_length: 2,
-                dry_penalty_last_n: -1,
-                samplers: [
-                    "penalties".to_string(),
-                    "dry".to_string(),
-                    "top_n_sigma".to_string(),
-                    "top_k".to_string(),
-                    "typ_p".to_string(),
-                    "top_p".to_string(),
-                    "min_p".to_string(),
-                    "xtc".to_string(),
-                    "temperature".to_string(),
-                ]
-                .to_vec(),
-                timings_per_token: false,
-            }),
-            embeddings_model: ModelConfig::Embeddings(ModelEmbeddingsConfig {
-                model: "Qwen3-Embedding-0.6B-Q4_1-imat.gguf".to_string(),
-                encoding_format: "float".to_string(),
-            }),
-            history: vec![
-                OpenAIChatCompletionRequestText {
-                    role: SYSTEM_ROLE.to_string(),
-                    content: "Output ONLY the answer. No intro. No fluff. No punctuation unless required. Answer with a single word if appropriate, otherwise a single sentence.".to_string(),
-                }
-            ],
+            text_model: Self::default_text_model(),
+            embeddings_model: Self::default_embeddings_model(),
+            history: vec![OpenAIChatCompletionRequestText {
+                role: SYSTEM_ROLE.to_string(),
+                content: "Output ONLY the answer. No intro. No fluff. No punctuation unless required. Answer with a single word if appropriate, otherwise a single sentence.".to_string(),
+            }],
         }
     }
-
     fn clean_string(&self, value: &str) -> String {
         value.trim().replace("\n", "").to_string()
     }
@@ -129,7 +133,9 @@ impl LanguageLogicUnit {
         let response = self
             .openai_client
             .create_chat_completion(request)
-            .map_err(|error| format!("Failed to get chat response from client. Error: {}", error))?;
+            .map_err(|error| {
+                format!("Failed to get chat response from client. Error: {}", error)
+            })?;
 
         let choice = response
             .choices
@@ -249,12 +255,7 @@ impl LanguageLogicUnit {
         Ok(0)
     }
 
-    pub fn run(
-        &mut self,
-        r_type: &RType,
-        value_a: &str,
-        value_b: &str,
-    ) -> Result<Value, String> {
+    pub fn run(&mut self, r_type: &RType, value_a: &str, value_b: &str) -> Result<Value, String> {
         if matches!(r_type, RType::Audit) {
             let value = self.execute(r_type, value_a, value_b).map_err(|error| {
                 format!(
@@ -271,5 +272,11 @@ impl LanguageLogicUnit {
         }
 
         self.execute(r_type, value_a, value_b).map(Value::Text)
+    }
+}
+
+impl Default for LanguageLogicUnit {
+    fn default() -> Self {
+        Self::new()
     }
 }

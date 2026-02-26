@@ -15,12 +15,12 @@ impl Processor {
         }
     }
 
-    pub fn load(&mut self, data: Vec<u8>) {
+    pub fn load(&mut self, data: Vec<u8>) -> Result<(), String> {
         if !data.len().is_multiple_of(4) {
-            panic!(
+            return Err(format!(
                 "Invalid bytecode length: {}. Bytecode must be a multiple of 4 bytes.",
                 data.len()
-            );
+            ));
         }
 
         let byte_code: Vec<[u8; 4]> = data
@@ -33,12 +33,12 @@ impl Processor {
             .collect();
 
         self.control_unit.load(byte_code);
+        Ok(())
     }
 
     pub fn run(&mut self, debug: bool) {
         while self.control_unit.fetch() {
             let instruction = self.control_unit.decode();
-
             self.control_unit.execute(instruction, debug);
         }
     }

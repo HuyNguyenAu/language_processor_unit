@@ -37,7 +37,7 @@ pub enum TokenType {
 
 impl TryFrom<&str> for TokenType {
     type Error = &'static str;
-    
+
     fn try_from(value: &str) -> Result<Self, <TokenType as TryFrom<&str>>::Error> {
         match value {
             // Data movement.
@@ -66,7 +66,6 @@ impl TryFrom<&str> for TokenType {
             _ => Err("String does not correspond to any known token type."),
         }
     }
-    
 }
 
 #[derive(Clone, Debug)]

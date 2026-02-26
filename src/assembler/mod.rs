@@ -144,32 +144,22 @@ impl Assembler {
 
         let lexeme = self.previous_lexeme();
 
-        // Ensure the lexeme starts with "x".
-        if !lexeme.to_lowercase().starts_with("x") {
+        if !lexeme.to_lowercase().starts_with('x') {
             return Err(format!(
-                "Invalid register format: '{}'. Expected format: 'xN' where N is a number between 1 and 32.",
+                "Invalid register format: '{}'. Expected xN (1-32).",
                 lexeme
             ));
         }
 
-        let register_number = match lexeme[1..].parse::<u32>() {
-            Ok(value) => value,
-            Err(_) => {
-                return Err(format!(
-                    "Failed to parse register number from lexeme '{}'. Expected format: 'xN' where N is a number between 1 and 32.",
-                    lexeme
-                ));
-            }
-        };
+        let num = lexeme[1..]
+            .parse::<u32>()
+            .map_err(|_| format!("Failed to parse register number from '{}'.", lexeme))?;
 
-        if !(1..=32).contains(&register_number) {
-            return Err(format!(
-                "Register number out of range: '{}'. Expected format: 'xN' where N is a number between 1 and 32.",
-                register_number
-            ));
+        if !(1..=32).contains(&num) {
+            return Err(format!("Register number {} out of range (1-32).", num));
         }
 
-        Ok(register_number)
+        Ok(num)
     }
 
     fn string(&mut self, message: &str) -> String {
@@ -177,19 +167,14 @@ impl Assembler {
 
         let lexeme = self.previous_lexeme();
 
-        // Remove surrounding quotes.
-        lexeme
-            .chars()
-            .skip(1)
-            .take(lexeme.chars().count() - 2)
-            .collect::<String>()
-            .replace("\\n", "\n")
-            .replace("\\\"", "\"")
+        // Strip quotes.
+        let inner = &lexeme[1..lexeme.len() - 1];
+
+        inner.replace("\\n", "\n").replace("\\\"", "\"")
     }
 
     fn identifier(&mut self, message: &str) -> &str {
         self.consume(&TokenType::Identifier, message);
-
         self.previous_lexeme()
     }
 
@@ -226,7 +211,7 @@ impl Assembler {
     }
 
     fn upsert_unresolved_label(&mut self, key: String) -> Result<(), String> {
-        let index = self.text_segment.len() - 1;
+        let index = self.text_segment.len().saturating_sub(1);
 
         if let Some(label) = self.unresolved_labels.get_mut(&key) {
             label.indices.push(index);
@@ -234,7 +219,7 @@ impl Assembler {
             let previous_token = self
                 .previous
                 .clone()
-                .ok_or_else(|| "Failed to get current token for unresolved label.".to_string())?;
+                .ok_or_else(|| "Missing token for unresolved label".to_string())?;
 
             self.unresolved_labels.insert(
                 key,
@@ -249,12 +234,46 @@ impl Assembler {
     }
 
     fn emit_label_bytecode(&mut self, key: String) {
-        // Placeholder for backpatching.
+        // Placeholder, will be replaced in backpatch.
         self.emit_number(0);
+        if let Err(msg) = self.upsert_unresolved_label(key) {
+            self.error_at_current(&msg);
+        }
+    }
 
-        // Record the current bytecode index for backpatching later.
-        if let Err(message) = self.upsert_unresolved_label(key) {
-            self.error_at_current(&message);
+    fn expect_register(&mut self, message: &str) -> Option<u32> {
+        match self.register(message) {
+            Ok(r) => Some(r),
+            Err(msg) => {
+                self.error_at_current(&msg);
+                None
+            }
+        }
+    }
+
+    fn expect_number(&mut self, message: &str) -> Option<u32> {
+        match self.number(message) {
+            Ok(n) => Some(n),
+            Err(msg) => {
+                self.error_at_current(&msg);
+                None
+            }
+        }
+    }
+
+    fn expect_string(&mut self, message: &str) -> Option<String> {
+        if let Some(tok) = &self.current {
+            if tok.token_type() == &TokenType::String {
+                return Some(self.string(message));
+            }
+        }
+        self.error_at_current(message);
+        None
+    }
+
+    fn emit_padding(&mut self, words: usize) {
+        for _ in 0..words {
+            self.emit_number(0);
         }
     }
 
@@ -275,12 +294,9 @@ impl Assembler {
             }
         };
 
-        let destination_register = match self.register("Expected destination register.") {
-            Ok(register) => register,
-            Err(message) => {
-                self.error_at_current(&message);
-                return;
-            }
+        let destination_register = match self.expect_register("Expected destination register.") {
+            Some(r) => r,
+            None => return,
         };
 
         self.consume(
@@ -293,35 +309,28 @@ impl Assembler {
 
         match opcode {
             OpCode::LoadImmediate => {
-                let immediate = match self.number("Expected immediate after ','.") {
-                    Ok(value) => value,
-                    Err(message) => {
-                        self.error_at_current(&message);
-                        return;
-                    }
-                };
+                if let Some(immediate) = self.expect_number("Expected immediate after ','.") {
+                    self.emit_number(immediate);
+                }
 
-                self.emit_number(immediate);
-                self.emit_number(0); // Pad the instruction to 16 bytes.
+                self.emit_padding(1);
             }
             OpCode::Move => {
-                let source_register = match self.register("Expected source register after ','.") {
-                    Ok(register) => register,
-                    Err(message) => {
-                        self.error_at_current(&message);
-                        return;
-                    }
-                };
+                if let Some(source_register) =
+                    self.expect_register("Expected source register after ','.")
+                {
+                    self.emit_number(source_register);
+                }
 
-                self.emit_number(source_register);
-                self.emit_number(0); // Pad the instruction to 16 bytes.
+                self.emit_padding(1);
             }
             _ => {
-                let value = self.string("Expected string after ','.");
-                let pointer = self.emit_string_bytecode(&value);
+                if let Some(string) = self.expect_string("Expected string after ','.") {
+                    let ptr = self.emit_string_bytecode(&string);
+                    self.emit_number(ptr);
+                }
 
-                self.emit_number(pointer);
-                self.emit_number(0); // Pad the instruction to 16 bytes.
+                self.emit_padding(1);
             }
         }
     }
@@ -343,13 +352,10 @@ impl Assembler {
         );
 
         let opcode = match token_type {
-            // Generative operations.
             TokenType::Morph => OpCode::Morph,
             TokenType::Project => OpCode::Project,
-            // Cognitive operations.
             TokenType::Distill => OpCode::Distill,
             TokenType::Correlate => OpCode::Correlate,
-            // Guardrails operations.
             TokenType::Audit => OpCode::Audit,
             TokenType::Similarity => OpCode::Similarity,
             _ => {
@@ -358,41 +364,27 @@ impl Assembler {
             }
         };
 
-        let destination_register = match self.register(
-            format!(
-                "Expected destination register after '{:?}' keyword.",
-                token_type
-            )
-            .as_str(),
-        ) {
-            Ok(register) => register,
-            Err(message) => {
-                self.error_at_current(&message);
-                return;
-            }
+        let destination_register = match self.expect_register("Expected destination register after r-type keyword.")
+        {
+            Some(v) => v,
+            None => return,
         };
 
         self.consume(
             &TokenType::Comma,
             "Expected ',' after destination register.",
         );
-
-        let source_register_1 = match self.register("Expected source register 1 after ','.") {
-            Ok(register) => register,
-            Err(message) => {
-                self.error_at_current(&message);
-                return;
-            }
+       
+        let source_register_1 = match self.expect_register("Expected source register 1 after ','.") {
+            Some(v) => v,
+            None => return,
         };
 
         self.consume(&TokenType::Comma, "Expected ',' after source register 1.");
-
-        let source_register_2 = match self.register("Expected source register 2 after ','.") {
-            Ok(register) => register,
-            Err(message) => {
-                self.error_at_current(&message);
-                return;
-            }
+       
+        let source_register_2 = match self.expect_register("Expected source register 2 after ','.") {
+            Some(v) => v,
+            None => return,
         };
 
         self.emit_opcode(opcode);
@@ -419,67 +411,42 @@ impl Assembler {
             }
         };
 
-        let source_register_1 = match self.register(
-            format!(
-                "Expected source register 1 after '{:?}' keyword.",
-                token_type
-            )
-            .as_str(),
-        ) {
-            Ok(register) => register,
-            Err(message) => {
-                self.error_at_current(&message);
-                return;
-            }
+        let source_register_1 = match self.expect_register("Expected source register 1 after branch keyword.") {
+            Some(number) => number,
+            None => return,
         };
-
         self.consume(&TokenType::Comma, "Expected ',' after source register 1.");
 
-        let source_register_2 = match self.register("Expected source register 2 after ','.") {
-            Ok(register) => register,
-            Err(message) => {
-                self.error_at_current(&message);
-                return;
-            }
+        let source_register_2 = match self.expect_register("Expected source register 2 after ','.") {
+            Some(number) => number,
+            None => return,
         };
-
         self.consume(&TokenType::Comma, "Expected ',' after source register 2.");
 
         let label_name = self
             .identifier("Expected label name after ','.")
             .to_string();
-        let key = label_name;
 
         self.emit_opcode(opcode);
         self.emit_number(source_register_1);
         self.emit_number(source_register_2);
-        self.emit_label_bytecode(key);
+        self.emit_label_bytecode(label_name);
     }
 
     fn output(&mut self) {
         self.consume(&TokenType::Out, "Expected 'out' keyword.");
 
-        let source_register = match self.register("Expected source register after 'out'.") {
-            Ok(register) => register,
-            Err(message) => {
-                self.error_at_current(&message);
-                return;
-            }
-        };
-
-        self.emit_opcode(OpCode::Out);
-        self.emit_number(source_register);
-        self.emit_number(0); // Pad the instruction to 16 bytes.
-        self.emit_number(0); // Pad the instruction to 16 bytes.
+        if let Some(source_register) = self.expect_register("Expected source register after 'out'.") {
+            self.emit_opcode(OpCode::Out);
+            self.emit_number(source_register);
+        }
+        self.emit_padding(2);
     }
 
     fn exit(&mut self) {
         self.consume(&TokenType::Exit, "Expected 'exit' keyword.");
-
         self.emit_opcode(OpCode::Exit);
-        self.emit_number(0); // Pad the instruction to 16 bytes.
-        self.emit_number(0); // Pad the instruction to 16 bytes.
-        self.emit_number(0); // Pad the instruction to 16 bytes.
+        self.emit_padding(3);
     }
 
     fn backpatch_labels(&mut self) {

@@ -1,3 +1,5 @@
+use std::fmt;
+
 #[derive(Debug, Clone)]
 pub enum Value {
     Text(String),
@@ -5,12 +7,12 @@ pub enum Value {
     None,
 }
 
-impl Value {
-    pub fn to_string(&self) -> String {
+impl fmt::Display for Value {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Value::Text(string) => string.clone(),
-            Value::Number(number) => number.to_string(),
-            Value::None => String::new(),
+            Value::Text(text) => write!(formatter, "{}", text),
+            Value::Number(number) => write!(formatter, "{}", number),
+            Value::None => write!(formatter, ""),
         }
     }
 }
@@ -77,7 +79,7 @@ impl Registers {
 
     pub fn read_text(&self, register_number: u32) -> Result<&String, String> {
         match self.get_register(register_number)? {
-            Value::Text(s) => Ok(s),
+            Value::Text(text) => Ok(text),
             other => Err(format!(
                 "Register r{} contains {:?}, expected text.",
                 register_number, other
@@ -87,7 +89,7 @@ impl Registers {
 
     pub fn read_number(&self, register_number: u32) -> Result<u32, String> {
         match self.get_register(register_number)? {
-            Value::Number(n) => Ok(*n),
+            Value::Number(number) => Ok(*number),
             other => Err(format!(
                 "Register r{} contains {:?}, expected number.",
                 register_number, other

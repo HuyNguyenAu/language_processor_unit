@@ -30,18 +30,12 @@ impl Decoder {
         let mut address = pointer + registers.get_data_section_pointer();
 
         while let Ok(word) = memory.read(address) {
-            let value:u8 = u32::from_be_bytes(*word).try_into().unwrap_or_else(|err| panic!(
-                "Failed to convert word to byte. Error: {}. Word: 0x{:08X}. Address: 0x{:08X}. {}",
-                err, u32::from_be_bytes(*word), address, message
-            ));
+            let value: u8 = u32::from_be_bytes(*word)
+                .try_into()
+                .expect("Failed to convert word to byte");
 
             if value == 0 {
-                return String::from_utf8(bytes).unwrap_or_else(|err| {
-                    panic!(
-                        "Failed to decode string bytes. Error: {}. Message: {}.",
-                        err, message
-                    )
-                });
+                return String::from_utf8(bytes).expect("Failed to decode string bytes");
             }
 
             bytes.push(value);

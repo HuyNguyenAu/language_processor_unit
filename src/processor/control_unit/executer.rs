@@ -24,18 +24,14 @@ impl Executer {
     }
 
     fn load_string(registers: &mut Registers, instruction: &LoadStringInstruction, debug: bool) {
+        let value = Value::Text(instruction.value.clone());
         registers
-            .set_register(
-                instruction.destination_register,
-                &Value::Text(instruction.value.clone()),
-            )
-            .unwrap_or_else(|err| {
-                panic!("Failed to set register for LI instruction. Error: {}", err)
-            });
+            .set_register(instruction.destination_register, &value)
+            .unwrap_or_else(|e| panic!("Failed to set register: {}", e));
 
         if debug {
             println!(
-                "Executed LI: r{} = \"{:?}\"",
+                "Executed LI: r{} = {:?}",
                 instruction.destination_register,
                 registers.get_register(instruction.destination_register)
             );
@@ -47,18 +43,14 @@ impl Executer {
         instruction: &LoadImmediateInstruction,
         debug: bool,
     ) {
+        let value = Value::Number(instruction.value);
         registers
-            .set_register(
-                instruction.destination_register,
-                &Value::Number(instruction.value),
-            )
-            .unwrap_or_else(|err| {
-                panic!("Failed to set register for LI instruction. Error: {}", err)
-            });
+            .set_register(instruction.destination_register, &value)
+            .unwrap_or_else(|error| panic!("Failed to set register: {}", error));
 
         if debug {
             println!(
-                "Executed LI: r{} = \"{:?}\"",
+                "Executed LI: r{} = {:?}",
                 instruction.destination_register,
                 registers.get_register(instruction.destination_register)
             );
@@ -67,15 +59,18 @@ impl Executer {
 
     fn load_file(registers: &mut Registers, instruction: &LoadFileInstruction, debug: bool) {
         let file_contents = read_to_string(&instruction.file_path)
-            .unwrap_or_else(|err| panic!("Run failed. Error: {}", err));
+            .unwrap_or_else(|error| panic!("Run failed. Error: {}", error));
 
         registers
             .set_register(
                 instruction.destination_register,
                 &Value::Text(file_contents),
             )
-            .unwrap_or_else(|err| {
-                panic!("Failed to set register for LF instruction. Error: {}", err)
+            .unwrap_or_else(|error| {
+                panic!(
+                    "Failed to set register for LF instruction. Error: {}",
+                    error
+                )
             });
 
         if debug {
@@ -90,12 +85,17 @@ impl Executer {
     fn mov(registers: &mut Registers, instruction: &MoveInstruction, debug: bool) {
         let value = registers
             .get_register(instruction.source_register)
-            .unwrap_or_else(|e| panic!("Failed to execute MOV instruction. Error: {}", e))
+            .unwrap_or_else(|error| panic!("Failed to execute MOV instruction. Error: {}", error))
             .to_owned();
 
         registers
             .set_register(instruction.destination_register, &value)
-            .unwrap_or_else(|e| panic!("Failed to set register for MOV instruction. Error: {}", e));
+            .unwrap_or_else(|error| {
+                panic!(
+                    "Failed to set register for MOV instruction. Error: {}",
+                    error
+                )
+            });
 
         if debug {
             println!(
@@ -107,94 +107,44 @@ impl Executer {
     }
 
     fn r_type(&mut self, registers: &mut Registers, instruction: &RTypeInstruction, debug: bool) {
-        let value_a = match registers
-            .get_register(instruction.source_register_1)
-            .unwrap_or_else(|err| {
-                panic!(
-                    "Failed to read source register r{} for R-type instruction. Error: {}",
-                    instruction.source_register_1, err
-                )
-            }) {
-            Value::Text(text) => text,
-            _ => panic!(
-                "{:?} operation requires text value in source register r{}.",
-                instruction.r_type, instruction.source_register_1
-            ),
-        };
-        let value_b = match registers
-            .get_register(instruction.source_register_2)
-            .unwrap_or_else(|err| {
-                panic!(
-                    "Failed to read source register r{} for R-type instruction. Error: {}",
-                    instruction.source_register_2, err
-                )
-            }) {
-            Value::Text(text) => text,
-            _ => panic!(
-                "{:?} operation requires text value in source register r{}.",
-                instruction.r_type, instruction.source_register_2
-            ),
-        };
+        // read two text operands
+        let value_a = registers
+            .read_text(instruction.source_register_1)
+            .unwrap_or_else(|error| panic!("{}", error));
+        let value_b = registers
+            .read_text(instruction.source_register_2)
+            .unwrap_or_else(|error| panic!("{}", error));
 
         let result = self
             .language_logic
-            .run(instruction.id, &instruction.r_type, value_a, value_b)
-            .unwrap_or_else(|err| {
-                panic!("Failed to perform {:?}. Error: {}", instruction.r_type, err)
+            .run(&instruction.r_type, value_a, value_b)
+            .unwrap_or_else(|error| {
+                panic!(
+                    "Failed to perform {:?}. Error: {}",
+                    instruction.r_type, error
+                )
             });
 
         if debug {
             println!(
-                "Executed {:?}: {:?} {:?} {:?} -> r{} = \"{:?}\"",
-                instruction.r_type,
-                value_a,
-                instruction.r_type,
-                value_b,
-                instruction.destination_register,
-                result
+                "Executed {:?}: '{}' , '{}', -> r{} = '{:?}'",
+                instruction.r_type, value_a, value_b, instruction.destination_register, result
             );
         }
 
         registers
             .set_register(instruction.destination_register, &result)
-            .unwrap_or_else(|err| {
-                panic!(
-                    "Failed to set register for {:?} instruction. Error: {}",
-                    instruction.r_type, err
-                )
-            });
+            .unwrap_or_else(|error| panic!("Failed to set register: {}", error));
     }
 
     fn b_type(registers: &mut Registers, instruction: &BTypeInstruction, debug: bool) {
-        let value_a = match registers
-            .get_register(instruction.source_register_1)
-            .unwrap_or_else(|err| {
-                panic!(
-                    "Failed to read source register r{} for B-type instruction. Error: {}",
-                    instruction.source_register_1, err
-                )
-            }) {
-            Value::Number(v) => *v,
-            _ => panic!(
-                "Expected numeric value in source register r{} for B-type instruction.",
-                instruction.source_register_1
-            ),
-        };
+        let value_a = registers
+            .read_number(instruction.source_register_1)
+            .unwrap_or_else(|error| panic!("{}", error));
 
-        let value_b = match registers
-            .get_register(instruction.source_register_2)
-            .unwrap_or_else(|err| {
-                panic!(
-                    "Failed to read source register r{} for B-type instruction. Error: {}",
-                    instruction.source_register_2, err
-                )
-            }) {
-            Value::Number(v) => *v,
-            _ => panic!(
-                "Expected numeric value in source register r{} for B-type instruction.",
-                instruction.source_register_2
-            ),
-        };
+        let value_b = registers
+            .read_number(instruction.source_register_2)
+            .unwrap_or_else(|error| panic!("{}", error));
 
         let is_true = match instruction.b_type {
             BType::Equal => value_a == value_b,
@@ -223,26 +173,20 @@ impl Executer {
     }
 
     fn output(registers: &Registers, instruction: &OutputInstruction, debug: bool) {
-        let value_a = match registers
+        let value = registers
             .get_register(instruction.source_register)
-            .unwrap_or_else(|err| {
+            .unwrap_or_else(|error| {
                 panic!(
-                    "Failed to read source register r{} for OUT instruction. Error: {}",
-                    instruction.source_register, err
+                    "Failed to read register r{}: {}",
+                    instruction.source_register, error
                 )
-            }) {
-            Value::Text(v) => v.clone(),
-            Value::Number(v) => v.to_string(),
-            _ => panic!(
-                "Expected text or numeric value in source register r{} for OUT instruction.",
-                instruction.source_register
-            ),
-        };
+            });
+        let output = value.to_string();
 
         if debug {
-            println!("Executed OUT: {}", value_a);
+            println!("Executed OUT: {}", output);
         } else {
-            println!("{}", value_a);
+            println!("{}", output);
         }
     }
 
@@ -250,6 +194,7 @@ impl Executer {
         if debug {
             println!("Executed EXIT: Halting execution.");
         }
+
         registers.set_instruction_pointer(memory.length());
     }
 

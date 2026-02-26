@@ -90,7 +90,7 @@ impl LanguageLogicUnit {
                 id: 0,
                 request: OpenAIChatCompletionRequestText {
                     role: SYSTEM_ROLE.to_string(),
-                    content: "Output ONLY the answer. No intro. No fluff. No punctuation unless required. Answer with a single word if appropriate, otherwise a single sentence.".to_string(),
+                    content: "Output ONLY the answer. No intro. No fluff. No punctuation unless required.".to_string(),
                 },
             }],
         }

@@ -54,38 +54,54 @@ impl Decoder {
         op_code: OpCode,
         instruction_bytes: [[u8; 4]; 4],
     ) -> Instruction {
-        let dst = u32::from_be_bytes(instruction_bytes[1]);
+        let id: u32 = registers
+            .get_instruction_pointer()
+            .try_into()
+            .expect("Instruction pointer did not fit in u32");
+        let destination_register = u32::from_be_bytes(instruction_bytes[1]);
 
         match op_code {
             OpCode::LoadString | OpCode::LoadFile => {
-                let ptr = u32::from_be_bytes(instruction_bytes[2]) as usize;
-                let msg = format!("Failed to decode {:?} string/file", op_code);
-                let text = Self::text(memory, registers, ptr, &msg);
+                let pointer = u32::from_be_bytes(instruction_bytes[2]) as usize;
+                let message = format!("Failed to decode {:?} string/file", op_code);
+                let text = Self::text(memory, registers, pointer, &message);
                 if op_code == OpCode::LoadString {
                     Instruction::LoadString(LoadStringInstruction {
-                        destination_register: dst,
+                        id,
+                        destination_register,
                         value: text,
                     })
                 } else {
                     Instruction::LoadFile(LoadFileInstruction {
-                        destination_register: dst,
+                        id,
+                        destination_register,
                         file_path: text,
                     })
                 }
             }
             OpCode::LoadImmediate => Instruction::LoadImmediate(LoadImmediateInstruction {
-                destination_register: dst,
+                id,
+                destination_register,
                 value: u32::from_be_bytes(instruction_bytes[2]),
             }),
             OpCode::Move => Instruction::Move(MoveInstruction {
-                destination_register: dst,
+                id,
+                destination_register,
                 source_register: u32::from_be_bytes(instruction_bytes[2]),
             }),
             _ => panic!("Invalid opcode '{:?}' for L-type instruction.", op_code),
         }
     }
 
-    fn r_type(op_code: OpCode, instruction_bytes: [[u8; 4]; 4]) -> Instruction {
+    fn r_type(
+        registers: &Registers,
+        op_code: OpCode,
+        instruction_bytes: [[u8; 4]; 4],
+    ) -> Instruction {
+        let id: u32 = registers
+            .get_instruction_pointer()
+            .try_into()
+            .expect("Instruction pointer did not fit in u32");
         let destination_register = u32::from_be_bytes(instruction_bytes[1]);
         let source_register_1 = u32::from_be_bytes(instruction_bytes[2]);
         let source_register_2 = u32::from_be_bytes(instruction_bytes[3]);
@@ -101,6 +117,7 @@ impl Decoder {
         };
 
         Instruction::RType(RTypeInstruction {
+            id,
             r_type,
             destination_register,
             source_register_1,
@@ -108,7 +125,15 @@ impl Decoder {
         })
     }
 
-    fn b_type(op_code: OpCode, instruction_bytes: [[u8; 4]; 4]) -> Instruction {
+    fn b_type(
+        registers: &Registers,
+        op_code: OpCode,
+        instruction_bytes: [[u8; 4]; 4],
+    ) -> Instruction {
+        let id: u32 = registers
+            .get_instruction_pointer()
+            .try_into()
+            .expect("Instruction pointer did not fit in u32");
         let source_register_1 = u32::from_be_bytes(instruction_bytes[1]);
         let source_register_2 = u32::from_be_bytes(instruction_bytes[2]);
         let instruction_pointer_jump_index = u32::from_be_bytes(instruction_bytes[3]);
@@ -123,6 +148,7 @@ impl Decoder {
         };
 
         Instruction::BType(BTypeInstruction {
+            id,
             b_type,
             source_register_1,
             source_register_2,
@@ -155,7 +181,7 @@ impl Decoder {
             | OpCode::BranchLess
             | OpCode::BranchLessEqual
             | OpCode::BranchGreater
-            | OpCode::BranchGreaterEqual => Self::b_type(op_code, instruction_bytes),
+            | OpCode::BranchGreaterEqual => Self::b_type(registers, op_code, instruction_bytes),
             OpCode::Exit => Self::exit(),
             OpCode::Out => Self::output(instruction_bytes),
             OpCode::Morph
@@ -163,7 +189,7 @@ impl Decoder {
             | OpCode::Distill
             | OpCode::Correlate
             | OpCode::Audit
-            | OpCode::Similarity => Self::r_type(op_code, instruction_bytes),
+            | OpCode::Similarity => Self::r_type(registers, op_code, instruction_bytes),
         }
     }
 }

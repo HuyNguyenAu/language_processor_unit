@@ -105,7 +105,7 @@ impl Executor {
 
         let result = self
             .language_logic
-            .run(&instruction.r_type, value_a, value_b)
+            .run(instruction.id, &instruction.r_type, value_a, value_b)
             .unwrap_or_else(|error| {
                 panic!(
                     "Failed to perform {:?}. Error: {}",

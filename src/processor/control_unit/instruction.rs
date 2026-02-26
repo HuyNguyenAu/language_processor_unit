@@ -1,22 +1,26 @@
 #[derive(Debug)]
 pub struct LoadStringInstruction {
+    pub id: u32,
     pub destination_register: u32,
     pub value: String,
 }
 #[derive(Debug)]
 pub struct LoadImmediateInstruction {
+    pub id: u32,
     pub destination_register: u32,
     pub value: u32,
 }
 
 #[derive(Debug)]
 pub struct LoadFileInstruction {
+    pub id: u32,
     pub destination_register: u32,
     pub file_path: String,
 }
 
 #[derive(Debug)]
 pub struct MoveInstruction {
+    pub id: u32,
     pub destination_register: u32,
     pub source_register: u32,
 }
@@ -36,6 +40,7 @@ pub enum RType {
 
 #[derive(Debug)]
 pub struct RTypeInstruction {
+    pub id: u32,
     pub r_type: RType,
     pub destination_register: u32,
     pub source_register_1: u32,
@@ -53,6 +58,7 @@ pub enum BType {
 
 #[derive(Debug)]
 pub struct BTypeInstruction {
+    pub id: u32,
     pub b_type: BType,
     pub source_register_1: u32,
     pub source_register_2: u32,

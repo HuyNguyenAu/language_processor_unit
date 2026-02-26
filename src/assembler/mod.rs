@@ -326,8 +326,8 @@ impl Assembler {
             }
             _ => {
                 if let Some(string) = self.expect_string("Expected string after ','.") {
-                    let ptr = self.emit_string_bytecode(&string);
-                    self.emit_number(ptr);
+                    let pointer = self.emit_string_bytecode(&string);
+                    self.emit_number(pointer);
                 }
 
                 self.emit_padding(1);

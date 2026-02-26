@@ -9,13 +9,13 @@ use std::{
 };
 
 fn build(file_path: &str, debug: bool) -> Result<(), String> {
-    let source = read_to_string(file_path).map_err(|e| format!("Build failed: {}", e))?;
+    let source = read_to_string(file_path).map_err(|error| format!("Build failed: {}", error))?;
     let source: &'static str = Box::leak(Box::new(source));
 
     let mut compiler = assembler::Assembler::new(source);
     let byte_code = compiler
         .assemble()
-        .map_err(|e| format!("Build failed: {}", e))?;
+        .map_err(|error| format!("Build failed: {}", error))?;
 
     if debug {
         println!("Assembled byte code ({} bytes):", byte_code.len());
@@ -33,17 +33,20 @@ fn build(file_path: &str, debug: bool) -> Result<(), String> {
         .ok_or_else(|| "Build failed: could not determine output filename".to_string())?;
 
     let output_file_name = format!("{}/{}.lpu", constants::BUILD_DIR, stem);
-    write(&output_file_name, byte_code).map_err(|e| format!("Build failed: {}", e))?;
+    write(&output_file_name, byte_code).map_err(|error| format!("Build failed: {}", error))?;
 
     println!("Build successful! Output written to {}", output_file_name);
+
     Ok(())
 }
 
 fn run(file_path: &str, debug: bool) -> Result<(), String> {
-    let data = read(file_path).map_err(|e| format!("Run failed: {}", e))?;
+    let data = read(file_path).map_err(|error| format!("Run failed: {}", error))?;
+
     let mut processor = processor::Processor::new();
     processor.load(data)?;
     processor.run(debug);
+
     Ok(())
 }
 

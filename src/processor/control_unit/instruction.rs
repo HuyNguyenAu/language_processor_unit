@@ -58,7 +58,6 @@ pub enum BType {
 
 #[derive(Debug)]
 pub struct BTypeInstruction {
-    pub id: u32,
     pub b_type: BType,
     pub source_register_1: u32,
     pub source_register_2: u32,

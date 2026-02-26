@@ -125,15 +125,7 @@ impl Decoder {
         })
     }
 
-    fn b_type(
-        registers: &Registers,
-        op_code: OpCode,
-        instruction_bytes: [[u8; 4]; 4],
-    ) -> Instruction {
-        let id: u32 = registers
-            .get_instruction_pointer()
-            .try_into()
-            .expect("Instruction pointer did not fit in u32");
+    fn b_type(op_code: OpCode, instruction_bytes: [[u8; 4]; 4]) -> Instruction {
         let source_register_1 = u32::from_be_bytes(instruction_bytes[1]);
         let source_register_2 = u32::from_be_bytes(instruction_bytes[2]);
         let instruction_pointer_jump_index = u32::from_be_bytes(instruction_bytes[3]);
@@ -148,7 +140,6 @@ impl Decoder {
         };
 
         Instruction::BType(BTypeInstruction {
-            id,
             b_type,
             source_register_1,
             source_register_2,
@@ -181,7 +172,7 @@ impl Decoder {
             | OpCode::BranchLess
             | OpCode::BranchLessEqual
             | OpCode::BranchGreater
-            | OpCode::BranchGreaterEqual => Self::b_type(registers, op_code, instruction_bytes),
+            | OpCode::BranchGreaterEqual => Self::b_type(op_code, instruction_bytes),
             OpCode::Exit => Self::exit(),
             OpCode::Out => Self::output(instruction_bytes),
             OpCode::Morph

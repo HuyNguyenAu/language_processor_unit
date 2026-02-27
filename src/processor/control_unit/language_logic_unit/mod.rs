@@ -1,19 +1,13 @@
 use crate::processor::{
-    control_unit::{
-        instruction::RType,
-        language_logic_unit::openai::{
-            OpenAIClient,
-            chat_completion_models::{
-                OpenAIChatCompletionRequest, OpenAIChatCompletionRequestText,
-            },
-            embeddings_models::OpenAIEmbeddingsRequest,
-            model_config::{ModelConfig, ModelEmbeddingsConfig, ModelTextConfig},
-        },
+    control_unit::language_logic_unit::openai::{
+        OpenAIClient,
+        chat_completion_models::{OpenAIChatCompletionRequest, OpenAIChatCompletionRequestText},
+        embeddings_models::OpenAIEmbeddingsRequest,
+        model_config::{ModelConfig, ModelEmbeddingsConfig, ModelTextConfig},
     },
     registers::ContextMessage,
 };
 
-mod micro_prompt;
 mod openai;
 
 const SYSTEM_ROLE: &str = "system";
@@ -215,43 +209,23 @@ impl LanguageLogicUnit {
         Ok(percentage_similarity.round() as u32)
     }
 
-    pub fn string(
-        &self,
-        r_type: &RType,
-        value: &str,
-        context: Vec<ContextMessage>,
-    ) -> Result<String, String> {
-        let prompt = micro_prompt::create(r_type, value).map_err(|error| {
-            format!(
-                "Failed to generate micro prompt for {:?}. Error: {}",
-                r_type, error
-            )
-        })?;
-
+    pub fn string(&self, micro_prompt: &str, context: Vec<ContextMessage>) -> Result<String, String> {
         let result = self
-            .chat(prompt.as_str(), context)
-            .map_err(|error| format!("Failed to perform {:?}. Error: {}", r_type, error))?;
+            .chat(micro_prompt, context)
+            .map_err(|error| format!("Failed to execute string operation. Error: {}", error))?;
 
-        Ok(result.to_lowercase())
+        Ok(result)
     }
 
     pub fn boolean(
         &self,
-        r_type: &RType,
-        value: &str,
+        micro_prompt: &str,
+        true_values: Vec<&str>,
         context: Vec<ContextMessage>,
     ) -> Result<u32, String> {
-        let value = self.string(r_type, value, context).map_err(|error| {
+        let value = self.string(micro_prompt, context).map_err(|error| {
             format!(
-                "Failed to execute {:?} for boolean operation. Error: {}",
-                r_type, error
-            )
-        })?;
-
-        let true_values = micro_prompt::true_values(r_type).map_err(|error| {
-            format!(
-                "Failed to get true values for {:?}. Error: {}",
-                r_type, error
+                "Failed to execute boolean operation. Error: {}", error
             )
         })?;
 
@@ -266,8 +240,8 @@ impl LanguageLogicUnit {
                     &true_value.to_lowercase())
                     .map_err(|error| {
                     format!(
-                        "Failed to compute cosine similarity for boolean evaluation of {:?}. Error: {}",
-                        r_type, error
+                        "Failed to compute cosine similarity for boolean evaluation. Error: {}",
+                        error
                     )
                 })?;
 

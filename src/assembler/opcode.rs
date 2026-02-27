@@ -30,6 +30,8 @@ pub enum OpCode {
     ContextPush = 0x14,
     ContextPop = 0x15,
     ContextDrop = 0x16,
+    // Misc.
+    NoOp = 0xFF, // No operation (used for labels and placeholders).
 }
 
 impl TryFrom<u32> for OpCode {

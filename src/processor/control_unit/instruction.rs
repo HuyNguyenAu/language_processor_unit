@@ -22,28 +22,44 @@ pub struct MoveInstruction {
 }
 
 #[derive(Debug)]
-pub enum RType {
-    // Generative operations.
-    Morph,
-    Project,
-    // Cognitive operations.
-    Distill,
-    Correlate,
-    // Guardrails operations.
-    Audit,
-    Similarity,
+pub struct MorphInstruction {
+    pub destination_register: u32,
+    pub source_register: u32,
 }
 
 #[derive(Debug)]
-pub struct RTypeInstruction {
-    pub r_type: RType,
+pub struct ProjectInstruction {
+    pub destination_register: u32,
+    pub source_register: u32,
+}
+
+#[derive(Debug)]
+pub struct DistillInstruction {
+    pub destination_register: u32,
+    pub source_register: u32,
+}
+
+#[derive(Debug)]
+pub struct CorrelateInstruction {
+    pub destination_register: u32,
+    pub source_register: u32,
+}
+
+#[derive(Debug)]
+pub struct AuditInstruction {
+    pub destination_register: u32,
+    pub source_register: u32,
+}
+
+#[derive(Debug)]
+pub struct SimilarityInstruction {
     pub destination_register: u32,
     pub source_register_1: u32,
     pub source_register_2: u32,
 }
 
 #[derive(Debug)]
-pub enum BType {
+pub enum BranchType {
     Equal,
     LessEqual,
     Less,
@@ -52,8 +68,8 @@ pub enum BType {
 }
 
 #[derive(Debug)]
-pub struct BTypeInstruction {
-    pub b_type: BType,
+pub struct BranchInstruction {
+    pub branch_type: BranchType,
     pub source_register_1: u32,
     pub source_register_2: u32,
     pub instruction_pointer_jump_index: u32,
@@ -99,8 +115,13 @@ pub enum Instruction {
     LoadImmediate(LoadImmediateInstruction),
     LoadFile(LoadFileInstruction),
     Move(MoveInstruction),
-    RType(RTypeInstruction),
-    BType(BTypeInstruction),
+    Branch(BranchInstruction),
+    Morph(MorphInstruction),
+    Project(ProjectInstruction),
+    Distill(DistillInstruction),
+    Correlate(CorrelateInstruction),
+    Audit(AuditInstruction),
+    Similarity(SimilarityInstruction),
     ContextClear(ContextClearInstruction),
     ContextSnapshot(ContextSnapshotInstruction),
     ContextRestore(ContextRestoreInstruction),

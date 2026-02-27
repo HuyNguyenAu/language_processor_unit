@@ -2,11 +2,12 @@ use crate::{
     assembler::opcode::OpCode,
     processor::{
         control_unit::instruction::{
-            BType, BTypeInstruction, ContextClearInstruction, ContextDropInstruction,
-            ContextPopInstruction, ContextPushInstruction, ContextRestoreInstruction,
-            ContextSnapshotInstruction, ExitInstruction, Instruction, LoadFileInstruction,
-            LoadImmediateInstruction, LoadStringInstruction, MoveInstruction, OutputInstruction,
-            RType, RTypeInstruction,
+            AuditInstruction, BranchInstruction, BranchType, ContextClearInstruction,
+            ContextDropInstruction, ContextPopInstruction, ContextPushInstruction,
+            ContextRestoreInstruction, ContextSnapshotInstruction, CorrelateInstruction,
+            DistillInstruction, ExitInstruction, Instruction, LoadFileInstruction,
+            LoadImmediateInstruction, LoadStringInstruction, MorphInstruction, MoveInstruction,
+            OutputInstruction, ProjectInstruction, SimilarityInstruction,
         },
         memory::Memory,
         registers::Registers,
@@ -50,7 +51,7 @@ impl Decoder {
         );
     }
 
-    fn l_type(
+    fn load(
         memory: &Memory,
         registers: &Registers,
         op_code: OpCode,
@@ -61,8 +62,13 @@ impl Decoder {
         match op_code {
             OpCode::LoadString | OpCode::LoadFile => {
                 let pointer = u32::from_be_bytes(instruction_bytes[2]) as usize;
-                let message = format!("Failed to decode {:?} string/file", op_code);
-                let text = Self::text(memory, registers, pointer, &message);
+                let text = Self::text(
+                    memory,
+                    registers,
+                    pointer,
+                    &format!("Failed to decode {:?} string", op_code),
+                );
+
                 if op_code == OpCode::LoadString {
                     Instruction::LoadString(LoadStringInstruction {
                         destination_register,
@@ -87,52 +93,29 @@ impl Decoder {
         }
     }
 
-    fn r_type(op_code: OpCode, instruction_bytes: [[u8; 4]; 4]) -> Instruction {
-        let destination_register = u32::from_be_bytes(instruction_bytes[1]);
-        let source_register_1 = u32::from_be_bytes(instruction_bytes[2]);
-        let source_register_2 = u32::from_be_bytes(instruction_bytes[3]);
-
-        let r_type = match op_code {
-            OpCode::Morph => RType::Morph,
-            OpCode::Project => RType::Project,
-            OpCode::Distill => RType::Distill,
-            OpCode::Correlate => RType::Correlate,
-            OpCode::Audit => RType::Audit,
-            OpCode::Similarity => RType::Similarity,
-            _ => panic!("Invalid opcode '{:?}' for R-type instruction.", op_code),
-        };
-
-        Instruction::RType(RTypeInstruction {
-            r_type,
-            destination_register,
-            source_register_1,
-            source_register_2,
-        })
-    }
-
-    fn b_type(op_code: OpCode, instruction_bytes: [[u8; 4]; 4]) -> Instruction {
+    fn branch(op_code: OpCode, instruction_bytes: [[u8; 4]; 4]) -> Instruction {
         let source_register_1 = u32::from_be_bytes(instruction_bytes[1]);
         let source_register_2 = u32::from_be_bytes(instruction_bytes[2]);
         let instruction_pointer_jump_index = u32::from_be_bytes(instruction_bytes[3]);
 
-        let b_type = match op_code {
-            OpCode::BranchEqual => BType::Equal,
-            OpCode::BranchLess => BType::Less,
-            OpCode::BranchLessEqual => BType::LessEqual,
-            OpCode::BranchGreater => BType::Greater,
-            OpCode::BranchGreaterEqual => BType::GreaterEqual,
+        let branch_type = match op_code {
+            OpCode::BranchEqual => BranchType::Equal,
+            OpCode::BranchLess => BranchType::Less,
+            OpCode::BranchLessEqual => BranchType::LessEqual,
+            OpCode::BranchGreater => BranchType::Greater,
+            OpCode::BranchGreaterEqual => BranchType::GreaterEqual,
             _ => panic!("Invalid opcode '{:?}' for branch instruction.", op_code),
         };
 
-        Instruction::BType(BTypeInstruction {
-            b_type,
+        Instruction::Branch(BranchInstruction {
+            branch_type,
             source_register_1,
             source_register_2,
             instruction_pointer_jump_index,
         })
     }
 
-    fn zero_operand(op_code: OpCode) -> Instruction {
+    fn no_register(op_code: OpCode) -> Instruction {
         match op_code {
             // Control flow.
             OpCode::Exit => Instruction::Exit(ExitInstruction),
@@ -143,14 +126,10 @@ impl Decoder {
                 "Invalid opcode '{:?}' for zero-operand instruction.",
                 op_code
             ),
-            _ => panic!(
-                "Invalid opcode '{:?}' for zero-operand instruction.",
-                op_code
-            ),
         }
     }
 
-    fn single_operand(op_code: OpCode, instruction_bytes: [[u8; 4]; 4]) -> Instruction {
+    fn single_register(op_code: OpCode, instruction_bytes: [[u8; 4]; 4]) -> Instruction {
         let register = u32::from_be_bytes(instruction_bytes[1]);
 
         match op_code {
@@ -178,6 +157,56 @@ impl Decoder {
         }
     }
 
+    fn double_register(op_code: OpCode, instruction_bytes: [[u8; 4]; 4]) -> Instruction {
+        let destination_register = u32::from_be_bytes(instruction_bytes[1]);
+        let source_register = u32::from_be_bytes(instruction_bytes[2]);
+
+        match op_code {
+            OpCode::Morph => Instruction::Morph(MorphInstruction {
+                destination_register,
+                source_register,
+            }),
+            OpCode::Project => Instruction::Project(ProjectInstruction {
+                destination_register,
+                source_register,
+            }),
+            OpCode::Distill => Instruction::Distill(DistillInstruction {
+                destination_register,
+                source_register,
+            }),
+            OpCode::Correlate => Instruction::Correlate(CorrelateInstruction {
+                destination_register,
+                source_register,
+            }),
+            OpCode::Audit => Instruction::Audit(AuditInstruction {
+                destination_register,
+                source_register,
+            }),
+            _ => panic!(
+                "Invalid opcode '{:?}' for double-register instruction.",
+                op_code
+            ),
+        }
+    }
+
+    fn triple_register(op_code: OpCode, instruction_bytes: [[u8; 4]; 4]) -> Instruction {
+        let destination_register = u32::from_be_bytes(instruction_bytes[1]);
+        let source_register_1 = u32::from_be_bytes(instruction_bytes[2]);
+        let source_register_2 = u32::from_be_bytes(instruction_bytes[3]);
+
+        match op_code {
+            OpCode::Similarity => Instruction::Similarity(SimilarityInstruction {
+                destination_register,
+                source_register_1,
+                source_register_2,
+            }),
+            _ => panic!(
+                "Invalid opcode '{:?}' for triple-register instruction.",
+                op_code
+            ),
+        }
+    }
+
     pub fn decode(
         memory: &Memory,
         registers: &Registers,
@@ -187,27 +216,26 @@ impl Decoder {
 
         match op_code {
             OpCode::LoadString | OpCode::LoadImmediate | OpCode::LoadFile | OpCode::Move => {
-                Self::l_type(memory, registers, op_code, instruction_bytes)
+                Self::load(memory, registers, op_code, instruction_bytes)
             }
             OpCode::BranchEqual
             | OpCode::BranchLess
             | OpCode::BranchLessEqual
             | OpCode::BranchGreater
-            | OpCode::BranchGreaterEqual => Self::b_type(op_code, instruction_bytes),
-            OpCode::Exit | OpCode::ContextClear | OpCode::ContextDrop => {
-                Self::zero_operand(op_code)
-            }
+            | OpCode::BranchGreaterEqual => Self::branch(op_code, instruction_bytes),
+            OpCode::Exit | OpCode::ContextClear | OpCode::ContextDrop => Self::no_register(op_code),
             OpCode::Out
             | OpCode::ContextSnapshot
             | OpCode::ContextRestore
             | OpCode::ContextPush
-            | OpCode::ContextPop => Self::single_operand(op_code, instruction_bytes),
+            | OpCode::ContextPop => Self::single_register(op_code, instruction_bytes),
             OpCode::Morph
             | OpCode::Project
             | OpCode::Distill
             | OpCode::Correlate
-            | OpCode::Audit
-            | OpCode::Similarity => Self::r_type(op_code, instruction_bytes),
+            | OpCode::Audit => Self::double_register(op_code, instruction_bytes),
+            OpCode::Similarity => Self::triple_register(op_code, instruction_bytes),
+            OpCode::NoOp => panic!("NoOp is not a valid instruction and should not be decoded."),
         }
     }
 }

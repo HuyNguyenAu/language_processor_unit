@@ -3,10 +3,11 @@ use std::fs::read_to_string;
 use crate::processor::{
     control_unit::{
         instruction::{
-            BType, BTypeInstruction, ContextPopInstruction, ContextPushInstruction,
-            ContextRestoreInstruction, ContextSnapshotInstruction, Instruction,
-            LoadFileInstruction, LoadImmediateInstruction, LoadStringInstruction, MoveInstruction,
-            OutputInstruction, RType, RTypeInstruction,
+            AuditInstruction, BranchInstruction, BranchType, ContextPopInstruction,
+            ContextPushInstruction, ContextRestoreInstruction, ContextSnapshotInstruction,
+            CorrelateInstruction, DistillInstruction, Instruction, LoadFileInstruction,
+            LoadImmediateInstruction, LoadStringInstruction, MorphInstruction, MoveInstruction,
+            OutputInstruction, ProjectInstruction, SimilarityInstruction,
         },
         language_logic_unit::{LanguageLogicUnit, USER_ROLE},
     },
@@ -84,7 +85,7 @@ impl Executor {
 
         crate::debug_print!(
             debug,
-            "Executed LF: r{} = \"{:?}\"",
+            "Executed LF: r{} = {:?}",
             instruction.destination_register,
             file_contents
         );
@@ -102,71 +103,25 @@ impl Executor {
 
         crate::debug_print!(
             debug,
-            "Executed MOV: r{} = \"{:?}\"",
+            "Executed MOV: r{} = {:?}",
             instruction.destination_register,
             registers.get_register(instruction.destination_register)
         );
     }
 
-    fn r_type(registers: &mut Registers, instruction: &RTypeInstruction, debug: bool) {
-        let value_a = Self::read_text(registers, instruction.source_register_1)
-            .expect("Failed to read text from register");
-        let value_b = Self::read_text(registers, instruction.source_register_2)
-            .expect("Failed to read text from register");
-        let context = registers.get_context();
-
-        let result = if matches!(instruction.r_type, RType::Similarity) {
-            let value = LanguageLogicUnit::new()
-                .boolean(&instruction.r_type, value_a, context.clone())
-                .unwrap_or_else(|error| {
-                    panic!(
-                        "Failed to perform {:?}. Error: {}",
-                        instruction.r_type, error
-                    )
-                });
-
-            Value::Number(value)
-        } else {
-            let value = LanguageLogicUnit::new()
-                .string(&instruction.r_type, value_a, context.clone())
-                .unwrap_or_else(|error| {
-                    panic!(
-                        "Failed to perform {:?}. Error: {}",
-                        instruction.r_type, error
-                    )
-                });
-
-            Value::Text(value)
-        };
-
-        crate::debug_print!(
-            debug,
-            "Executed {:?}: '{}' , '{}', -> r{} = '{:?}'",
-            instruction.r_type,
-            value_a,
-            value_b,
-            instruction.destination_register,
-            result
-        );
-
-        registers
-            .set_register(instruction.destination_register, &result)
-            .expect("Failed to set register");
-    }
-
-    fn b_type(registers: &mut Registers, instruction: &BTypeInstruction, debug: bool) {
+    fn branch(registers: &mut Registers, instruction: &BranchInstruction, debug: bool) {
         let value_a = Self::read_number(registers, instruction.source_register_1)
             .expect("Failed to read number from register");
 
         let value_b = Self::read_number(registers, instruction.source_register_2)
             .expect("Failed to read number from register");
 
-        let is_true = match instruction.b_type {
-            BType::Equal => value_a == value_b,
-            BType::Less => value_a < value_b,
-            BType::LessEqual => value_a <= value_b,
-            BType::Greater => value_a > value_b,
-            BType::GreaterEqual => value_a >= value_b,
+        let is_true = match instruction.branch_type {
+            BranchType::Equal => value_a == value_b,
+            BranchType::Less => value_a < value_b,
+            BranchType::LessEqual => value_a <= value_b,
+            BranchType::Greater => value_a > value_b,
+            BranchType::GreaterEqual => value_a >= value_b,
         };
 
         if is_true {
@@ -179,12 +134,167 @@ impl Executor {
         crate::debug_print!(
             debug,
             "Executed {:?}: {:?} {:?} -> {} jump {}",
-            instruction.b_type,
+            instruction.branch_type,
             value_a,
             value_b,
             is_true,
             instruction.instruction_pointer_jump_index
         );
+    }
+
+    fn morph(registers: &mut Registers, instruction: &MorphInstruction, debug: bool) {
+        let value = Self::read_text(registers, instruction.source_register)
+            .expect("Failed to read text from source register for MORPH instruction");
+        let micro_prompt = format!(
+            "Transform it into the following format:\n{}\n\nTransformed Output:",
+            value
+        );
+        let context = registers.get_context().clone();
+
+        let result = LanguageLogicUnit::new()
+            .string(&micro_prompt, context)
+            .unwrap_or_else(|error| panic!("Failed to perform MORPH operation. Error: {}", error));
+
+        crate::debug_print!(
+            debug,
+            "Executed MORPH: r{} = '{:?}'",
+            instruction.destination_register,
+            result
+        );
+
+        registers
+            .set_register(instruction.destination_register, &Value::Text(result))
+            .expect("Failed to set register");
+    }
+
+    fn project(registers: &mut Registers, instruction: &ProjectInstruction, debug: bool) {
+        let value = Self::read_text(registers, instruction.source_register)
+            .expect("Failed to read text from source register for PROJECT instruction");
+        let micro_prompt = format!(
+            "Project how it might evolve based on this direction or trend:\n{}\n\nProjected Output:",
+            value
+        );
+        let context = registers.get_context().clone();
+
+        let result = LanguageLogicUnit::new()
+            .string(&micro_prompt, context)
+            .unwrap_or_else(|error| {
+                panic!("Failed to perform PROJECT operation. Error: {}", error)
+            });
+
+        crate::debug_print!(
+            debug,
+            "Executed PROJECT: r{} = '{:?}'",
+            instruction.destination_register,
+            result
+        );
+
+        registers
+            .set_register(instruction.destination_register, &Value::Text(result))
+            .expect("Failed to set register");
+    }
+
+    fn distill(registers: &mut Registers, instruction: &DistillInstruction, debug: bool) {
+        let value = Self::read_text(registers, instruction.source_register)
+            .expect("Failed to read text from source register for DISTILL instruction");
+        let micro_prompt = format!(
+            "Distill it down following the goal or criteria:\n{}\n\nDistilled Result:",
+            value
+        );
+        let context = registers.get_context().clone();
+
+        let result = LanguageLogicUnit::new()
+            .string(&micro_prompt, context)
+            .unwrap_or_else(|error| {
+                panic!("Failed to perform DISTILL operation. Error: {}", error)
+            });
+
+        crate::debug_print!(
+            debug,
+            "Executed DISTILL: r{} = '{:?}'",
+            instruction.destination_register,
+            result
+        );
+
+        registers
+            .set_register(instruction.destination_register, &Value::Text(result))
+            .expect("Failed to set register");
+    }
+
+    fn correlate(registers: &mut Registers, instruction: &CorrelateInstruction, debug: bool) {
+        let value = Self::read_text(registers, instruction.source_register)
+            .expect("Failed to read text from source register for CORRELATE instruction");
+        let micro_prompt = format!(
+            "Find the correlation with:\n{}\n\nRelational Analysis:",
+            value
+        );
+        let context = registers.get_context().clone();
+
+        let result = LanguageLogicUnit::new()
+            .string(&micro_prompt, context)
+            .unwrap_or_else(|error| {
+                panic!("Failed to perform CORRELATE operation. Error: {}", error)
+            });
+
+        crate::debug_print!(
+            debug,
+            "Executed CORRELATE: r{} = '{:?}'",
+            instruction.destination_register,
+            result
+        );
+
+        registers
+            .set_register(instruction.destination_register, &Value::Text(result))
+            .expect("Failed to set register");
+    }
+
+    fn audit(registers: &mut Registers, instruction: &AuditInstruction, debug: bool) {
+        let value = Self::read_text(registers, instruction.source_register)
+            .expect("Failed to read text from source register for AUDIT instruction");
+        let micro_prompt = format!("Does it comply with the evidence:\n{}\n\nYES/NO:", value);
+        let true_values = vec!["YES"];
+        let context = registers.get_context().clone();
+
+        let result = LanguageLogicUnit::new()
+            .boolean(&micro_prompt, true_values, context)
+            .unwrap_or_else(|error| panic!("Failed to perform AUDIT operation. Error: {}", error));
+
+        crate::debug_print!(
+            debug,
+            "Executed AUDIT: r{} = '{:?}'",
+            instruction.destination_register,
+            result
+        );
+
+        registers
+            .set_register(instruction.destination_register, &Value::Number(result))
+            .expect("Failed to set register");
+    }
+
+    fn similarity(registers: &mut Registers, instruction: &SimilarityInstruction, debug: bool) {
+        let value_a = Self::read_text(registers, instruction.source_register_1)
+            .expect("Failed to read text from source register 1 for SIMILARITY instruction");
+        let value_b = Self::read_text(registers, instruction.source_register_2)
+            .expect("Failed to read text from source register 2 for SIMILARITY instruction");
+
+        let result = LanguageLogicUnit::new()
+            .cosine_similarity(&value_a, &value_b)
+            .unwrap_or_else(|error| {
+                panic!("Failed to perform SIMILARITY operation. Error: {}", error)
+            });
+
+        crate::debug_print!(
+            debug,
+            "Executed SIMILARITY: '{:?}' vs '{:?}' -> r{} = {}",
+            value_a,
+            value_b,
+            instruction.destination_register,
+            result
+        );
+
+        registers
+            .set_register(instruction.destination_register, &Value::Number(result))
+            .expect("Failed to set register");
     }
 
     fn context_clear(registers: &mut Registers, debug: bool) {
@@ -306,20 +416,32 @@ impl Executor {
         debug: bool,
     ) {
         match instruction {
+            // Data movement operations.
             Instruction::LoadString(i) => Self::load_string(registers, i, debug),
             Instruction::LoadImmediate(i) => Self::load_immediate(registers, i, debug),
             Instruction::LoadFile(i) => Self::load_file(registers, i, debug),
             Instruction::Move(i) => Self::mov(registers, i, debug),
-            Instruction::BType(i) => Self::b_type(registers, i, debug),
+            // Control flow operations.
+            Instruction::Branch(i) => Self::branch(registers, i, debug),
             Instruction::Exit(_) => Self::exit(memory, registers, debug),
+            // Generative operations.
+            Instruction::Morph(i) => Self::morph(registers, i, debug),
+            Instruction::Project(i) => Self::project(registers, i, debug),
+            // Cognitive operations.
+            Instruction::Distill(i) => Self::distill(registers, i, debug),
+            Instruction::Correlate(i) => Self::correlate(registers, i, debug),
+            // Guardrails operations.
+            Instruction::Audit(i) => Self::audit(registers, i, debug),
+            Instruction::Similarity(i) => Self::similarity(registers, i, debug),
+            // Context operations.
             Instruction::ContextClear(_) => Self::context_clear(registers, debug),
             Instruction::ContextSnapshot(i) => Self::context_snapshot(registers, i, debug),
             Instruction::ContextRestore(i) => Self::context_restore(registers, i, debug),
             Instruction::ContextPush(i) => Self::context_push(registers, i, debug),
             Instruction::ContextPop(i) => Self::context_pop(registers, i, debug),
             Instruction::ContextDrop(_) => Self::context_drop(registers, debug),
+            // I/O operations.
             Instruction::Output(i) => Self::output(registers, i, debug),
-            Instruction::RType(i) => Self::r_type(registers, i, debug),
         }
     }
 }

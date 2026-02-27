@@ -13,13 +13,13 @@ LS  X3, "A sentence that describes the current state of the room. Include detail
 MRF X5, X3
 
 DRP             ; Drop the sensor data from the context stack.
-SRL "assistant"
+SRL "assistant" ; Set the role to assistant to process the sensed state.
 PSH X5          ; Push the summarised state for context.
 
 LS  X3, "A sentence that describes the user's feedback about the room's comfort. Include details about their physical sensations and any specific complaints."
 MRF X5, X3
 
-SRL "user"
+SRL "user"      ; Set the role to user for processing the user's feedback.
 PSH X5          ; Push the expanded user feedback for context.
 SNP X31         ; Save the current state before making adjustments, allowing for a retry if needed.
 

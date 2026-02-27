@@ -9,7 +9,7 @@ use crate::processor::{
             LoadImmediateInstruction, LoadStringInstruction, MorphInstruction, MoveInstruction,
             OutputInstruction, ProjectInstruction, SimilarityInstruction,
         },
-        language_logic_unit::{LanguageLogicUnit, USER_ROLE},
+        language_logic_unit::{LanguageLogicUnit, roles},
     },
     memory::Memory,
     registers::{ContextMessage, Registers, Value},
@@ -356,7 +356,7 @@ impl Executor {
             ),
         };
 
-        registers.push_context(ContextMessage::new(USER_ROLE, &value));
+        registers.push_context(ContextMessage::new(roles::USER_ROLE, &value));
 
         crate::debug_print!(
             debug,

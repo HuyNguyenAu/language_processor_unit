@@ -9,18 +9,16 @@ use crate::processor::{
 };
 
 mod openai;
-
-const SYSTEM_ROLE: &str = "system";
-pub const USER_ROLE: &str = "user";
-pub const ASSISTANT_ROLE: &str = "assistant";
+pub mod roles;
 
 const TRUTHY_THRESHOLD: u32 = 80;
 
+const SYSTEM_PROMPT: &str =
+    "Output ONLY the answer. No intro. No fluff. No punctuation unless required.";
+
 pub struct LanguageLogicUnit {
-    openai_client: OpenAIClient,
     text_model: ModelConfig,
     embeddings_model: ModelConfig,
-    system_prompt: String,
 }
 
 impl LanguageLogicUnit {
@@ -72,12 +70,8 @@ impl LanguageLogicUnit {
 
     pub fn new() -> Self {
         Self {
-            openai_client: OpenAIClient::new(),
             text_model: Self::default_text_model(),
             embeddings_model: Self::default_embeddings_model(),
-            system_prompt:
-                "Output ONLY the answer. No intro. No fluff. No punctuation unless required."
-                    .to_string(),
         }
     }
 
@@ -91,8 +85,8 @@ impl LanguageLogicUnit {
             _ => return Err("Text model configuration is required for chat.".to_string()),
         };
         let messages = std::iter::once(OpenAIChatCompletionRequestText {
-            role: SYSTEM_ROLE.to_string(),
-            content: self.system_prompt.clone(),
+            role: roles::SYSTEM_ROLE.to_string(),
+            content: SYSTEM_PROMPT.to_string(),
         })
         .chain(
             context
@@ -103,7 +97,7 @@ impl LanguageLogicUnit {
                 }),
         )
         .chain(std::iter::once(OpenAIChatCompletionRequestText {
-            role: USER_ROLE.to_string(),
+            role: roles::USER_ROLE.to_string(),
             content: content.to_string(),
         }))
         .collect::<Vec<OpenAIChatCompletionRequestText>>();
@@ -136,12 +130,9 @@ impl LanguageLogicUnit {
             timings_per_token: model.timings_per_token,
         };
 
-        let response = self
-            .openai_client
-            .create_chat_completion(request)
-            .map_err(|error| {
-                format!("Failed to get chat response from client. Error: {}", error)
-            })?;
+        let response = OpenAIClient::chat_completion(request).map_err(|error| {
+            format!("Failed to get chat response from client. Error: {}", error)
+        })?;
 
         let choice = response
             .choices
@@ -168,15 +159,12 @@ impl LanguageLogicUnit {
             encoding_format: model.encoding_format.to_string(),
         };
 
-        let response = self
-            .openai_client
-            .create_embeddings(request)
-            .map_err(|error| {
-                format!(
-                    "Failed to get embeddings response from client. Error: {}",
-                    error
-                )
-            })?;
+        let response = OpenAIClient::embeddings(request).map_err(|error| {
+            format!(
+                "Failed to get embeddings response from client. Error: {}",
+                error
+            )
+        })?;
 
         let embeddings = response
             .data
@@ -209,7 +197,11 @@ impl LanguageLogicUnit {
         Ok(percentage_similarity.round() as u32)
     }
 
-    pub fn string(&self, micro_prompt: &str, context: Vec<ContextMessage>) -> Result<String, String> {
+    pub fn string(
+        &self,
+        micro_prompt: &str,
+        context: Vec<ContextMessage>,
+    ) -> Result<String, String> {
         let result = self
             .chat(micro_prompt, context)
             .map_err(|error| format!("Failed to execute string operation. Error: {}", error))?;
@@ -223,11 +215,9 @@ impl LanguageLogicUnit {
         true_values: Vec<&str>,
         context: Vec<ContextMessage>,
     ) -> Result<u32, String> {
-        let value = self.string(micro_prompt, context).map_err(|error| {
-            format!(
-                "Failed to execute boolean operation. Error: {}", error
-            )
-        })?;
+        let value = self
+            .string(micro_prompt, context)
+            .map_err(|error| format!("Failed to execute boolean operation. Error: {}", error))?;
 
         if true_values.contains(&value.to_uppercase().as_str()) {
             return Ok(100);
@@ -235,10 +225,9 @@ impl LanguageLogicUnit {
 
         // If not an exact match, check cosine similarity against true values.
         for true_value in true_values {
-            let score = self.cosine_similarity(
-                    &value.to_lowercase(),
-                    &true_value.to_lowercase())
-                    .map_err(|error| {
+            let score = self
+                .cosine_similarity(&value.to_lowercase(), &true_value.to_lowercase())
+                .map_err(|error| {
                     format!(
                         "Failed to compute cosine similarity for boolean evaluation. Error: {}",
                         error

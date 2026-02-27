@@ -61,5 +61,5 @@ OUT X7
 EXIT
 
 ABORT:
-LS  X3, "Failed to adjust the room's comfort within the specified limits after multiple attempts."
+LS  X3, "Failed to adjust the room's comfort within the 5 attempts after multiple attempts."
 OUT X3

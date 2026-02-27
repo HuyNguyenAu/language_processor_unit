@@ -107,6 +107,12 @@ pub struct ContextSetRoleInstruction {
 }
 
 #[derive(Debug)]
+pub struct DecrementInstruction {
+    pub source_register: u32,
+    pub value: u32,
+}
+
+#[derive(Debug)]
 pub struct OutputInstruction {
     pub source_register: u32,
 }
@@ -116,17 +122,26 @@ pub struct ExitInstruction;
 
 #[derive(Debug)]
 pub enum Instruction {
+    // Data movement.
     LoadString(LoadStringInstruction),
     LoadImmediate(LoadImmediateInstruction),
     LoadFile(LoadFileInstruction),
     Move(MoveInstruction),
+    // Control flow.
     Branch(BranchInstruction),
+    Exit(ExitInstruction),
+    // I/O.
+    Output(OutputInstruction),
+    // Generative operations.
     Morph(MorphInstruction),
     Project(ProjectInstruction),
+    // Cognitive operations.
     Distill(DistillInstruction),
     Correlate(CorrelateInstruction),
+    // Guardrails operations.
     Audit(AuditInstruction),
     Similarity(SimilarityInstruction),
+    // Context operations.
     ContextClear(ContextClearInstruction),
     ContextSnapshot(ContextSnapshotInstruction),
     ContextRestore(ContextRestoreInstruction),
@@ -134,6 +149,6 @@ pub enum Instruction {
     ContextPop(ContextPopInstruction),
     ContextDrop(ContextDropInstruction),
     ContextSetRole(ContextSetRoleInstruction),
-    Output(OutputInstruction),
-    Exit(ExitInstruction),
+    // Misc.
+    Decrement(DecrementInstruction),
 }

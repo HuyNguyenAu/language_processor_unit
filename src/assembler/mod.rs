@@ -44,7 +44,16 @@ impl From<TokenType> for OpCode {
             TokenType::ContextPop => OpCode::ContextPop,
             TokenType::ContextDrop => OpCode::ContextDrop,
             TokenType::ContextSetRole => OpCode::ContextSetRole,
-            _ => OpCode::NoOp,
+            // Misc operations.
+            TokenType::Decrement => OpCode::Decrement,
+            // Misc.
+            TokenType::Comma
+            | TokenType::Identifier
+            | TokenType::String
+            | TokenType::Number
+            | TokenType::Label
+            | TokenType::Eof
+            | TokenType::Error => OpCode::NoOp,
         }
     }
 }
@@ -340,7 +349,28 @@ impl Assembler {
         }
     }
 
-    fn immediate(&mut self, token_type: &TokenType, op_code: OpCode, string_only: bool) {
+    fn expect_not_nop(&mut self, op_code: OpCode) {
+        if op_code == OpCode::NoOp {
+            self.error_at_current("Invalid opcode: NoOp is reserved for labels and placeholders and cannot be used in instructions.");
+        }
+    }
+
+    fn immediate(
+        &mut self,
+        token_type: &TokenType,
+        op_code: OpCode,
+        string_only: bool,
+        number_only: bool,
+    ) {
+        self.expect_not_nop(op_code);
+
+        if string_only && number_only {
+            self.error_at_current(
+                "Invalid opcode configuration: cannot be both string-only and number-only.",
+            );
+            return;
+        }
+
         self.consume(token_type, &format!("Expected '{:?}' keyword.", token_type));
 
         let destination_register = self.register("Expected destination register.");
@@ -358,6 +388,11 @@ impl Assembler {
 
             self.emit_number(pointer);
             self.emit_padding(1);
+        } else if number_only {
+            let immediate = self.number("Expected number after ','.");
+
+            self.emit_number(immediate);
+            self.emit_padding(1);
         } else {
             let immediate = self.number("Expected immediate after ','.");
 
@@ -367,6 +402,8 @@ impl Assembler {
     }
 
     fn branch(&mut self, token_type: &TokenType, op_code: OpCode) {
+        self.expect_not_nop(op_code);
+
         self.consume(token_type, &format!("Expected '{:?}' keyword.", token_type));
 
         let source_register_1 = self.register("Expected source register 1 after branch keyword.");
@@ -386,6 +423,8 @@ impl Assembler {
     }
 
     fn no_register(&mut self, token_type: &TokenType, op_code: OpCode) {
+        self.expect_not_nop(op_code);
+
         self.consume(token_type, &format!("Expected '{:?}' keyword.", token_type));
 
         self.emit_opcode(op_code);
@@ -393,6 +432,8 @@ impl Assembler {
     }
 
     fn no_register_string(&mut self, token_type: &TokenType, op_code: OpCode) {
+        self.expect_not_nop(op_code);
+
         self.consume(token_type, &format!("Expected '{:?}' keyword.", token_type));
 
         let string = self.string("Expected string after keyword.");
@@ -428,6 +469,8 @@ impl Assembler {
     }
 
     fn single_register(&mut self, token_type: &TokenType, op_code: OpCode) {
+        self.expect_not_nop(op_code);
+
         self.consume(token_type, &format!("Expected '{:?}' keyword.", token_type));
 
         let register = self.register(&format!("Expected register after '{:?}'.", op_code));
@@ -438,6 +481,8 @@ impl Assembler {
     }
 
     fn double_register(&mut self, token_type: &TokenType, op_code: OpCode) {
+        self.expect_not_nop(op_code);
+
         self.consume(token_type, &format!("Expected '{:?}' keyword.", token_type));
 
         let destination_register = self.register(&format!(
@@ -459,6 +504,8 @@ impl Assembler {
     }
 
     fn triple_register(&mut self, token_type: &TokenType, op_code: OpCode) {
+        self.expect_not_nop(op_code);
+
         self.consume(token_type, &format!("Expected '{:?}' keyword.", token_type));
 
         let destination_register = self.register(&format!(
@@ -491,9 +538,9 @@ impl Assembler {
 
                 match token_type {
                     // Data movement.
-                    TokenType::LoadImmediate => self.immediate(&token_type, op_code, false),
+                    TokenType::LoadImmediate => self.immediate(&token_type, op_code, false, false),
                     TokenType::LoadString | TokenType::LoadFile => {
-                        self.immediate(&token_type, op_code, true)
+                        self.immediate(&token_type, op_code, true, false)
                     }
                     TokenType::Move => self.double_register(&token_type, op_code),
                     // Control flow.
@@ -522,6 +569,8 @@ impl Assembler {
                     | TokenType::ContextPush
                     | TokenType::ContextPop => self.single_register(&token_type, op_code),
                     TokenType::ContextSetRole => self.no_register_string(&token_type, op_code),
+                    // Misc operations.
+                    TokenType::Decrement => self.immediate(&token_type, op_code, false, true),
                     // Misc.
                     TokenType::Eof => break,
                     _ => self.error_at_current("Unexpected keyword."),

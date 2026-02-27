@@ -186,13 +186,24 @@ impl LanguageLogicUnit {
     pub fn boolean(
         micro_prompt: &str,
         true_values: Vec<&str>,
+        false_values: Vec<&str>,
         context: Vec<ContextMessage>,
     ) -> Result<u32, String> {
         let value = Self::string(micro_prompt, context)
             .map_err(|error| format!("Failed to execute boolean operation. Error: {}", error))?;
 
-        if true_values.contains(&value.to_uppercase().as_str()) {
+        if true_values
+            .iter()
+            .any(|&true_value| true_value.eq_ignore_ascii_case(&value))
+        {
             return Ok(100);
+        }
+
+        if false_values
+            .iter()
+            .any(|&false_value| false_value.eq_ignore_ascii_case(&value))
+        {
+            return Ok(0);
         }
 
         // If not an exact match, check cosine similarity against true values.

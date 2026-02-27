@@ -244,11 +244,12 @@ impl Executor {
     fn audit(registers: &mut Registers, instruction: &AuditInstruction, debug: bool) {
         let value = Self::read_text(registers, instruction.source_register)
             .expect("Failed to read text from source register for AUDIT instruction");
-        let micro_prompt = format!("Does it comply with the evidence:\n{}\n\nYES/NO:", value);
+        let micro_prompt = format!("Does it comply with:\n{}\n\nYES/NO:", value);
         let true_values = vec!["YES"];
+        let false_values = vec!["NO"];
         let context = registers.get_context().clone();
 
-        let result = LanguageLogicUnit::boolean(&micro_prompt, true_values, context)
+        let result = LanguageLogicUnit::boolean(&micro_prompt, true_values, false_values, context)
             .unwrap_or_else(|error| panic!("Failed to perform AUDIT operation. Error: {}", error));
 
         crate::debug_print!(

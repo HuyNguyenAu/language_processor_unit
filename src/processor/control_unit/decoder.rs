@@ -52,12 +52,20 @@ impl Decoder {
         );
     }
 
+    fn expect_not_nop(op_code: OpCode) {
+        if op_code == OpCode::NoOp {
+            panic!("NoOp is not a valid instruction and should not be decoded.");
+        }
+    }
+
     fn immediate(
         memory: &Memory,
         registers: &Registers,
         op_code: OpCode,
         instruction_bytes: [[u8; 4]; 4],
     ) -> Instruction {
+        Self::expect_not_nop(op_code);
+
         let register = u32::from_be_bytes(instruction_bytes[1]);
 
         match op_code {
@@ -103,6 +111,8 @@ impl Decoder {
     }
 
     fn branch(op_code: OpCode, instruction_bytes: [[u8; 4]; 4]) -> Instruction {
+        Self::expect_not_nop(op_code);
+
         let source_register_1 = u32::from_be_bytes(instruction_bytes[1]);
         let source_register_2 = u32::from_be_bytes(instruction_bytes[2]);
         let instruction_pointer_jump_index = u32::from_be_bytes(instruction_bytes[3]);
@@ -125,6 +135,8 @@ impl Decoder {
     }
 
     fn no_register(op_code: OpCode) -> Instruction {
+        Self::expect_not_nop(op_code);
+
         match op_code {
             // Control flow.
             OpCode::Exit => Instruction::Exit(ExitInstruction),
@@ -144,6 +156,8 @@ impl Decoder {
         op_code: OpCode,
         instruction_bytes: [[u8; 4]; 4],
     ) -> Instruction {
+        Self::expect_not_nop(op_code);
+
         let pointer = u32::from_be_bytes(instruction_bytes[1]) as usize;
         let string = Self::string(
             memory,
@@ -164,6 +178,8 @@ impl Decoder {
     }
 
     fn single_register(op_code: OpCode, instruction_bytes: [[u8; 4]; 4]) -> Instruction {
+        Self::expect_not_nop(op_code);
+
         let register = u32::from_be_bytes(instruction_bytes[1]);
 
         match op_code {
@@ -192,6 +208,8 @@ impl Decoder {
     }
 
     fn double_register(op_code: OpCode, instruction_bytes: [[u8; 4]; 4]) -> Instruction {
+        Self::expect_not_nop(op_code);
+
         let destination_register = u32::from_be_bytes(instruction_bytes[1]);
         let source_register = u32::from_be_bytes(instruction_bytes[2]);
 
@@ -224,6 +242,8 @@ impl Decoder {
     }
 
     fn triple_register(op_code: OpCode, instruction_bytes: [[u8; 4]; 4]) -> Instruction {
+        Self::expect_not_nop(op_code);
+
         let destination_register = u32::from_be_bytes(instruction_bytes[1]);
         let source_register_1 = u32::from_be_bytes(instruction_bytes[2]);
         let source_register_2 = u32::from_be_bytes(instruction_bytes[3]);

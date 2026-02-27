@@ -34,7 +34,7 @@ pub enum OpCode {
     // Misc.
     Decrement = 0x18,
     // Misc.
-    NoOp = 0xFF, // No operation (used for labels and placeholders).
+    NoOp = 0xFF,
 }
 
 impl TryFrom<u32> for OpCode {

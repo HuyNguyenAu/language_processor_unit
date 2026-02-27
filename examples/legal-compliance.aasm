@@ -2,25 +2,31 @@
 ; Objective: Assess if a contract draft complies with GDPR Article 6 standards.
 ; Output: Compliance result and identified non-compliant sections if applicable.
 
-LF  X1, "examples/data/msa_draft_v2.txt"     ; Load the contract into X1
-LS  X32, "NO VIOLATIONS FOUND"               ; The result if the contract is compliant
+; Load the contract draft and the relevant GDPR article for analysis.
+LF  X1, "examples/data/msa_draft_v2.txt"
+LF  X2, "examples/data/gdpr_article_6.txt"
 
-; Initial Alignment Check
-LS  X2, "Does the contract comply with GDPR Article 6 standards?"
-AUD X4, X1, X2                              ; Check if the contract 'aligns' with the intent of GDPR Art. 6
+PSH X1              ; Push the contract draft onto the context stack for processing.
+PSH X2              ; Push the GDPR article onto the context stack for reference.
 
-LI  X3, 85                                   ; Load the confidence threshold (85%) into X3
-BGE X4, X3, PASS                            ; If score >= confidence threshold of 85%, jump to PASS
+; Does the contract draft comply with GDPR Article 6 standards?
+LS  X3, "Does the contract draft comply with GDPR Article 6 standards above?"
+AUD X4, X3          ; Audit the contract draft against GDPR Article 6.
+OUT X4
 
-; Fault Localization
-LS  X2, "Which specific sections of the contract are non-compliant with GDPR Article 6?"
-MRF X5, X1, X2                              ; Analyze the contract against GDPR Art. 6 to find specific non-compliant sections
+LI  X3, 100                                 ; Audit will return 100 if the contract is fully compliant with GDPR Article 6.
+BGE X4, X3, PASS
 
-; Output Results
-LS  X32, "VIOLATIONS FOUND:"    
-OUT X32                                     ; Output the violation header              
-OUT X5                                      ; Output the identified non-compliant sections
+; Identify specific sections of the contract draft that do not comply with GDPR Article 6.
+LS  X3, "Which specific sections of the contract are non-compliant with GDPR Article 6?"
+COR X5, X2
+
+LS  X3, "VIOLATIONS FOUND:"
+OUT X3
+OUT X5
 EXIT
 
 PASS:
-OUT X32                                     ; Output the final compliance result
+LS  X3, "NO VIOLATIONS FOUND"
+OUT X3
+EXIT

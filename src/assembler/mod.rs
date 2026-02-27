@@ -9,6 +9,44 @@ mod scanner;
 
 const HEADER_SIZE: u32 = 2;
 
+impl From<TokenType> for OpCode {
+    fn from(token_type: TokenType) -> Self {
+        match token_type {
+            // Data movement.
+            TokenType::LoadString => OpCode::LoadString,
+            TokenType::LoadImmediate => OpCode::LoadImmediate,
+            TokenType::LoadFile => OpCode::LoadFile,
+            TokenType::Move => OpCode::Move,
+            // Control flow.
+            TokenType::BranchEqual => OpCode::BranchEqual,
+            TokenType::BranchLessEqual => OpCode::BranchLessEqual,
+            TokenType::BranchLess => OpCode::BranchLess,
+            TokenType::BranchGreaterEqual => OpCode::BranchGreaterEqual,
+            TokenType::BranchGreater => OpCode::BranchGreater,
+            TokenType::Exit => OpCode::Exit,
+            // I/O.
+            TokenType::Out => OpCode::Out,
+            // Generative operations.
+            TokenType::Morph => OpCode::Morph,
+            TokenType::Project => OpCode::Project,
+            // Cognitive operations.
+            TokenType::Distill => OpCode::Distill,
+            TokenType::Correlate => OpCode::Correlate,
+            // Guardrails operations.
+            TokenType::Audit => OpCode::Audit,
+            TokenType::Similarity => OpCode::Similarity,
+            // Context operations.
+            TokenType::ContextClear => OpCode::ContextClear,
+            TokenType::ContextSnapshot => OpCode::ContextSnapshot,
+            TokenType::ContextRestore => OpCode::ContextRestore,
+            TokenType::ContextPush => OpCode::ContextPush,
+            TokenType::ContextPop => OpCode::ContextPop,
+            TokenType::ContextDrop => OpCode::ContextDrop,
+            _ => OpCode::NoOp,
+        }
+    }
+}
+
 struct UnresolvedLabel {
     indices: Vec<usize>,
     token: Token,
@@ -120,46 +158,56 @@ impl Assembler {
             && current_token.token_type() == token_type
         {
             self.advance();
-
             return;
         }
 
-        self.error_at_current(message);
+        self.error_at_previous(message);
     }
 
-    fn number(&mut self, message: &str) -> Result<u32, String> {
+    fn number(&mut self, message: &str) -> u32 {
         self.consume(&TokenType::Number, message);
 
         match self.previous_lexeme().parse() {
-            Ok(value) => Ok(value),
-            Err(_) => Err(format!(
-                "Failed to parse number from lexeme '{}'.",
-                self.previous_lexeme()
-            )),
+            Ok(value) => value,
+            Err(_) => {
+                self.error_at_current(&format!(
+                    "Failed to parse number from lexeme '{}'.",
+                    self.previous_lexeme()
+                ));
+                0 // Return a default value on error, though the error handling above should prevent this from being used.
+            }
         }
     }
 
-    fn register(&mut self, message: &str) -> Result<u32, String> {
+    fn register(&mut self, message: &str) -> u32 {
         self.consume(&TokenType::Identifier, message);
 
         let lexeme = self.previous_lexeme();
 
         if !lexeme.to_lowercase().starts_with('x') {
-            return Err(format!(
-                "Invalid register format: '{}'. Expected xN (1-32).",
-                lexeme
-            ));
+            self.error_at_previous(
+                &format!("Invalid register format: '{}'. Expected xN (1-32).", lexeme),
+            );
+            return 0; // Return a default value on error, though the error handling above should prevent this from being used.
         }
 
-        let num = lexeme[1..]
-            .parse::<u32>()
-            .map_err(|_| format!("Failed to parse register number from '{}'.", lexeme))?;
+        let register_number = if let Ok(number) = lexeme[1..].parse::<u32>() {
+            number
+        } else {
+            self.error_at_previous(
+                &format!("Failed to parse register number from '{}'.", lexeme),
+            );
+            return 0; // Return a default value on error, though the error handling above should prevent this from being used.
+        };
 
-        if !(1..=32).contains(&num) {
-            return Err(format!("Register number {} out of range (1-32).", num));
+        if !(1..=32).contains(&register_number) {
+            self.error_at_previous(
+                &format!("Register number {} out of range (1-32).", register_number),
+            );
+            return 0; // Return a default value on error, though the error handling above should prevent this from being used.
         }
 
-        Ok(num)
+        register_number
     }
 
     fn string(&mut self, message: &str) -> String {
@@ -178,163 +226,6 @@ impl Assembler {
         self.previous_lexeme()
     }
 
-    fn emit_number(&mut self, value: u32) {
-        self.text_segment.push(value.to_be_bytes());
-    }
-
-    fn emit_opcode(&mut self, op_code: OpCode) {
-        self.emit_number(op_code.into());
-    }
-
-    fn emit_string_bytecode(&mut self, value: &str) -> u32 {
-        let nulled_value = format!("{}\0", value);
-        let words: Vec<[u8; 4]> = nulled_value
-            .bytes()
-            .map(|b| u32::from(b).to_be_bytes())
-            .collect();
-
-        let address: u32 = match self.data_segment.len().try_into() {
-            Ok(address) => address,
-            Err(_) => {
-                self.error_at_current(&format!(
-                    "Failed to convert data segment length to u32. Data segment length exceeds {}. Found data segment length: {}.",
-                    u32::MAX,
-                    self.data_segment.len()
-                ));
-                return 0;
-            }
-        };
-
-        self.data_segment.extend(words);
-
-        address
-    }
-
-    fn upsert_unresolved_label(&mut self, key: String) -> Result<(), String> {
-        let index = self.text_segment.len().saturating_sub(1);
-
-        if let Some(label) = self.unresolved_labels.get_mut(&key) {
-            label.indices.push(index);
-        } else {
-            let previous_token = self
-                .previous
-                .clone()
-                .ok_or_else(|| "Missing token for unresolved label".to_string())?;
-
-            self.unresolved_labels.insert(
-                key,
-                UnresolvedLabel {
-                    indices: vec![index],
-                    token: previous_token,
-                },
-            );
-        }
-
-        Ok(())
-    }
-
-    fn emit_label_bytecode(&mut self, key: String) {
-        // Placeholder, will be replaced in backpatch.
-        self.emit_number(0);
-        if let Err(msg) = self.upsert_unresolved_label(key) {
-            self.error_at_current(&msg);
-        }
-    }
-
-    fn expect_register(&mut self, message: &str) -> Option<u32> {
-        match self.register(message) {
-            Ok(r) => Some(r),
-            Err(msg) => {
-                self.error_at_current(&msg);
-                None
-            }
-        }
-    }
-
-    fn expect_number(&mut self, message: &str) -> Option<u32> {
-        match self.number(message) {
-            Ok(n) => Some(n),
-            Err(msg) => {
-                self.error_at_current(&msg);
-                None
-            }
-        }
-    }
-
-    fn expect_string(&mut self, message: &str) -> Option<String> {
-        if let Some(tok) = &self.current {
-            if tok.token_type() == &TokenType::String {
-                return Some(self.string(message));
-            }
-        }
-        self.error_at_current(message);
-        None
-    }
-
-    fn emit_padding(&mut self, words: usize) {
-        for _ in 0..words {
-            self.emit_number(0);
-        }
-    }
-
-    fn l_type(&mut self, token_type: &TokenType) {
-        self.consume(
-            token_type,
-            format!("Expected '{:?}' keyword.", token_type).as_str(),
-        );
-
-        let opcode = match token_type {
-            TokenType::LoadString => OpCode::LoadString,
-            TokenType::LoadImmediate => OpCode::LoadImmediate,
-            TokenType::LoadFile => OpCode::LoadFile,
-            TokenType::Move => OpCode::Move,
-            _ => {
-                self.error_at_previous("Invalid l-type opcode instruction.");
-                return;
-            }
-        };
-
-        let destination_register = match self.expect_register("Expected destination register.") {
-            Some(r) => r,
-            None => return,
-        };
-
-        self.consume(
-            &TokenType::Comma,
-            "Expected ',' after destination register.",
-        );
-
-        self.emit_opcode(opcode);
-        self.emit_number(destination_register);
-
-        match opcode {
-            OpCode::LoadImmediate => {
-                if let Some(immediate) = self.expect_number("Expected immediate after ','.") {
-                    self.emit_number(immediate);
-                }
-
-                self.emit_padding(1);
-            }
-            OpCode::Move => {
-                if let Some(source_register) =
-                    self.expect_register("Expected source register after ','.")
-                {
-                    self.emit_number(source_register);
-                }
-
-                self.emit_padding(1);
-            }
-            _ => {
-                if let Some(string) = self.expect_string("Expected string after ','.") {
-                    let pointer = self.emit_string_bytecode(&string);
-                    self.emit_number(pointer);
-                }
-
-                self.emit_padding(1);
-            }
-        }
-    }
-
     fn label(&mut self) {
         self.consume(&TokenType::Label, "Expected label name.");
 
@@ -345,108 +236,27 @@ impl Assembler {
         self.labels.insert(value, byte_code_index);
     }
 
-    fn r_type(&mut self, token_type: &TokenType) {
-        self.consume(
-            token_type,
-            format!("Expected '{:?}' keyword.", token_type).as_str(),
-        );
+    fn upsert_unresolved_label(&mut self, key: String) {
+        let index = self.text_segment.len().saturating_sub(1);
 
-        let opcode = match token_type {
-            TokenType::Morph => OpCode::Morph,
-            TokenType::Project => OpCode::Project,
-            TokenType::Distill => OpCode::Distill,
-            TokenType::Correlate => OpCode::Correlate,
-            TokenType::Audit => OpCode::Audit,
-            TokenType::Similarity => OpCode::Similarity,
-            _ => {
-                self.error_at_previous("Invalid r-type opcode instruction.");
+        if let Some(label) = self.unresolved_labels.get_mut(&key) {
+            label.indices.push(index);
+        } else {
+            let previous_token = if let Some(token) = self.previous.clone() {
+                token
+            } else {
+                self.error_at_current("Missing token for unresolved label");
                 return;
-            }
-        };
+            };
 
-        let destination_register = match self.expect_register("Expected destination register after r-type keyword.")
-        {
-            Some(v) => v,
-            None => return,
-        };
-
-        self.consume(
-            &TokenType::Comma,
-            "Expected ',' after destination register.",
-        );
-       
-        let source_register_1 = match self.expect_register("Expected source register 1 after ','.") {
-            Some(v) => v,
-            None => return,
-        };
-
-        self.consume(&TokenType::Comma, "Expected ',' after source register 1.");
-       
-        let source_register_2 = match self.expect_register("Expected source register 2 after ','.") {
-            Some(v) => v,
-            None => return,
-        };
-
-        self.emit_opcode(opcode);
-        self.emit_number(destination_register);
-        self.emit_number(source_register_1);
-        self.emit_number(source_register_2);
-    }
-
-    fn b_type(&mut self, token_type: &TokenType) {
-        self.consume(
-            token_type,
-            format!("Expected '{:?}' keyword.", token_type).as_str(),
-        );
-
-        let opcode = match token_type {
-            TokenType::BranchEqual => OpCode::BranchEqual,
-            TokenType::BranchLess => OpCode::BranchLess,
-            TokenType::BranchLessEqual => OpCode::BranchLessEqual,
-            TokenType::BranchGreater => OpCode::BranchGreater,
-            TokenType::BranchGreaterEqual => OpCode::BranchGreaterEqual,
-            _ => {
-                self.error_at_previous("Invalid b-type opcode instruction.");
-                return;
-            }
-        };
-
-        let source_register_1 = match self.expect_register("Expected source register 1 after branch keyword.") {
-            Some(number) => number,
-            None => return,
-        };
-        self.consume(&TokenType::Comma, "Expected ',' after source register 1.");
-
-        let source_register_2 = match self.expect_register("Expected source register 2 after ','.") {
-            Some(number) => number,
-            None => return,
-        };
-        self.consume(&TokenType::Comma, "Expected ',' after source register 2.");
-
-        let label_name = self
-            .identifier("Expected label name after ','.")
-            .to_string();
-
-        self.emit_opcode(opcode);
-        self.emit_number(source_register_1);
-        self.emit_number(source_register_2);
-        self.emit_label_bytecode(label_name);
-    }
-
-    fn output(&mut self) {
-        self.consume(&TokenType::Out, "Expected 'out' keyword.");
-
-        if let Some(source_register) = self.expect_register("Expected source register after 'out'.") {
-            self.emit_opcode(OpCode::Out);
-            self.emit_number(source_register);
+            self.unresolved_labels.insert(
+                key,
+                UnresolvedLabel {
+                    indices: vec![index],
+                    token: previous_token,
+                },
+            );
         }
-        self.emit_padding(2);
-    }
-
-    fn exit(&mut self) {
-        self.consume(&TokenType::Exit, "Expected 'exit' keyword.");
-        self.emit_opcode(OpCode::Exit);
-        self.emit_padding(3);
     }
 
     fn backpatch_labels(&mut self) {
@@ -457,11 +267,11 @@ impl Assembler {
                 let index: u32 = match (*byte_code_index).try_into() {
                     Ok(value) => value,
                     Err(_) => {
-                        self.error_at_current(format!(
+                        self.error_at_current(&format!(
                             "Failed to convert bytecode index to u32 for backpatching. Bytecode index exceeds {}. Found bytecode index: {}.",
                             u32::MAX,
                             byte_code_index
-                        ).as_str());
+                        ));
                         return;
                     }
                 };
@@ -481,36 +291,216 @@ impl Assembler {
         }
     }
 
+    fn emit_number(&mut self, value: u32) {
+        self.text_segment.push(value.to_be_bytes());
+    }
+
+    fn emit_opcode(&mut self, op_code: OpCode) {
+        self.emit_number(op_code.into());
+    }
+
+    fn emit_string_bytecode(&mut self, value: &str) -> u32 {
+        let nulled_value = format!("{}\0", value);
+        let words: Vec<[u8; 4]> = nulled_value
+            .bytes()
+            .map(|byte| u32::from(byte).to_be_bytes())
+            .collect();
+
+        let address: u32 = match self.data_segment.len().try_into() {
+            Ok(address) => address,
+            Err(_) => {
+                self.error_at_current(&format!(
+                    "Failed to convert data segment length to u32. Data segment length exceeds {}. Found data segment length: {}.",
+                    u32::MAX,
+                    self.data_segment.len()
+                ));
+                return 0; // Return a default value on error, though the error handling above should prevent this from being used.
+            }
+        };
+
+        self.data_segment.extend(words);
+
+        address
+    }
+
+    fn emit_label_bytecode(&mut self, key: String) {
+        self.emit_number(0); // Placeholder, will be replaced in backpatch.
+
+        self.upsert_unresolved_label(key);
+    }
+
+    fn emit_padding(&mut self, words: usize) {
+        for _ in 0..words {
+            self.emit_number(0);
+        }
+    }
+
+    fn load(&mut self, token_type: &TokenType, op_code: OpCode) {
+        self.consume(
+            token_type,
+            &format!("Expected '{:?}' keyword.", token_type),
+        );
+
+        let destination_register = self.register("Expected destination register.");
+        self.consume(
+            &TokenType::Comma,
+            "Expected ',' after destination register.",
+        );
+
+        self.emit_opcode(op_code);
+        self.emit_number(destination_register);
+
+        match op_code {
+            OpCode::LoadImmediate => {
+                let immediate = self.number("Expected immediate after ','.");
+
+                self.emit_number(immediate);
+                self.emit_padding(1);
+            }
+            _ => {
+                let string = self.string("Expected string after ','.");
+                let pointer = self.emit_string_bytecode(&string);
+
+                self.emit_number(pointer);
+                self.emit_padding(1);
+            }
+        }
+    }
+
+    fn branch(&mut self, token_type: &TokenType, op_code: OpCode) {
+        self.consume(
+            token_type,
+            &format!("Expected '{:?}' keyword.", token_type),
+        );
+
+        let source_register_1 = self.register("Expected source register 1 after branch keyword.");
+        self.consume(&TokenType::Comma, "Expected ',' after source register 1.");
+
+        let source_register_2 = self.register("Expected source register 2 after ','.");
+        self.consume(&TokenType::Comma, "Expected ',' after source register 2.");
+
+        let label_name = self
+            .identifier("Expected label name after ','.")
+            .to_string();
+
+        self.emit_opcode(op_code);
+        self.emit_number(source_register_1);
+        self.emit_number(source_register_2);
+        self.emit_label_bytecode(label_name);
+    }
+
+    fn no_register(&mut self, token_type: &TokenType, op_code: OpCode) {
+        self.consume(
+            token_type,
+            &format!("Expected '{:?}' keyword.", token_type),
+        );
+
+        self.emit_opcode(op_code);
+        self.emit_padding(3);
+    }
+
+    fn single_register(&mut self, token_type: &TokenType, op_code: OpCode) {
+        self.consume(
+            token_type,
+            &format!("Expected '{:?}' keyword.", token_type),
+        );
+
+        let register = self.register(&format!("Expected register after '{:?}'.", op_code));
+
+        self.emit_opcode(op_code);
+        self.emit_number(register);
+        self.emit_padding(2);
+    }
+
+    fn double_register(&mut self, token_type: &TokenType, op_code: OpCode) {
+        self.consume(
+            token_type,
+            &format!("Expected '{:?}' keyword.", token_type),
+        );
+
+        let destination_register =
+            self.register(&format!("Expected destination register after '{:?}'.", op_code));
+        self.consume(
+            &TokenType::Comma,
+            "Expected ',' after destination register.",
+        );
+
+        let source_register =
+            self.register(&format!("Expected source register after '{:?}'.", op_code));
+
+        self.emit_opcode(op_code);
+        self.emit_number(destination_register);
+        self.emit_number(source_register);
+        self.emit_padding(1);
+    }
+
+    fn triple_register(&mut self, token_type: &TokenType, op_code: OpCode) {
+        self.consume(
+            token_type,
+            &format!("Expected '{:?}' keyword.", token_type),
+        );
+
+        let destination_register = self.register(
+            &format!(
+                "Expected destination register after '{:?}' keyword.",
+                op_code
+            ),
+        );
+        self.consume(
+            &TokenType::Comma,
+            "Expected ',' after destination register.",
+        );
+
+        let source_register_1 = self.register("Expected source register 1 after ','.");
+        self.consume(&TokenType::Comma, "Expected ',' after source register 1.");
+
+        let source_register_2 = self.register("Expected source register 2 after ','.");
+
+        self.emit_opcode(op_code);
+        self.emit_number(destination_register);
+        self.emit_number(source_register_1);
+        self.emit_number(source_register_2);
+    }
+
     pub fn assemble(&mut self) -> Result<Vec<u8>, &'static str> {
         self.advance();
 
         while !self.panic_mode {
             if let Some(current_token) = &self.current {
-                match current_token.token_type() {
+                let token_type = current_token.token_type().clone();
+                let op_code: OpCode = token_type.clone().into();
+
+                match token_type {
                     // Data movement.
-                    TokenType::LoadString => self.l_type(&TokenType::LoadString),
-                    TokenType::LoadImmediate => self.l_type(&TokenType::LoadImmediate),
-                    TokenType::LoadFile => self.l_type(&TokenType::LoadFile),
-                    TokenType::Move => self.l_type(&TokenType::Move),
+                    TokenType::LoadString | TokenType::LoadImmediate | TokenType::LoadFile => {
+                        self.load(&token_type, op_code)
+                    }
+                    TokenType::Move => self.double_register(&token_type, op_code),
                     // Control flow.
-                    TokenType::BranchEqual => self.b_type(&TokenType::BranchEqual),
-                    TokenType::BranchLess => self.b_type(&TokenType::BranchLess),
-                    TokenType::BranchLessEqual => self.b_type(&TokenType::BranchLessEqual),
-                    TokenType::BranchGreater => self.b_type(&TokenType::BranchGreater),
-                    TokenType::BranchGreaterEqual => self.b_type(&TokenType::BranchGreaterEqual),
-                    TokenType::Exit => self.exit(),
+                    TokenType::BranchEqual
+                    | TokenType::BranchLess
+                    | TokenType::BranchLessEqual
+                    | TokenType::BranchGreater
+                    | TokenType::BranchGreaterEqual => self.branch(&token_type, op_code),
+                    TokenType::Exit => self.no_register(&token_type, op_code),
                     TokenType::Label => self.label(),
                     // I/O.
-                    TokenType::Out => self.output(),
-                    // Generative operations.
-                    TokenType::Morph => self.r_type(&TokenType::Morph),
-                    TokenType::Project => self.r_type(&TokenType::Project),
-                    // Cognitive operations.
-                    TokenType::Distill => self.r_type(&TokenType::Distill),
-                    TokenType::Correlate => self.r_type(&TokenType::Correlate),
-                    // Guardrails operations.
-                    TokenType::Audit => self.r_type(&TokenType::Audit),
-                    TokenType::Similarity => self.r_type(&TokenType::Similarity),
+                    TokenType::Out => self.single_register(&token_type, op_code),
+                    // Generative, cognitive, and guardrails operations.
+                    TokenType::Morph
+                    | TokenType::Project
+                    | TokenType::Distill
+                    | TokenType::Correlate
+                    | TokenType::Audit => self.double_register(&token_type, op_code),
+                    TokenType::Similarity => self.triple_register(&token_type, op_code),
+                    // Context operations.
+                    TokenType::ContextClear | TokenType::ContextDrop => {
+                        self.no_register(&token_type, op_code)
+                    }
+                    TokenType::ContextSnapshot
+                    | TokenType::ContextRestore
+                    | TokenType::ContextPush
+                    | TokenType::ContextPop => self.single_register(&token_type, op_code),
                     // Misc.
                     TokenType::Eof => break,
                     _ => self.error_at_current("Unexpected keyword."),

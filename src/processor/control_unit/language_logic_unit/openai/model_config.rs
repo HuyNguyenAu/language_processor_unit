@@ -29,8 +29,3 @@ pub struct ModelEmbeddingsConfig {
     pub model: String,
     pub encoding_format: String,
 }
-
-pub enum ModelConfig {
-    Text(ModelTextConfig),
-    Embeddings(ModelEmbeddingsConfig),
-}

@@ -29,6 +29,13 @@ pub enum TokenType {
     // Guardrails operations keywords.
     Audit,
     Similarity,
+    // Context operations keywords.
+    ContextClear,
+    ContextSnapshot,
+    ContextRestore,
+    ContextPush,
+    ContextPop,
+    ContextDrop,
     // Misc keywords.
     Label,
     Eof,
@@ -63,6 +70,13 @@ impl TryFrom<&str> for TokenType {
             // Guardrails operations.
             "aud" => Ok(TokenType::Audit),
             "sim" => Ok(TokenType::Similarity),
+            // Context operations.
+            "clr" => Ok(TokenType::ContextClear),
+            "snp" => Ok(TokenType::ContextSnapshot),
+            "rst" => Ok(TokenType::ContextRestore),
+            "psh" => Ok(TokenType::ContextPush),
+            "pop" => Ok(TokenType::ContextPop),
+            "drp" => Ok(TokenType::ContextDrop),
             _ => Err("String does not correspond to any known token type."),
         }
     }

@@ -10,26 +10,17 @@ pub mod chat_completion_models;
 pub mod embeddings_models;
 pub mod model_config;
 
-pub struct OpenAIClient {
-    base_url: &'static str,
-    chat_completion_endpoint: &'static str,
-    embeddings_endpoint: &'static str,
-}
+const BASE_URL: &str = "http://127.0.0.1:8080";
+const CHAT_COMPLETION_ENDPOINT: &str = "v1/chat/completions";
+const EMBEDDINGS_ENDPOINT: &str = "v1/embeddings";
+
+pub struct OpenAIClient;
 
 impl OpenAIClient {
-    pub fn new() -> Self {
-        OpenAIClient {
-            base_url: "http://127.0.0.1:8080",
-            chat_completion_endpoint: "v1/chat/completions",
-            embeddings_endpoint: "v1/embeddings",
-        }
-    }
-
-    pub fn create_chat_completion(
-        &self,
+    pub fn chat_completion(
         request: OpenAIChatCompletionRequest,
     ) -> Result<OpenAIChatCompletionResponse, String> {
-        let url = format!("{}/{}", self.base_url, self.chat_completion_endpoint);
+        let url = format!("{}/{}", BASE_URL, CHAT_COMPLETION_ENDPOINT);
         let body = json::to_string(&request);
         let response = match post(&url).with_body(body).send() {
             Ok(response) => response,
@@ -62,11 +53,10 @@ impl OpenAIClient {
         }
     }
 
-    pub fn create_embeddings(
-        &self,
+    pub fn embeddings(
         request: OpenAIEmbeddingsRequest,
     ) -> Result<OpenAIEmbeddingsResponse, String> {
-        let url = format!("{}/{}", self.base_url, self.embeddings_endpoint);
+        let url = format!("{}/{}", BASE_URL, EMBEDDINGS_ENDPOINT);
         let body = json::to_string(&request);
         let result = post(&url).with_body(body).send();
         let response = match result {

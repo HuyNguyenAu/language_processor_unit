@@ -1,5 +1,7 @@
 use std::fmt;
 
+use miniserde::{Deserialize, Serialize};
+
 #[derive(Debug, Clone)]
 pub enum Value {
     Text(String),
@@ -17,11 +19,27 @@ impl fmt::Display for Value {
     }
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ContextMessage {
+    pub role: String,
+    pub content: String,
+}
+
+impl ContextMessage {
+    pub fn new(role: &str, content: &str) -> Self {
+        ContextMessage {
+            role: role.to_string(),
+            content: content.to_string(),
+        }
+    }
+}
+
 pub struct Registers {
     general_purpose: [Value; 32],
     instruction_pointer: usize,
     instruction: Option<[[u8; 4]; 4]>,
     data_section_pointer: usize,
+    context: Vec<ContextMessage>,
 }
 
 impl Registers {
@@ -31,6 +49,7 @@ impl Registers {
             instruction_pointer: 0,
             instruction: None,
             data_section_pointer: 0,
+            context: Vec::new(),
         }
     }
 
@@ -77,26 +96,6 @@ impl Registers {
         self.instruction_pointer += offset;
     }
 
-    pub fn read_text(&self, register_number: u32) -> Result<&String, String> {
-        match self.get_register(register_number)? {
-            Value::Text(text) => Ok(text),
-            other => Err(format!(
-                "Register r{} contains {:?}, expected text.",
-                register_number, other
-            )),
-        }
-    }
-
-    pub fn read_number(&self, register_number: u32) -> Result<u32, String> {
-        match self.get_register(register_number)? {
-            Value::Number(number) => Ok(*number),
-            other => Err(format!(
-                "Register r{} contains {:?}, expected number.",
-                register_number, other
-            )),
-        }
-    }
-
     pub fn get_instruction(&self) -> Option<[[u8; 4]; 4]> {
         self.instruction
     }
@@ -111,5 +110,32 @@ impl Registers {
 
     pub fn set_data_section_pointer(&mut self, address: usize) {
         self.data_section_pointer = address;
+    }
+
+    pub fn clear_context(&mut self) {
+        self.context.clear();
+    }
+
+    pub fn get_context(&self) -> &Vec<ContextMessage> {
+        &self.context
+    }
+
+    pub fn snapshot_context(&self) -> String {
+        miniserde::json::to_string(&self.context)
+    }
+
+    pub fn restore_context(&mut self, snapshot: &str) -> Result<(), String> {
+        self.context = miniserde::json::from_str(snapshot)
+            .map_err(|error| format!("Failed to restore context from snapshot: {}", error))?;
+
+        Ok(())
+    }
+
+    pub fn push_context(&mut self, message: ContextMessage) {
+        self.context.push(message);
+    }
+
+    pub fn pop_context(&mut self) -> Option<ContextMessage> {
+        self.context.pop()
     }
 }

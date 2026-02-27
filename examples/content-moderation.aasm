@@ -1,35 +1,34 @@
 ; Program: Content Moderation System
-; Objective: Filter content to ensure it matches human-generated authenticity.
+; Objective: Filter out content that may be AI-generated.
 ; Output: A status of "ACCEPTED" or "REJECTED" along with reasons for rejection if applicable.
 
-START:
-    ; --- Data Ingestion ---
-    LF  X1, "examples/data/user_post.txt"       ; The candidate content
-    LF  X2, "examples/data/human_standard.txt"  ; The "Source of Truth" for authenticity
+; Load the candidate content and the AI standard.
+LF  X1, "examples/data/user_post.txt"
+LF  X2, "examples/data/ai_standard.txt"
 
-    ; --- Verification ---
-    AUD X3, X1, X2                              ; If X1 aligns with X2, X3 = 100, else X3 = 0.
+PSH X1      ; Push the user post content onto the context stack for processing.
 
-    ; --- Branching Logic ---
-    LI  X4, 100                                 ; Load the acceptance threshold (100%) into X4
-    BLT X3, X4, REJECT                         ; If similarity is less than 100%, jump to REJECT.
+; Guardrails: Audit the content against the AI standard to determine if it is likely AI-generated.
+AUD X3, X2
 
-    ; --- Approval Path ---
-    LS  X4, "STATUS: ACCEPTED"
-    OUT X4
-    EXIT
+LI  X4, 100             ; Audit will return 100, the the content is 100% likely to be AI-generated.
+BGE X3, X4, REJECT
+
+; Not AI-generated, accept the content.
+LS  X4, "STATUS: ACCEPTED"
+OUT X4
+EXIT
 
 REJECT:
-    LS  X4, "STATUS: REJECTED"
-    OUT X4
-    
-    ; --- Detailed Conflict Analysis ---
-    ; Use COR to extract the specific stylistic or factual "deltas" 
-    ; that caused the rejection.
-    COR X5, X1, X2                  
-    
-    ; --- Output Rejection Reasons ---
-    LS  X4, "REASON FOR REJECTION:"
-    OUT X4
-    OUT X5
-    EXIT
+LS  X4, "STATUS: REJECTED"
+OUT X4
+
+PSH X2                  ; Push the AI standard onto the context stack for analysis of rejection reasons.    
+
+; Find the specific reasons for rejection by comparing the content against the AI standard.
+LS  X4, "List the specific reasons why the content is likely AI-generated."
+COR X5, X4  
+
+LS  X4, "REASON FOR REJECTION:"
+OUT X4
+OUT X5

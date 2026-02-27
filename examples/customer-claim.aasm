@@ -2,18 +2,29 @@
 ; Objective: Determine if a customer's claim about a damaged package is valid.
 ; Output: A statement indicating whether the claim is valid or invalid.
 
-; Initialisation
-LS X1, "The package arrived, but it looks like it went through a blender."
-LS X2, "Is this a damage claim?"
-LI X3, 100                          ; Threshold for damage claim
-LS X4, "CUSTOMER CLAIM: VALID"      ; Assume it's a damage claim until proven otherwise
+; Load the customer's statement about the package.
+LS X1, "The package arrived, but it looks like it did go through a blender."
 
-; Execution
-AUD X5, X1, X2                      ; Check if the customer's statement (X1) matches the damage claim question (X2)
+PSH X1                              ; Push the customer's statement onto the context stack for processing.
 
-BEQ X3, X5, VALID
-LS X4, "CUSTOMER CLAIM: INVALID"    ; If it doesn't match, it's not a damage claim
+; Assess the customer's statement to determine if it indicates a damaged package.
+LS X2, "Is the package damaged based on the customer's statement?"
+MRF X3, X2
 
-; Output
+PSH X3                              ; Push the assessment for context.
+
+LS X2, "Is this the package damaged?"
+AUD X4, X2                          ; Audit the validity of the claim.
+
+LI X3, 100                          ; Audit will return 0 for invalid claims and 100 for valid claims.
+BEQ X4, X3, VALID
+
+; If the claim is not valid, output an invalid statement.
+LS X2, "CUSTOMER CLAIM: INVALID"   
+OUT X2
+EXIT
+
+; If the claim is valid, output a valid statement.
 VALID:
-OUT X4
+LS X2, "CUSTOMER CLAIM: VALID"      ; Assume it's a damage claim until proven otherwise
+OUT X2

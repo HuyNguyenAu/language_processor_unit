@@ -6,30 +6,47 @@
 LF  X1, "examples/data/room_sensor_data.json"
 LS  X2, "It's too dark to read and I am sweating."
 
+PSH X1      ; Push the sensor data the context stack for processing.
+
 ; Sense: Brief description of the current state of the room based on sensor data.
 LS  X3, "A sentence that describes the current state of the room. Include details about temperature, lighting, and any other relevant factors."
-MRF X4, X1, X3
+MRF X5, X3
+
+DRP             ; Drop the sensor data from the context stack.
+PSH X5          ; Push the summarised state for context.
+
+LS  X3, "A sentence that describes the user's feedback about the room's comfort. Include details about their physical sensations and any specific complaints."
+MRF X5, X3
+
+PSH X5          ; Push the expanded user feedback for context.
+SNP X31         ; Save the current state before making adjustments, allowing for a retry if needed.
 
 RETRY:
+RST X31         ; Restore the previous state for a retry if needed.
+
 ; Think: Analyze the sensed state and determine necessary adjustments for physical comfort.
-LS  X3, "Changes to make to the room's temperature and lighting to achieve optimal physical comfort based on the current state and user feedback."
-PRJ X5, X4, X3 
+LS  X3, "What are the changes to the room's temperature(celsius) and lighting(percent) to achieve optimal physical comfort based on the current state and user feedback."
+PRJ X6, X3
+
+PSH X6          ; Push the adjustments for context.
 
 ; Guardrails: Ensure that the adjustments are within safe and reasonable limits.
 LS  X3, "{ \"temp_celsius\": number, \"light_percent\": number }"
-MRF X6, X5, X3
+MRF X7, X3
+
+PSH X7          ; Push the adjustments for context.
 
 LS  X3, "The temperature must be between 18 and 24 degrees Celsius."
-AUD X7, X6, X3
-
-LI X3, 0
-BEQ X7, X3, RETRY
-
-LS X3, "The light intensity must be between 0% and 100%."
-AUD X8, X6, X3
+AUD X8, X3      ; Guardrail for temperature adjustment.
 
 LI X3, 0
 BEQ X8, X3, RETRY
 
+LS X3, "The light intensity must be between 0% and 100%."
+AUD X9, X3      ; Guardrail for light intensity.
+
+LI X3, 0
+BEQ X9, X3, RETRY
+
 ; Act: Implement the adjustments to achieve the desired physical comfort.
-OUT X6
+OUT X7

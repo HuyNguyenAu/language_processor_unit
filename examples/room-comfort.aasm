@@ -52,6 +52,3 @@ BEQ X9, X3, RETRY
 
 ; Act: Implement the adjustments to achieve the desired physical comfort.
 OUT X7
-
-SNP X31
-OUT X31

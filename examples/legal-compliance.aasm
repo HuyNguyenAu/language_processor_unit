@@ -14,7 +14,7 @@ LS  X3, "Does the contract draft comply with GDPR Article 6 standards above?"
 AUD X4, X3          ; Audit the contract draft against GDPR Article 6.
 OUT X4
 
-LI  X3, 100                                 ; Audit will return 100 if the contract is fully compliant with GDPR Article 6.
+LI  X3, 100         ; Audit will return 100 if the contract is fully compliant with GDPR Article 6.
 BGE X4, X3, PASS
 
 ; Identify specific sections of the contract draft that do not comply with GDPR Article 6.

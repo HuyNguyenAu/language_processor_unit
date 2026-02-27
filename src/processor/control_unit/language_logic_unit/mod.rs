@@ -1,6 +1,7 @@
-use crate::processor::{
-    control_unit::{
-        language_logic_unit::openai::{
+use crate::{
+    assembler::roles,
+    processor::{
+        control_unit::language_logic_unit::openai::{
             OpenAIClient,
             chat_completion_models::{
                 OpenAIChatCompletionRequest, OpenAIChatCompletionRequestText,
@@ -8,9 +9,8 @@ use crate::processor::{
             embeddings_models::OpenAIEmbeddingsRequest,
             model_config::{ModelEmbeddingsConfig, ModelTextConfig},
         },
-        roles,
+        registers::ContextMessage,
     },
-    registers::ContextMessage,
 };
 
 mod openai;

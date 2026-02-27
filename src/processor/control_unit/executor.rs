@@ -1,6 +1,6 @@
 use std::fs::read_to_string;
 
-use crate::processor::{
+use crate::{assembler::roles, processor::{
     control_unit::{
         instruction::{
             AuditInstruction, BranchInstruction, BranchType, ContextPopInstruction,
@@ -10,11 +10,10 @@ use crate::processor::{
             MoveInstruction, OutputInstruction, ProjectInstruction, SimilarityInstruction,
         },
         language_logic_unit::LanguageLogicUnit,
-        roles,
     },
     memory::Memory,
     registers::{ContextMessage, Registers, Value},
-};
+}};
 
 pub struct Executor;
 

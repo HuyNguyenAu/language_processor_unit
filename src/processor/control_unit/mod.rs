@@ -9,7 +9,6 @@ mod executor;
 mod instruction;
 mod language_logic_unit;
 mod utils;
-mod roles;
 
 pub struct ControlUnit {
     memory: Memory,

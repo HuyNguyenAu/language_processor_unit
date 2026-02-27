@@ -5,6 +5,7 @@ use crate::assembler::scanner::Scanner;
 use crate::assembler::scanner::token::{Token, TokenType};
 
 pub mod opcode;
+pub mod roles;
 mod scanner;
 
 const HEADER_SIZE: u32 = 2;
@@ -396,8 +397,33 @@ impl Assembler {
 
         let string = self.string("Expected string after keyword.");
 
+        match op_code {
+            OpCode::ContextSetRole => {
+                if string.is_empty() {
+                    self.error_at_previous("Role name cannot be empty.");
+                    return;
+                }
+
+                if !matches!(
+                    string.to_lowercase().as_str(),
+                    roles::USER_ROLE | roles::ASSISTANT_ROLE
+                ) {
+                    self.error_at_previous(&format!(
+                        "Invalid role name '{}'. Expected '{}' or '{}'.",
+                        string,
+                        roles::USER_ROLE,
+                        roles::ASSISTANT_ROLE
+                    ));
+                    return;
+                }
+            }
+            _ => {}
+        }
+
+        let pointer = self.emit_string(&string);
+
         self.emit_opcode(op_code);
-        self.emit_string(&string);
+        self.emit_number(pointer);
         self.emit_padding(2);
     }
 

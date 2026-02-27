@@ -132,11 +132,17 @@ impl Decoder {
         }
     }
 
-    fn no_register_string(op_code: OpCode, instruction_bytes: [[u8; 4]; 4]) -> Instruction {
+    fn no_register_string(
+        memory: &Memory,
+        registers: &Registers,
+        op_code: OpCode,
+        instruction_bytes: [[u8; 4]; 4],
+    ) -> Instruction {
+        println!("Decoding no-register string instruction with opcode {:?} and bytes: {:?}", op_code, instruction_bytes);
         let pointer = u32::from_be_bytes(instruction_bytes[1]) as usize;
         let string = Self::string(
-            &Memory::new(),
-            &Registers::new(),
+            memory,
+            registers,
             pointer,
             &format!("Failed to decode {:?} string", op_code),
         );
@@ -252,7 +258,9 @@ impl Decoder {
             | OpCode::ContextRestore
             | OpCode::ContextPush
             | OpCode::ContextPop => Self::single_register(op_code, instruction_bytes),
-            OpCode::ContextSetRole => Self::no_register_string(op_code, instruction_bytes),
+            OpCode::ContextSetRole => {
+                Self::no_register_string(memory, registers, op_code, instruction_bytes)
+            }
             OpCode::Morph
             | OpCode::Project
             | OpCode::Distill

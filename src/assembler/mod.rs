@@ -340,7 +340,20 @@ impl Assembler {
         }
     }
 
-    fn immediate(&mut self, token_type: &TokenType, op_code: OpCode, string_only: bool) {
+    fn immediate(
+        &mut self,
+        token_type: &TokenType,
+        op_code: OpCode,
+        string_only: bool,
+        number_only: bool,
+    ) {
+        if string_only && number_only {
+            self.error_at_current(
+                "Invalid opcode configuration: cannot be both string-only and number-only.",
+            );
+            return;
+        }
+
         self.consume(token_type, &format!("Expected '{:?}' keyword.", token_type));
 
         let destination_register = self.register("Expected destination register.");
@@ -358,9 +371,13 @@ impl Assembler {
 
             self.emit_number(pointer);
             self.emit_padding(1);
+        } else if number_only {
+            let immediate = self.number("Expected number after ','.");
+
+            self.emit_number(immediate);
+            self.emit_padding(1);
         } else {
             let immediate = self.number("Expected immediate after ','.");
-
             self.emit_number(immediate);
             self.emit_padding(1);
         }
@@ -491,9 +508,9 @@ impl Assembler {
 
                 match token_type {
                     // Data movement.
-                    TokenType::LoadImmediate => self.immediate(&token_type, op_code, false),
+                    TokenType::LoadImmediate => self.immediate(&token_type, op_code, false, false),
                     TokenType::LoadString | TokenType::LoadFile => {
-                        self.immediate(&token_type, op_code, true)
+                        self.immediate(&token_type, op_code, true, false)
                     }
                     TokenType::Move => self.double_register(&token_type, op_code),
                     // Control flow.
@@ -522,6 +539,8 @@ impl Assembler {
                     | TokenType::ContextPush
                     | TokenType::ContextPop => self.single_register(&token_type, op_code),
                     TokenType::ContextSetRole => self.no_register_string(&token_type, op_code),
+                    // Misc operations.
+                    TokenType::Decrement => self.immediate(&token_type, op_code, false, true),
                     // Misc.
                     TokenType::Eof => break,
                     _ => self.error_at_current("Unexpected keyword."),

@@ -32,6 +32,8 @@ pub enum OpCode {
     ContextDrop = 0x16,
     ContextSetRole = 0x17,
     // Misc.
+    Decrement = 0x18,
+    // Misc.
     NoOp = 0xFF, // No operation (used for labels and placeholders).
 }
 
@@ -71,6 +73,8 @@ impl TryFrom<u32> for OpCode {
             x if x == OpCode::ContextPop as u32 => Ok(OpCode::ContextPop),
             x if x == OpCode::ContextDrop as u32 => Ok(OpCode::ContextDrop),
             x if x == OpCode::ContextSetRole as u32 => Ok(OpCode::ContextSetRole),
+            // Misc.
+            x if x == OpCode::Decrement as u32 => Ok(OpCode::Decrement),
             _ => Err("Byte value does not correspond to any known opcode."),
         }
     }

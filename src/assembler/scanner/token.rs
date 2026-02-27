@@ -37,6 +37,8 @@ pub enum TokenType {
     ContextPop,
     ContextDrop,
     ContextSetRole,
+    // Misc operations keywords.
+    Decrement,
     // Misc keywords.
     Label,
     Eof,
@@ -79,6 +81,8 @@ impl TryFrom<&str> for TokenType {
             "pop" => Ok(TokenType::ContextPop),
             "drp" => Ok(TokenType::ContextDrop),
             "srl" => Ok(TokenType::ContextSetRole),
+            // Misc operations.
+            "dec" => Ok(TokenType::Decrement),
             _ => Err("String does not correspond to any known token type."),
         }
     }

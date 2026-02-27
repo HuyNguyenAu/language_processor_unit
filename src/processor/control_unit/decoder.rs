@@ -5,9 +5,10 @@ use crate::{
             AuditInstruction, BranchInstruction, BranchType, ContextClearInstruction,
             ContextDropInstruction, ContextPopInstruction, ContextPushInstruction,
             ContextRestoreInstruction, ContextSetRoleInstruction, ContextSnapshotInstruction,
-            CorrelateInstruction, DistillInstruction, ExitInstruction, Instruction,
-            LoadFileInstruction, LoadImmediateInstruction, LoadStringInstruction, MorphInstruction,
-            MoveInstruction, OutputInstruction, ProjectInstruction, SimilarityInstruction,
+            CorrelateInstruction, DecrementInstruction, DistillInstruction, ExitInstruction,
+            Instruction, LoadFileInstruction, LoadImmediateInstruction, LoadStringInstruction,
+            MorphInstruction, MoveInstruction, OutputInstruction, ProjectInstruction,
+            SimilarityInstruction,
         },
         memory::Memory,
         registers::Registers,
@@ -57,7 +58,7 @@ impl Decoder {
         op_code: OpCode,
         instruction_bytes: [[u8; 4]; 4],
     ) -> Instruction {
-        let destination_register = u32::from_be_bytes(instruction_bytes[1]);
+        let register = u32::from_be_bytes(instruction_bytes[1]);
 
         match op_code {
             OpCode::LoadString | OpCode::LoadFile => {
@@ -71,11 +72,11 @@ impl Decoder {
 
                 match op_code {
                     OpCode::LoadString => Instruction::LoadString(LoadStringInstruction {
-                        destination_register,
+                        destination_register: register,
                         value: string,
                     }),
                     OpCode::LoadFile => Instruction::LoadFile(LoadFileInstruction {
-                        destination_register,
+                        destination_register: register,
                         file_path: string,
                     }),
                     _ => panic!(
@@ -85,12 +86,17 @@ impl Decoder {
                 }
             }
             OpCode::LoadImmediate => Instruction::LoadImmediate(LoadImmediateInstruction {
-                destination_register,
+                destination_register: register,
                 value: u32::from_be_bytes(instruction_bytes[2]),
             }),
             OpCode::Move => Instruction::Move(MoveInstruction {
-                destination_register,
+                destination_register: register,
                 source_register: u32::from_be_bytes(instruction_bytes[2]),
+            }),
+            // Misc operations.
+            OpCode::Decrement => Instruction::Decrement(DecrementInstruction {
+                source_register: register,
+                value: u32::from_be_bytes(instruction_bytes[2]),
             }),
             _ => panic!("Invalid opcode '{:?}' for L-type instruction.", op_code),
         }
@@ -243,29 +249,37 @@ impl Decoder {
         let op_code = Self::op_code(&instruction_bytes[0]);
 
         match op_code {
+            // Data movement.
             OpCode::LoadString | OpCode::LoadImmediate | OpCode::LoadFile | OpCode::Move => {
                 Self::immediate(memory, registers, op_code, instruction_bytes)
             }
+            // Control flow.
             OpCode::BranchEqual
             | OpCode::BranchLess
             | OpCode::BranchLessEqual
             | OpCode::BranchGreater
             | OpCode::BranchGreaterEqual => Self::branch(op_code, instruction_bytes),
-            OpCode::Exit | OpCode::ContextClear | OpCode::ContextDrop => Self::no_register(op_code),
-            OpCode::Out
-            | OpCode::ContextSnapshot
+            OpCode::Exit => Self::no_register(op_code),
+            // I/O.
+            OpCode::Out => Self::single_register(op_code, instruction_bytes),
+            // Context operations.
+            OpCode::ContextClear | OpCode::ContextDrop => Self::no_register(op_code),
+            OpCode::ContextSnapshot
             | OpCode::ContextRestore
             | OpCode::ContextPush
             | OpCode::ContextPop => Self::single_register(op_code, instruction_bytes),
             OpCode::ContextSetRole => {
                 Self::no_register_string(memory, registers, op_code, instruction_bytes)
             }
+            // Generative, cognitive, and guardrails operations.
             OpCode::Morph
             | OpCode::Project
             | OpCode::Distill
             | OpCode::Correlate
             | OpCode::Audit => Self::double_register(op_code, instruction_bytes),
             OpCode::Similarity => Self::triple_register(op_code, instruction_bytes),
+            // Misc operations.
+            OpCode::Decrement => Self::immediate(memory, registers, op_code, instruction_bytes),
             OpCode::NoOp => panic!("NoOp is not a valid instruction and should not be decoded."),
         }
     }

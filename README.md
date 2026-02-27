@@ -118,6 +118,7 @@ The instruction set is closely inspired by RISC-V assembly language:
 | SIM         | Cosine similarity between rs and rs and store in rd (0 - 100)            | `sim rd, rs`               |
 | LABEL       | Define a label. Required for branching instructions                      | `label_name:`              |
 | OUT         | Print the value of rs                                                    | `out rs\|imm`              |
+| DEC         | Decrement the value in rs by num                                         | `dec rd, num`              |
 | EXIT        | Exit the program                                                         | `exit`                     |
 
 ## Quick Start

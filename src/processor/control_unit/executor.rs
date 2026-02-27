@@ -1,19 +1,23 @@
 use std::fs::read_to_string;
 
-use crate::{assembler::roles, processor::{
-    control_unit::{
-        instruction::{
-            AuditInstruction, BranchInstruction, BranchType, ContextPopInstruction,
-            ContextPushInstruction, ContextRestoreInstruction, ContextSetRoleInstruction,
-            ContextSnapshotInstruction, CorrelateInstruction, DistillInstruction, Instruction,
-            LoadFileInstruction, LoadImmediateInstruction, LoadStringInstruction, MorphInstruction,
-            MoveInstruction, OutputInstruction, ProjectInstruction, SimilarityInstruction,
+use crate::{
+    assembler::roles,
+    processor::{
+        control_unit::{
+            instruction::{
+                AuditInstruction, BranchInstruction, BranchType, ContextPopInstruction,
+                ContextPushInstruction, ContextRestoreInstruction, ContextSetRoleInstruction,
+                ContextSnapshotInstruction, CorrelateInstruction, DecrementInstruction,
+                DistillInstruction, Instruction, LoadFileInstruction, LoadImmediateInstruction,
+                LoadStringInstruction, MorphInstruction, MoveInstruction, OutputInstruction,
+                ProjectInstruction, SimilarityInstruction,
+            },
+            language_logic_unit::LanguageLogicUnit,
         },
-        language_logic_unit::LanguageLogicUnit,
+        memory::Memory,
+        registers::{ContextMessage, Registers, Value},
     },
-    memory::Memory,
-    registers::{ContextMessage, Registers, Value},
-}};
+};
 
 pub struct Executor;
 
@@ -140,6 +144,27 @@ impl Executor {
             is_true,
             instruction.instruction_pointer_jump_index
         );
+    }
+
+    fn exit(memory: &Memory, registers: &mut Registers, debug: bool) {
+        crate::debug_print!(debug, "Executed EXIT: Halting execution.");
+        registers.set_instruction_pointer(memory.length());
+    }
+
+    fn output(registers: &Registers, instruction: &OutputInstruction, debug: bool) {
+        let value = registers
+            .get_register(instruction.source_register)
+            .expect(&format!(
+                "Failed to read register r{}",
+                instruction.source_register
+            ))
+            .to_string();
+
+        if debug {
+            println!("Executed OUT: {}", value);
+        } else {
+            println!("{}", value);
+        }
     }
 
     fn morph(registers: &mut Registers, instruction: &MorphInstruction, debug: bool) {
@@ -403,25 +428,30 @@ impl Executor {
         );
     }
 
-    fn output(registers: &Registers, instruction: &OutputInstruction, debug: bool) {
-        let value = registers
-            .get_register(instruction.source_register)
-            .expect(&format!(
-                "Failed to read register r{}",
+    fn decrement(registers: &mut Registers, instruction: &DecrementInstruction, debug: bool) {
+        let value = Self::read_number(registers, instruction.source_register)
+            .expect("Failed to read number from register for DECREMENT instruction");
+
+        if value < instruction.value {
+            panic!(
+                "Cannot decrement register r{} because it would result in a negative value.",
                 instruction.source_register
-            ))
-            .to_string();
-
-        if debug {
-            println!("Executed OUT: {}", value);
-        } else {
-            println!("{}", value);
+            );
         }
-    }
 
-    fn exit(memory: &Memory, registers: &mut Registers, debug: bool) {
-        crate::debug_print!(debug, "Executed EXIT: Halting execution.");
-        registers.set_instruction_pointer(memory.length());
+        let new_value = Value::Number(value - instruction.value);
+
+        registers
+            .set_register(instruction.source_register, &new_value)
+            .expect("Failed to set register for DECREMENT instruction");
+
+        crate::debug_print!(
+            debug,
+            "Executed DEC: Decremented r{} from {} to {}.",
+            instruction.source_register,
+            value,
+            new_value
+        );
     }
 
     pub fn execute(
@@ -439,6 +469,8 @@ impl Executor {
             // Control flow operations.
             Instruction::Branch(i) => Self::branch(registers, i, debug),
             Instruction::Exit(_) => Self::exit(memory, registers, debug),
+            // I/O operations.
+            Instruction::Output(i) => Self::output(registers, i, debug),
             // Generative operations.
             Instruction::Morph(i) => Self::morph(registers, i, debug),
             Instruction::Project(i) => Self::project(registers, i, debug),
@@ -456,8 +488,8 @@ impl Executor {
             Instruction::ContextPop(i) => Self::context_pop(registers, i, debug),
             Instruction::ContextDrop(_) => Self::context_drop(registers, debug),
             Instruction::ContextSetRole(i) => Self::context_set_role(registers, i, debug),
-            // I/O operations.
-            Instruction::Output(i) => Self::output(registers, i, debug),
+            // Misc operations.
+            Instruction::Decrement(i) => Self::decrement(registers, i, debug),
         }
     }
 }

@@ -3,23 +3,37 @@ use std::fs::read_to_string;
 use crate::processor::{
     control_unit::{
         instruction::{
-            BType, BTypeInstruction, Instruction, LoadFileInstruction, LoadImmediateInstruction,
-            LoadStringInstruction, MoveInstruction, OutputInstruction, RTypeInstruction,
+            BType, BTypeInstruction, ContextPopInstruction, ContextPushInstruction,
+            ContextRestoreInstruction, ContextSnapshotInstruction, Instruction,
+            LoadFileInstruction, LoadImmediateInstruction, LoadStringInstruction, MoveInstruction,
+            OutputInstruction, RType, RTypeInstruction,
         },
-        language_logic_unit::LanguageLogicUnit,
+        language_logic_unit::{LanguageLogicUnit, USER_ROLE},
     },
     memory::Memory,
-    registers::{Registers, Value},
+    registers::{ContextMessage, Registers, Value},
 };
 
-pub struct Executor {
-    language_logic: LanguageLogicUnit,
-}
+pub struct Executor;
 
 impl Executor {
-    pub fn new() -> Self {
-        Executor {
-            language_logic: LanguageLogicUnit::new(),
+    fn read_text(registers: &Registers, register_number: u32) -> Result<&String, String> {
+        match registers.get_register(register_number)? {
+            Value::Text(text) => Ok(text),
+            other => Err(format!(
+                "Register r{} contains {:?}, expected text.",
+                register_number, other
+            )),
+        }
+    }
+
+    fn read_number(registers: &Registers, register_number: u32) -> Result<u32, String> {
+        match registers.get_register(register_number)? {
+            Value::Number(number) => Ok(*number),
+            other => Err(format!(
+                "Register r{} contains {:?}, expected number.",
+                register_number, other
+            )),
         }
     }
 
@@ -34,7 +48,7 @@ impl Executor {
             debug,
             "Executed LI: r{} = {:?}",
             instruction.destination_register,
-            registers.get_register(instruction.destination_register)
+            value
         );
     }
 
@@ -53,7 +67,7 @@ impl Executor {
             debug,
             "Executed LI: r{} = {:?}",
             instruction.destination_register,
-            registers.get_register(instruction.destination_register)
+            value
         );
     }
 
@@ -72,7 +86,7 @@ impl Executor {
             debug,
             "Executed LF: r{} = \"{:?}\"",
             instruction.destination_register,
-            registers.get_register(instruction.destination_register)
+            file_contents
         );
     }
 
@@ -94,24 +108,36 @@ impl Executor {
         );
     }
 
-    fn r_type(&mut self, registers: &mut Registers, instruction: &RTypeInstruction, debug: bool) {
-        // read two text operands
-        let value_a = registers
-            .read_text(instruction.source_register_1)
+    fn r_type(registers: &mut Registers, instruction: &RTypeInstruction, debug: bool) {
+        let value_a = Self::read_text(registers, instruction.source_register_1)
             .expect("Failed to read text from register");
-        let value_b = registers
-            .read_text(instruction.source_register_2)
+        let value_b = Self::read_text(registers, instruction.source_register_2)
             .expect("Failed to read text from register");
+        let context = registers.get_context();
 
-        let result = self
-            .language_logic
-            .run(instruction.id, &instruction.r_type, value_a, value_b)
-            .unwrap_or_else(|error| {
-                panic!(
-                    "Failed to perform {:?}. Error: {}",
-                    instruction.r_type, error
-                )
-            });
+        let result = if matches!(instruction.r_type, RType::Similarity) {
+            let value = LanguageLogicUnit::new()
+                .boolean(&instruction.r_type, value_a, context.clone())
+                .unwrap_or_else(|error| {
+                    panic!(
+                        "Failed to perform {:?}. Error: {}",
+                        instruction.r_type, error
+                    )
+                });
+
+            Value::Number(value)
+        } else {
+            let value = LanguageLogicUnit::new()
+                .string(&instruction.r_type, value_a, context.clone())
+                .unwrap_or_else(|error| {
+                    panic!(
+                        "Failed to perform {:?}. Error: {}",
+                        instruction.r_type, error
+                    )
+                });
+
+            Value::Text(value)
+        };
 
         crate::debug_print!(
             debug,
@@ -129,12 +155,10 @@ impl Executor {
     }
 
     fn b_type(registers: &mut Registers, instruction: &BTypeInstruction, debug: bool) {
-        let value_a = registers
-            .read_number(instruction.source_register_1)
+        let value_a = Self::read_number(registers, instruction.source_register_1)
             .expect("Failed to read number from register");
 
-        let value_b = registers
-            .read_number(instruction.source_register_2)
+        let value_b = Self::read_number(registers, instruction.source_register_2)
             .expect("Failed to read number from register");
 
         let is_true = match instruction.b_type {
@@ -163,21 +187,110 @@ impl Executor {
         );
     }
 
+    fn context_clear(registers: &mut Registers, debug: bool) {
+        registers.clear_context();
+
+        crate::debug_print!(debug, "Executed CLR: Cleared context stack.");
+    }
+
+    fn context_snapshot(
+        registers: &mut Registers,
+        instruction: &ContextSnapshotInstruction,
+        debug: bool,
+    ) {
+        let snapshot = registers.snapshot_context();
+
+        registers
+            .set_register(instruction.destination_register, &Value::Text(snapshot))
+            .expect("Failed to set register for CONTEXT_SNAPSHOT instruction");
+
+        crate::debug_print!(
+            debug,
+            "Executed SNP: Snapshotted context stack into r{}.",
+            instruction.destination_register
+        );
+    }
+
+    fn context_restore(
+        registers: &mut Registers,
+        instruction: &ContextRestoreInstruction,
+        debug: bool,
+    ) {
+        let snapshot = Self::read_text(registers, instruction.source_register)
+            .expect("Failed to read context snapshot from register")
+            .clone();
+
+        registers
+            .restore_context(&snapshot)
+            .expect("Failed to restore context from snapshot");
+
+        crate::debug_print!(
+            debug,
+            "Executed RST: Restored context stack from snapshot in r{}.",
+            instruction.source_register
+        );
+    }
+
+    fn context_push(registers: &mut Registers, instruction: &ContextPushInstruction, debug: bool) {
+        let value = match registers
+            .get_register(instruction.source_register)
+            .expect(&format!(
+                "Failed to read register r{} for CONTEXT_PUSH instruction",
+                instruction.source_register
+            )) {
+            Value::Text(text) => text.clone(),
+            Value::Number(number) => number.to_string(),
+            Value::None => panic!(
+                "Register r{} contains None, expected text or number.",
+                instruction.source_register
+            ),
+        };
+
+        registers.push_context(ContextMessage::new(USER_ROLE, &value));
+
+        crate::debug_print!(
+            debug,
+            "Executed PSH: Pushed value from r{} onto context stack.",
+            instruction.source_register
+        );
+    }
+
+    fn context_pop(registers: &mut Registers, instruction: &ContextPopInstruction, debug: bool) {
+        let context = registers
+            .pop_context()
+            .expect("Failed to pop context because context stack is empty.");
+
+        registers
+            .set_register(
+                instruction.destination_register,
+                &Value::Text(context.content.clone()),
+            )
+            .expect("Failed to set register for CONTEXT_POP instruction");
+
+        crate::debug_print!(debug, "Executed POP: Popped value from context stack.",);
+    }
+
+    fn context_drop(registers: &mut Registers, debug: bool) {
+        registers
+            .pop_context()
+            .expect("Failed to pop context because context stack is empty.");
+
+        crate::debug_print!(debug, "Executed DRP: Dropped value from context stack.",);
+    }
+
     fn output(registers: &Registers, instruction: &OutputInstruction, debug: bool) {
         let value = registers
             .get_register(instruction.source_register)
             .expect(&format!(
                 "Failed to read register r{}",
                 instruction.source_register
-            ));
-
-        // `Value` implements `Display` so this is now idiomatic.
-        let output = value.to_string();
+            ))
+            .to_string();
 
         if debug {
-            println!("Executed OUT: {}", output);
+            println!("Executed OUT: {}", value);
         } else {
-            println!("{}", output);
+            println!("{}", value);
         }
     }
 
@@ -187,7 +300,6 @@ impl Executor {
     }
 
     pub fn execute(
-        &mut self,
         memory: &mut Memory,
         registers: &mut Registers,
         instruction: &Instruction,
@@ -199,9 +311,15 @@ impl Executor {
             Instruction::LoadFile(i) => Self::load_file(registers, i, debug),
             Instruction::Move(i) => Self::mov(registers, i, debug),
             Instruction::BType(i) => Self::b_type(registers, i, debug),
-            Instruction::Exit(_i) => Self::exit(memory, registers, debug),
+            Instruction::Exit(_) => Self::exit(memory, registers, debug),
+            Instruction::ContextClear(_) => Self::context_clear(registers, debug),
+            Instruction::ContextSnapshot(i) => Self::context_snapshot(registers, i, debug),
+            Instruction::ContextRestore(i) => Self::context_restore(registers, i, debug),
+            Instruction::ContextPush(i) => Self::context_push(registers, i, debug),
+            Instruction::ContextPop(i) => Self::context_pop(registers, i, debug),
+            Instruction::ContextDrop(_) => Self::context_drop(registers, debug),
             Instruction::Output(i) => Self::output(registers, i, debug),
-            Instruction::RType(i) => Self::r_type(self, registers, i, debug),
+            Instruction::RType(i) => Self::r_type(registers, i, debug),
         }
     }
 }

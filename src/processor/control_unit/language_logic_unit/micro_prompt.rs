@@ -7,30 +7,30 @@ pub fn true_values(r_type: &RType) -> Result<Vec<&'static str>, &'static str> {
     }
 }
 
-pub fn create(r_type: &RType, value_a: &str, value_b: &str) -> Result<String, &'static str> {
+pub fn create(r_type: &RType, value: &str) -> Result<String, &'static str> {
     match r_type {
         // Generative operations.
         RType::Morph => Ok(format!(
-            "Take the following:\n{}\n\nAnd transform it into the following format:\n{}\n\nTransformed Output:",
-            value_a, value_b
+            "Transform it into the following format:\n{}\n\nTransformed Output:",
+            value
         )),
         RType::Project => Ok(format!(
-            "Take the following data:\n{}\n\nProject how it might evolve based on this direction or trend:\n{}\n\nProjected Output:",
-            value_a, value_b
+            "Project how it might evolve based on this direction or trend:\n{}\n\nProjected Output:",
+            value
         )),
         // Cognitive operations.
         RType::Distill => Ok(format!(
-            "Input: {}\nGoal/Criteria: {}\nDistilled Result:",
-            value_a, value_b
+            "Distill it down following the goal or criteria:\n{}\n\nDistilled Result:",
+            value
         )),
         RType::Correlate => Ok(format!(
-            "Entity A: {}\nEntity B: {}\nRelational Analysis:",
-            value_a, value_b
+            "Find the correlation with:\n{}\n\nRelational Analysis:",
+            value
         )),
         // Guardrails operations.
         RType::Audit => Ok(format!(
-            "Does the claim:\n{}\n\nComply with the evidence:\n{}\n\nYES/NO:",
-            value_a, value_b
+            "Does it comply with the evidence:\n{}\n\nYES/NO:",
+            value
         )),
         _ => Err("Unsupported r_type for micro prompt generation."),
     }

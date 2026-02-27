@@ -2,7 +2,9 @@ use crate::{
     assembler::opcode::OpCode,
     processor::{
         control_unit::instruction::{
-            BType, BTypeInstruction, ExitInstruction, Instruction, LoadFileInstruction,
+            BType, BTypeInstruction, ContextClearInstruction, ContextDropInstruction,
+            ContextPopInstruction, ContextPushInstruction, ContextRestoreInstruction,
+            ContextSnapshotInstruction, ExitInstruction, Instruction, LoadFileInstruction,
             LoadImmediateInstruction, LoadStringInstruction, MoveInstruction, OutputInstruction,
             RType, RTypeInstruction,
         },
@@ -85,15 +87,7 @@ impl Decoder {
         }
     }
 
-    fn r_type(
-        registers: &Registers,
-        op_code: OpCode,
-        instruction_bytes: [[u8; 4]; 4],
-    ) -> Instruction {
-        let id: u32 = registers
-            .get_instruction_pointer()
-            .try_into()
-            .expect("Instruction pointer did not fit in u32");
+    fn r_type(op_code: OpCode, instruction_bytes: [[u8; 4]; 4]) -> Instruction {
         let destination_register = u32::from_be_bytes(instruction_bytes[1]);
         let source_register_1 = u32::from_be_bytes(instruction_bytes[2]);
         let source_register_2 = u32::from_be_bytes(instruction_bytes[3]);
@@ -109,7 +103,6 @@ impl Decoder {
         };
 
         Instruction::RType(RTypeInstruction {
-            id,
             r_type,
             destination_register,
             source_register_1,
@@ -139,14 +132,50 @@ impl Decoder {
         })
     }
 
-    fn output(instruction_bytes: [[u8; 4]; 4]) -> Instruction {
-        let source_register = u32::from_be_bytes(instruction_bytes[1]);
-
-        Instruction::Output(OutputInstruction { source_register })
+    fn zero_operand(op_code: OpCode) -> Instruction {
+        match op_code {
+            // Control flow.
+            OpCode::Exit => Instruction::Exit(ExitInstruction),
+            // Context operations.
+            OpCode::ContextClear => Instruction::ContextClear(ContextClearInstruction),
+            OpCode::ContextDrop => Instruction::ContextDrop(ContextDropInstruction),
+            _ => panic!(
+                "Invalid opcode '{:?}' for zero-operand instruction.",
+                op_code
+            ),
+            _ => panic!(
+                "Invalid opcode '{:?}' for zero-operand instruction.",
+                op_code
+            ),
+        }
     }
 
-    fn exit() -> Instruction {
-        Instruction::Exit(ExitInstruction)
+    fn single_operand(op_code: OpCode, instruction_bytes: [[u8; 4]; 4]) -> Instruction {
+        let register = u32::from_be_bytes(instruction_bytes[1]);
+
+        match op_code {
+            // I/O.
+            OpCode::Out => Instruction::Output(OutputInstruction {
+                source_register: register,
+            }),
+            // Context operations.
+            OpCode::ContextSnapshot => Instruction::ContextSnapshot(ContextSnapshotInstruction {
+                destination_register: register,
+            }),
+            OpCode::ContextRestore => Instruction::ContextRestore(ContextRestoreInstruction {
+                source_register: register,
+            }),
+            OpCode::ContextPush => Instruction::ContextPush(ContextPushInstruction {
+                source_register: register,
+            }),
+            OpCode::ContextPop => Instruction::ContextPop(ContextPopInstruction {
+                destination_register: register,
+            }),
+            _ => panic!(
+                "Invalid opcode '{:?}' for single-operand instruction.",
+                op_code
+            ),
+        }
     }
 
     pub fn decode(
@@ -165,14 +194,20 @@ impl Decoder {
             | OpCode::BranchLessEqual
             | OpCode::BranchGreater
             | OpCode::BranchGreaterEqual => Self::b_type(op_code, instruction_bytes),
-            OpCode::Exit => Self::exit(),
-            OpCode::Out => Self::output(instruction_bytes),
+            OpCode::Exit | OpCode::ContextClear | OpCode::ContextDrop => {
+                Self::zero_operand(op_code)
+            }
+            OpCode::Out
+            | OpCode::ContextSnapshot
+            | OpCode::ContextRestore
+            | OpCode::ContextPush
+            | OpCode::ContextPop => Self::single_operand(op_code, instruction_bytes),
             OpCode::Morph
             | OpCode::Project
             | OpCode::Distill
             | OpCode::Correlate
             | OpCode::Audit
-            | OpCode::Similarity => Self::r_type(registers, op_code, instruction_bytes),
+            | OpCode::Similarity => Self::r_type(op_code, instruction_bytes),
         }
     }
 }

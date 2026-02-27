@@ -10,28 +10,23 @@ use crate::processor::{
             model_config::{ModelConfig, ModelEmbeddingsConfig, ModelTextConfig},
         },
     },
-    registers::Value,
+    registers::ContextMessage,
 };
 
 mod micro_prompt;
 mod openai;
 
 const SYSTEM_ROLE: &str = "system";
-const USER_ROLE: &str = "user";
-const ASSISTANT_ROLE: &str = "assistant";
+pub const USER_ROLE: &str = "user";
+pub const ASSISTANT_ROLE: &str = "assistant";
 
 const TRUTHY_THRESHOLD: u32 = 80;
-
-struct Messages {
-    id: u32,
-    request: OpenAIChatCompletionRequestText,
-}
 
 pub struct LanguageLogicUnit {
     openai_client: OpenAIClient,
     text_model: ModelConfig,
     embeddings_model: ModelConfig,
-    history: Vec<Messages>,
+    system_prompt: String,
 }
 
 impl LanguageLogicUnit {
@@ -86,46 +81,41 @@ impl LanguageLogicUnit {
             openai_client: OpenAIClient::new(),
             text_model: Self::default_text_model(),
             embeddings_model: Self::default_embeddings_model(),
-            history: vec![Messages {
-                id: 0,
-                request: OpenAIChatCompletionRequestText {
-                    role: SYSTEM_ROLE.to_string(),
-                    content: "Output ONLY the answer. No intro. No fluff. No punctuation unless required.".to_string(),
-                },
-            }],
+            system_prompt:
+                "Output ONLY the answer. No intro. No fluff. No punctuation unless required."
+                    .to_string(),
         }
     }
+
     fn clean_string(&self, value: &str) -> String {
         value.trim().replace("\n", "").to_string()
     }
 
-    // Truncate all messages in the history after the id of the current instruction, to prevent the history from growing indefinitely.
-    fn truncate_history(&mut self, id: u32) {
-        self.history.retain(|message| message.id < id);
-    }
-
-    fn chat(&mut self, id: u32, content: &str) -> Result<String, String> {
-        self.truncate_history(id);
-
+    fn chat(&self, content: &str, context: Vec<ContextMessage>) -> Result<String, String> {
         let model = match &self.text_model {
             ModelConfig::Text(config) => config,
             _ => return Err("Text model configuration is required for chat.".to_string()),
         };
-
-        self.history.push(Messages {
-            id,
-            request: OpenAIChatCompletionRequestText {
-                role: USER_ROLE.to_string(),
-                content: content.to_string(),
-            },
-        });
+        let messages = std::iter::once(OpenAIChatCompletionRequestText {
+            role: SYSTEM_ROLE.to_string(),
+            content: self.system_prompt.clone(),
+        })
+        .chain(
+            context
+                .into_iter()
+                .map(|message| OpenAIChatCompletionRequestText {
+                    role: message.role,
+                    content: message.content,
+                }),
+        )
+        .chain(std::iter::once(OpenAIChatCompletionRequestText {
+            role: USER_ROLE.to_string(),
+            content: content.to_string(),
+        }))
+        .collect::<Vec<OpenAIChatCompletionRequestText>>();
 
         let request = OpenAIChatCompletionRequest {
-            messages: self
-                .history
-                .iter()
-                .map(|message| message.request.clone())
-                .collect(),
+            messages,
             stream: model.stream,
             return_progress: model.return_progress,
             model: model.model.clone(),
@@ -165,14 +155,6 @@ impl LanguageLogicUnit {
             .ok_or_else(|| "No choices returned from client.".to_string())?;
         let result = self.clean_string(&choice.message.content);
 
-        self.history.push(Messages {
-            id,
-            request: OpenAIChatCompletionRequestText {
-                role: ASSISTANT_ROLE.to_string(),
-                content: result.clone(),
-            },
-        });
-
         Ok(result)
     }
 
@@ -210,7 +192,7 @@ impl LanguageLogicUnit {
         Ok(embeddings.embedding.to_owned())
     }
 
-    fn cosine_similarity(&self, value_a: &str, value_b: &str) -> Result<u32, String> {
+    pub fn cosine_similarity(&self, value_a: &str, value_b: &str) -> Result<u32, String> {
         let value_a_embeddings = self.embeddings(value_a).map_err(|error| {
             format!("Failed to get embedding for {}. Error: {}", value_a, error)
         })?;
@@ -233,14 +215,13 @@ impl LanguageLogicUnit {
         Ok(percentage_similarity.round() as u32)
     }
 
-    fn execute(
-        &mut self,
-        id: u32,
+    pub fn string(
+        &self,
         r_type: &RType,
-        value_a: &str,
-        value_b: &str,
+        value: &str,
+        context: Vec<ContextMessage>,
     ) -> Result<String, String> {
-        let prompt = micro_prompt::create(r_type, value_a, value_b).map_err(|error| {
+        let prompt = micro_prompt::create(r_type, value).map_err(|error| {
             format!(
                 "Failed to generate micro prompt for {:?}. Error: {}",
                 r_type, error
@@ -248,13 +229,25 @@ impl LanguageLogicUnit {
         })?;
 
         let result = self
-            .chat(id, prompt.as_str())
+            .chat(prompt.as_str(), context)
             .map_err(|error| format!("Failed to perform {:?}. Error: {}", r_type, error))?;
 
         Ok(result.to_lowercase())
     }
 
-    fn boolean(&self, r_type: &RType, value: &str) -> Result<u32, String> {
+    pub fn boolean(
+        &self,
+        r_type: &RType,
+        value: &str,
+        context: Vec<ContextMessage>,
+    ) -> Result<u32, String> {
+        let value = self.string(r_type, value, context).map_err(|error| {
+            format!(
+                "Failed to execute {:?} for boolean operation. Error: {}",
+                r_type, error
+            )
+        })?;
+
         let true_values = micro_prompt::true_values(r_type).map_err(|error| {
             format!(
                 "Failed to get true values for {:?}. Error: {}",
@@ -284,38 +277,5 @@ impl LanguageLogicUnit {
         }
 
         Ok(0)
-    }
-
-    pub fn run(
-        &mut self,
-        id: u32,
-        r_type: &RType,
-        value_a: &str,
-        value_b: &str,
-    ) -> Result<Value, String> {
-        if matches!(r_type, RType::Audit) {
-            let value = self
-                .execute(id, r_type, value_a, value_b)
-                .map_err(|error| {
-                    format!(
-                        "Failed to execute {:?} for boolean operation. Error: {}",
-                        r_type, error
-                    )
-                })?;
-
-            return self.boolean(r_type, &value).map(Value::Number);
-        }
-
-        if matches!(r_type, RType::Similarity) {
-            return self.cosine_similarity(value_a, value_b).map(Value::Number);
-        }
-
-        self.execute(id, r_type, value_a, value_b).map(Value::Text)
-    }
-}
-
-impl Default for LanguageLogicUnit {
-    fn default() -> Self {
-        Self::new()
     }
 }

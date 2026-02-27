@@ -13,7 +13,6 @@ mod utils;
 pub struct ControlUnit {
     memory: Memory,
     registers: Registers,
-    executor: Executor,
 }
 
 impl ControlUnit {
@@ -21,7 +20,6 @@ impl ControlUnit {
         ControlUnit {
             memory: Memory::new(),
             registers: Registers::new(),
-            executor: Executor::new(),
         }
     }
 
@@ -88,7 +86,6 @@ impl ControlUnit {
     }
 
     pub fn execute(&mut self, instruction: Instruction, debug: bool) {
-        self.executor
-            .execute(&mut self.memory, &mut self.registers, &instruction, debug);
+        Executor::execute(&mut self.memory, &mut self.registers, &instruction, debug);
     }
 }

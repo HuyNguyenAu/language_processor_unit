@@ -9,6 +9,49 @@ mod scanner;
 
 const HEADER_SIZE: u32 = 2;
 
+impl TryFrom<TokenType> for OpCode {
+    type Error = String;
+
+    fn try_from(token_type: TokenType) -> Result<Self, Self::Error> {
+        match token_type {
+            // Data movement.
+            TokenType::LoadString => Ok(OpCode::LoadString),
+            TokenType::LoadImmediate => Ok(OpCode::LoadImmediate),
+            TokenType::LoadFile => Ok(OpCode::LoadFile),
+            TokenType::Move => Ok(OpCode::Move),
+            // Control flow.
+            TokenType::BranchEqual => Ok(OpCode::BranchEqual),
+            TokenType::BranchLessEqual => Ok(OpCode::BranchLessEqual),
+            TokenType::BranchLess => Ok(OpCode::BranchLess),
+            TokenType::BranchGreaterEqual => Ok(OpCode::BranchGreaterEqual),
+            TokenType::BranchGreater => Ok(OpCode::BranchGreater),
+            TokenType::Exit => Ok(OpCode::Exit),
+            // I/O.
+            TokenType::Out => Ok(OpCode::Out),
+            // Generative operations.
+            TokenType::Morph => Ok(OpCode::Morph),
+            TokenType::Project => Ok(OpCode::Project),
+            // Cognitive operations.
+            TokenType::Distill => Ok(OpCode::Distill),
+            TokenType::Correlate => Ok(OpCode::Correlate),
+            // Guardrails operations.
+            TokenType::Audit => Ok(OpCode::Audit),
+            TokenType::Similarity => Ok(OpCode::Similarity),
+            // Context operations.
+            TokenType::ContextClear => Ok(OpCode::ContextClear),
+            TokenType::ContextSnapshot => Ok(OpCode::ContextSnapshot),
+            TokenType::ContextRestore => Ok(OpCode::ContextRestore),
+            TokenType::ContextPush => Ok(OpCode::ContextPush),
+            TokenType::ContextPop => Ok(OpCode::ContextPop),
+            TokenType::ContextDrop => Ok(OpCode::ContextDrop),
+            _ => Err(format!(
+                "Cannot convert token type '{:?}' into opcode.",
+                token_type
+            )),
+        }
+    }
+}
+
 struct UnresolvedLabel {
     indices: Vec<usize>,
     token: Token,
@@ -120,7 +163,6 @@ impl Assembler {
             && current_token.token_type() == token_type
         {
             self.advance();
-
             return;
         }
 
@@ -190,7 +232,7 @@ impl Assembler {
         let nulled_value = format!("{}\0", value);
         let words: Vec<[u8; 4]> = nulled_value
             .bytes()
-            .map(|b| u32::from(b).to_be_bytes())
+            .map(|byte| u32::from(byte).to_be_bytes())
             .collect();
 
         let address: u32 = match self.data_segment.len().try_into() {
@@ -201,7 +243,7 @@ impl Assembler {
                     u32::MAX,
                     self.data_segment.len()
                 ));
-                return 0;
+                return 0; // Return a default value on error, though the error handling above should prevent this from being used.
             }
         };
 
@@ -234,8 +276,8 @@ impl Assembler {
     }
 
     fn emit_label_bytecode(&mut self, key: String) {
-        // Placeholder, will be replaced in backpatch.
-        self.emit_number(0);
+        self.emit_number(0); // Placeholder, will be replaced in backpatch.
+
         if let Err(msg) = self.upsert_unresolved_label(key) {
             self.error_at_current(&msg);
         }
@@ -267,6 +309,7 @@ impl Assembler {
                 return Some(self.string(message));
             }
         }
+
         self.error_at_current(message);
         None
     }
@@ -277,25 +320,14 @@ impl Assembler {
         }
     }
 
-    fn l_type(&mut self, token_type: &TokenType) {
+    fn l_type(&mut self, token_type: &TokenType, op_code: OpCode) {
         self.consume(
             token_type,
             format!("Expected '{:?}' keyword.", token_type).as_str(),
         );
 
-        let opcode = match token_type {
-            TokenType::LoadString => OpCode::LoadString,
-            TokenType::LoadImmediate => OpCode::LoadImmediate,
-            TokenType::LoadFile => OpCode::LoadFile,
-            TokenType::Move => OpCode::Move,
-            _ => {
-                self.error_at_previous("Invalid l-type opcode instruction.");
-                return;
-            }
-        };
-
         let destination_register = match self.expect_register("Expected destination register.") {
-            Some(r) => r,
+            Some(register) => register,
             None => return,
         };
 
@@ -304,10 +336,10 @@ impl Assembler {
             "Expected ',' after destination register.",
         );
 
-        self.emit_opcode(opcode);
+        self.emit_opcode(op_code);
         self.emit_number(destination_register);
 
-        match opcode {
+        match op_code {
             OpCode::LoadImmediate => {
                 if let Some(immediate) = self.expect_number("Expected immediate after ','.") {
                     self.emit_number(immediate);
@@ -345,80 +377,59 @@ impl Assembler {
         self.labels.insert(value, byte_code_index);
     }
 
-    fn r_type(&mut self, token_type: &TokenType) {
+    fn r_type(&mut self, token_type: &TokenType, op_code: OpCode) {
         self.consume(
             token_type,
             format!("Expected '{:?}' keyword.", token_type).as_str(),
         );
 
-        let opcode = match token_type {
-            TokenType::Morph => OpCode::Morph,
-            TokenType::Project => OpCode::Project,
-            TokenType::Distill => OpCode::Distill,
-            TokenType::Correlate => OpCode::Correlate,
-            TokenType::Audit => OpCode::Audit,
-            TokenType::Similarity => OpCode::Similarity,
-            _ => {
-                self.error_at_previous("Invalid r-type opcode instruction.");
-                return;
-            }
-        };
-
-        let destination_register = match self.expect_register("Expected destination register after r-type keyword.")
-        {
-            Some(v) => v,
-            None => return,
-        };
+        let destination_register =
+            match self.expect_register("Expected destination register after r-type keyword.") {
+                Some(register) => register,
+                None => return,
+            };
 
         self.consume(
             &TokenType::Comma,
             "Expected ',' after destination register.",
         );
-       
-        let source_register_1 = match self.expect_register("Expected source register 1 after ','.") {
-            Some(v) => v,
+
+        let source_register_1 = match self.expect_register("Expected source register 1 after ','.")
+        {
+            Some(register) => register,
             None => return,
         };
 
         self.consume(&TokenType::Comma, "Expected ',' after source register 1.");
-       
-        let source_register_2 = match self.expect_register("Expected source register 2 after ','.") {
-            Some(v) => v,
+
+        let source_register_2 = match self.expect_register("Expected source register 2 after ','.")
+        {
+            Some(register) => register,
             None => return,
         };
 
-        self.emit_opcode(opcode);
+        self.emit_opcode(op_code);
         self.emit_number(destination_register);
         self.emit_number(source_register_1);
         self.emit_number(source_register_2);
     }
 
-    fn b_type(&mut self, token_type: &TokenType) {
+    fn b_type(&mut self, token_type: &TokenType, op_code: OpCode) {
         self.consume(
             token_type,
             format!("Expected '{:?}' keyword.", token_type).as_str(),
         );
 
-        let opcode = match token_type {
-            TokenType::BranchEqual => OpCode::BranchEqual,
-            TokenType::BranchLess => OpCode::BranchLess,
-            TokenType::BranchLessEqual => OpCode::BranchLessEqual,
-            TokenType::BranchGreater => OpCode::BranchGreater,
-            TokenType::BranchGreaterEqual => OpCode::BranchGreaterEqual,
-            _ => {
-                self.error_at_previous("Invalid b-type opcode instruction.");
-                return;
-            }
-        };
-
-        let source_register_1 = match self.expect_register("Expected source register 1 after branch keyword.") {
-            Some(number) => number,
-            None => return,
-        };
+        let source_register_1 =
+            match self.expect_register("Expected source register 1 after branch keyword.") {
+                Some(register) => register,
+                None => return,
+            };
         self.consume(&TokenType::Comma, "Expected ',' after source register 1.");
 
-        let source_register_2 = match self.expect_register("Expected source register 2 after ','.") {
-            Some(number) => number,
+        let source_register_2 = match self.expect_register("Expected source register 2 after ','.")
+        {
+            Some(register) => register,
             None => return,
         };
         self.consume(&TokenType::Comma, "Expected ',' after source register 2.");
@@ -427,26 +438,35 @@ impl Assembler {
             .identifier("Expected label name after ','.")
             .to_string();
 
-        self.emit_opcode(opcode);
+        self.emit_opcode(op_code);
         self.emit_number(source_register_1);
         self.emit_number(source_register_2);
         self.emit_label_bytecode(label_name);
     }
 
-    fn output(&mut self) {
-        self.consume(&TokenType::Out, "Expected 'out' keyword.");
+    fn zero_operand(&mut self, token_type: &TokenType, op_code: OpCode) {
+        self.consume(
+            token_type,
+            format!("Expected '{:?}' keyword.", token_type).as_str(),
+        );
 
-        if let Some(source_register) = self.expect_register("Expected source register after 'out'.") {
-            self.emit_opcode(OpCode::Out);
-            self.emit_number(source_register);
-        }
-        self.emit_padding(2);
+        self.emit_opcode(op_code);
+        self.emit_padding(3);
     }
 
-    fn exit(&mut self) {
-        self.consume(&TokenType::Exit, "Expected 'exit' keyword.");
-        self.emit_opcode(OpCode::Exit);
-        self.emit_padding(3);
+    fn single_operand(&mut self, token_type: &TokenType, op_code: OpCode) {
+        self.consume(
+            token_type,
+            format!("Expected '{:?}' keyword.", token_type).as_str(),
+        );
+
+        if let Some(source_register) = self.expect_register("Expected source register after 'out'.")
+        {
+            self.emit_opcode(op_code);
+            self.emit_number(source_register);
+        }
+
+        self.emit_padding(2);
     }
 
     fn backpatch_labels(&mut self) {
@@ -486,31 +506,46 @@ impl Assembler {
 
         while !self.panic_mode {
             if let Some(current_token) = &self.current {
-                match current_token.token_type() {
+                let token_type = current_token.token_type().clone();
+                let op_code: OpCode = match token_type.clone().try_into() {
+                    Ok(op_code) => op_code,
+                    Err(error) => {
+                        self.error_at_previous(&error);
+                        return Err("Assembly failed due to errors.");
+                    }
+                };
+
+                match token_type {
                     // Data movement.
-                    TokenType::LoadString => self.l_type(&TokenType::LoadString),
-                    TokenType::LoadImmediate => self.l_type(&TokenType::LoadImmediate),
-                    TokenType::LoadFile => self.l_type(&TokenType::LoadFile),
-                    TokenType::Move => self.l_type(&TokenType::Move),
+                    TokenType::LoadString
+                    | TokenType::LoadImmediate
+                    | TokenType::LoadFile
+                    | TokenType::Move => self.l_type(&token_type, op_code),
                     // Control flow.
-                    TokenType::BranchEqual => self.b_type(&TokenType::BranchEqual),
-                    TokenType::BranchLess => self.b_type(&TokenType::BranchLess),
-                    TokenType::BranchLessEqual => self.b_type(&TokenType::BranchLessEqual),
-                    TokenType::BranchGreater => self.b_type(&TokenType::BranchGreater),
-                    TokenType::BranchGreaterEqual => self.b_type(&TokenType::BranchGreaterEqual),
-                    TokenType::Exit => self.exit(),
+                    TokenType::BranchEqual
+                    | TokenType::BranchLess
+                    | TokenType::BranchLessEqual
+                    | TokenType::BranchGreater
+                    | TokenType::BranchGreaterEqual => self.b_type(&token_type, op_code),
+                    TokenType::Exit => self.zero_operand(&token_type, op_code),
                     TokenType::Label => self.label(),
                     // I/O.
-                    TokenType::Out => self.output(),
-                    // Generative operations.
-                    TokenType::Morph => self.r_type(&TokenType::Morph),
-                    TokenType::Project => self.r_type(&TokenType::Project),
-                    // Cognitive operations.
-                    TokenType::Distill => self.r_type(&TokenType::Distill),
-                    TokenType::Correlate => self.r_type(&TokenType::Correlate),
-                    // Guardrails operations.
-                    TokenType::Audit => self.r_type(&TokenType::Audit),
-                    TokenType::Similarity => self.r_type(&TokenType::Similarity),
+                    TokenType::Out => self.single_operand(&token_type, op_code),
+                    // Generative, cognitive, and guardrails operations.
+                    TokenType::Morph
+                    | TokenType::Project
+                    | TokenType::Distill
+                    | TokenType::Correlate
+                    | TokenType::Audit
+                    | TokenType::Similarity => self.r_type(&token_type, op_code),
+                    // Context operations.
+                    TokenType::ContextClear | TokenType::ContextDrop => {
+                        self.zero_operand(&token_type, op_code)
+                    }
+                    TokenType::ContextSnapshot
+                    | TokenType::ContextRestore
+                    | TokenType::ContextPush
+                    | TokenType::ContextPop => self.single_operand(&token_type, op_code),
                     // Misc.
                     TokenType::Eof => break,
                     _ => self.error_at_current("Unexpected keyword."),

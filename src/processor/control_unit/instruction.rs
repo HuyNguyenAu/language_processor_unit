@@ -36,7 +36,6 @@ pub enum RType {
 
 #[derive(Debug)]
 pub struct RTypeInstruction {
-    pub id: u32,
     pub r_type: RType,
     pub destination_register: u32,
     pub source_register_1: u32,
@@ -61,6 +60,32 @@ pub struct BTypeInstruction {
 }
 
 #[derive(Debug)]
+pub struct ContextClearInstruction;
+
+#[derive(Debug)]
+pub struct ContextSnapshotInstruction {
+    pub destination_register: u32,
+}
+
+#[derive(Debug)]
+pub struct ContextRestoreInstruction {
+    pub source_register: u32,
+}
+
+#[derive(Debug)]
+pub struct ContextPushInstruction {
+    pub source_register: u32,
+}
+
+#[derive(Debug)]
+pub struct ContextPopInstruction {
+    pub destination_register: u32,
+}
+
+#[derive(Debug)]
+pub struct ContextDropInstruction;
+
+#[derive(Debug)]
 pub struct OutputInstruction {
     pub source_register: u32,
 }
@@ -76,6 +101,12 @@ pub enum Instruction {
     Move(MoveInstruction),
     RType(RTypeInstruction),
     BType(BTypeInstruction),
+    ContextClear(ContextClearInstruction),
+    ContextSnapshot(ContextSnapshotInstruction),
+    ContextRestore(ContextRestoreInstruction),
+    ContextPush(ContextPushInstruction),
+    ContextPop(ContextPopInstruction),
+    ContextDrop(ContextDropInstruction),
     Output(OutputInstruction),
     Exit(ExitInstruction),
 }

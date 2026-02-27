@@ -3,7 +3,7 @@ use crate::processor::{
         OpenAIClient,
         chat_completion_models::{OpenAIChatCompletionRequest, OpenAIChatCompletionRequestText},
         embeddings_models::OpenAIEmbeddingsRequest,
-        model_config::{ModelConfig, ModelEmbeddingsConfig, ModelTextConfig},
+        model_config::{ModelEmbeddingsConfig, ModelTextConfig},
     },
     registers::ContextMessage,
 };
@@ -16,14 +16,11 @@ const TRUTHY_THRESHOLD: u32 = 80;
 const SYSTEM_PROMPT: &str =
     "Output ONLY the answer. No intro. No fluff. No punctuation unless required.";
 
-pub struct LanguageLogicUnit {
-    text_model: ModelConfig,
-    embeddings_model: ModelConfig,
-}
+pub struct LanguageLogicUnit;
 
 impl LanguageLogicUnit {
-    fn default_text_model() -> ModelConfig {
-        ModelConfig::Text(ModelTextConfig {
+    fn default_text_model() -> ModelTextConfig {
+        ModelTextConfig {
             stream: false,
             return_progress: false,
             model: "LFM2-2.6B-Q5_K_M.gguf".to_string(),
@@ -58,32 +55,22 @@ impl LanguageLogicUnit {
                 "temperature".to_string(),
             ],
             timings_per_token: false,
-        })
-    }
-
-    fn default_embeddings_model() -> ModelConfig {
-        ModelConfig::Embeddings(ModelEmbeddingsConfig {
-            model: "Qwen3-Embedding-0.6B-Q4_1-imat.gguf".to_string(),
-            encoding_format: "float".to_string(),
-        })
-    }
-
-    pub fn new() -> Self {
-        Self {
-            text_model: Self::default_text_model(),
-            embeddings_model: Self::default_embeddings_model(),
         }
     }
 
-    fn clean_string(&self, value: &str) -> String {
+    fn default_embeddings_model() -> ModelEmbeddingsConfig {
+        ModelEmbeddingsConfig {
+            model: "Qwen3-Embedding-0.6B-Q4_1-imat.gguf".to_string(),
+            encoding_format: "float".to_string(),
+        }
+    }
+
+    fn clean_string(value: &str) -> String {
         value.trim().replace("\n", "").to_string()
     }
 
-    fn chat(&self, content: &str, context: Vec<ContextMessage>) -> Result<String, String> {
-        let model = match &self.text_model {
-            ModelConfig::Text(config) => config,
-            _ => return Err("Text model configuration is required for chat.".to_string()),
-        };
+    fn chat(content: &str, context: Vec<ContextMessage>) -> Result<String, String> {
+        let model = Self::default_text_model();
         let messages = std::iter::once(OpenAIChatCompletionRequestText {
             role: roles::SYSTEM_ROLE.to_string(),
             content: SYSTEM_PROMPT.to_string(),
@@ -138,21 +125,13 @@ impl LanguageLogicUnit {
             .choices
             .first()
             .ok_or_else(|| "No choices returned from client.".to_string())?;
-        let result = self.clean_string(&choice.message.content);
+        let result = Self::clean_string(&choice.message.content);
 
         Ok(result)
     }
 
-    fn embeddings(&self, content: &str) -> Result<Vec<f32>, String> {
-        let model = match &self.embeddings_model {
-            ModelConfig::Embeddings(config) => config,
-            _ => {
-                return Err(
-                    "Embeddings model configuration is required for embeddings.".to_string()
-                );
-            }
-        };
-
+    fn embeddings(content: &str) -> Result<Vec<f32>, String> {
+        let model = Self::default_embeddings_model();
         let request = OpenAIEmbeddingsRequest {
             model: model.model.to_string(),
             input: content.to_string(),
@@ -174,12 +153,12 @@ impl LanguageLogicUnit {
         Ok(embeddings.embedding.to_owned())
     }
 
-    pub fn cosine_similarity(&self, value_a: &str, value_b: &str) -> Result<u32, String> {
-        let value_a_embeddings = self.embeddings(value_a).map_err(|error| {
+    pub fn cosine_similarity(value_a: &str, value_b: &str) -> Result<u32, String> {
+        let value_a_embeddings = Self::embeddings(value_a).map_err(|error| {
             format!("Failed to get embedding for {}. Error: {}", value_a, error)
         })?;
 
-        let value_b_embeddings = self.embeddings(value_b).map_err(|error| {
+        let value_b_embeddings = Self::embeddings(value_b).map_err(|error| {
             format!("Failed to get embedding for {}. Error: {}", value_b, error)
         })?;
 
@@ -197,26 +176,19 @@ impl LanguageLogicUnit {
         Ok(percentage_similarity.round() as u32)
     }
 
-    pub fn string(
-        &self,
-        micro_prompt: &str,
-        context: Vec<ContextMessage>,
-    ) -> Result<String, String> {
-        let result = self
-            .chat(micro_prompt, context)
+    pub fn string(micro_prompt: &str, context: Vec<ContextMessage>) -> Result<String, String> {
+        let result = Self::chat(micro_prompt, context)
             .map_err(|error| format!("Failed to execute string operation. Error: {}", error))?;
 
         Ok(result)
     }
 
     pub fn boolean(
-        &self,
         micro_prompt: &str,
         true_values: Vec<&str>,
         context: Vec<ContextMessage>,
     ) -> Result<u32, String> {
-        let value = self
-            .string(micro_prompt, context)
+        let value = Self::string(micro_prompt, context)
             .map_err(|error| format!("Failed to execute boolean operation. Error: {}", error))?;
 
         if true_values.contains(&value.to_uppercase().as_str()) {
@@ -225,8 +197,7 @@ impl LanguageLogicUnit {
 
         // If not an exact match, check cosine similarity against true values.
         for true_value in true_values {
-            let score = self
-                .cosine_similarity(&value.to_lowercase(), &true_value.to_lowercase())
+            let score = Self::cosine_similarity(&value.to_lowercase(), &true_value.to_lowercase())
                 .map_err(|error| {
                     format!(
                         "Failed to compute cosine similarity for boolean evaluation. Error: {}",

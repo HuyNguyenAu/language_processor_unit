@@ -151,8 +151,7 @@ impl Executor {
         );
         let context = registers.get_context().clone();
 
-        let result = LanguageLogicUnit::new()
-            .string(&micro_prompt, context)
+        let result = LanguageLogicUnit::string(&micro_prompt, context)
             .unwrap_or_else(|error| panic!("Failed to perform MORPH operation. Error: {}", error));
 
         crate::debug_print!(
@@ -176,11 +175,9 @@ impl Executor {
         );
         let context = registers.get_context().clone();
 
-        let result = LanguageLogicUnit::new()
-            .string(&micro_prompt, context)
-            .unwrap_or_else(|error| {
-                panic!("Failed to perform PROJECT operation. Error: {}", error)
-            });
+        let result = LanguageLogicUnit::string(&micro_prompt, context).unwrap_or_else(|error| {
+            panic!("Failed to perform PROJECT operation. Error: {}", error)
+        });
 
         crate::debug_print!(
             debug,
@@ -203,11 +200,9 @@ impl Executor {
         );
         let context = registers.get_context().clone();
 
-        let result = LanguageLogicUnit::new()
-            .string(&micro_prompt, context)
-            .unwrap_or_else(|error| {
-                panic!("Failed to perform DISTILL operation. Error: {}", error)
-            });
+        let result = LanguageLogicUnit::string(&micro_prompt, context).unwrap_or_else(|error| {
+            panic!("Failed to perform DISTILL operation. Error: {}", error)
+        });
 
         crate::debug_print!(
             debug,
@@ -230,11 +225,9 @@ impl Executor {
         );
         let context = registers.get_context().clone();
 
-        let result = LanguageLogicUnit::new()
-            .string(&micro_prompt, context)
-            .unwrap_or_else(|error| {
-                panic!("Failed to perform CORRELATE operation. Error: {}", error)
-            });
+        let result = LanguageLogicUnit::string(&micro_prompt, context).unwrap_or_else(|error| {
+            panic!("Failed to perform CORRELATE operation. Error: {}", error)
+        });
 
         crate::debug_print!(
             debug,
@@ -255,8 +248,7 @@ impl Executor {
         let true_values = vec!["YES"];
         let context = registers.get_context().clone();
 
-        let result = LanguageLogicUnit::new()
-            .boolean(&micro_prompt, true_values, context)
+        let result = LanguageLogicUnit::boolean(&micro_prompt, true_values, context)
             .unwrap_or_else(|error| panic!("Failed to perform AUDIT operation. Error: {}", error));
 
         crate::debug_print!(
@@ -277,9 +269,8 @@ impl Executor {
         let value_b = Self::read_text(registers, instruction.source_register_2)
             .expect("Failed to read text from source register 2 for SIMILARITY instruction");
 
-        let result = LanguageLogicUnit::new()
-            .cosine_similarity(&value_a, &value_b)
-            .unwrap_or_else(|error| {
+        let result =
+            LanguageLogicUnit::cosine_similarity(&value_a, &value_b).unwrap_or_else(|error| {
                 panic!("Failed to perform SIMILARITY operation. Error: {}", error)
             });
 

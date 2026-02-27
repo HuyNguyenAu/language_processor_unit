@@ -102,6 +102,11 @@ pub struct ContextPopInstruction {
 pub struct ContextDropInstruction;
 
 #[derive(Debug)]
+pub struct ContextSetRoleInstruction {
+    pub role: String,
+}
+
+#[derive(Debug)]
 pub struct OutputInstruction {
     pub source_register: u32,
 }
@@ -128,6 +133,7 @@ pub enum Instruction {
     ContextPush(ContextPushInstruction),
     ContextPop(ContextPopInstruction),
     ContextDrop(ContextDropInstruction),
+    ContextSetRole(ContextSetRoleInstruction),
     Output(OutputInstruction),
     Exit(ExitInstruction),
 }

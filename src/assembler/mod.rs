@@ -5,6 +5,7 @@ use crate::assembler::scanner::Scanner;
 use crate::assembler::scanner::token::{Token, TokenType};
 
 pub mod opcode;
+pub mod roles;
 mod scanner;
 
 const HEADER_SIZE: u32 = 2;
@@ -42,6 +43,7 @@ impl From<TokenType> for OpCode {
             TokenType::ContextPush => OpCode::ContextPush,
             TokenType::ContextPop => OpCode::ContextPop,
             TokenType::ContextDrop => OpCode::ContextDrop,
+            TokenType::ContextSetRole => OpCode::ContextSetRole,
             _ => OpCode::NoOp,
         }
     }
@@ -185,25 +187,28 @@ impl Assembler {
         let lexeme = self.previous_lexeme();
 
         if !lexeme.to_lowercase().starts_with('x') {
-            self.error_at_previous(
-                &format!("Invalid register format: '{}'. Expected xN (1-32).", lexeme),
-            );
+            self.error_at_previous(&format!(
+                "Invalid register format: '{}'. Expected xN (1-32).",
+                lexeme
+            ));
             return 0; // Return a default value on error, though the error handling above should prevent this from being used.
         }
 
         let register_number = if let Ok(number) = lexeme[1..].parse::<u32>() {
             number
         } else {
-            self.error_at_previous(
-                &format!("Failed to parse register number from '{}'.", lexeme),
-            );
+            self.error_at_previous(&format!(
+                "Failed to parse register number from '{}'.",
+                lexeme
+            ));
             return 0; // Return a default value on error, though the error handling above should prevent this from being used.
         };
 
         if !(1..=32).contains(&register_number) {
-            self.error_at_previous(
-                &format!("Register number {} out of range (1-32).", register_number),
-            );
+            self.error_at_previous(&format!(
+                "Register number {} out of range (1-32).",
+                register_number
+            ));
             return 0; // Return a default value on error, though the error handling above should prevent this from being used.
         }
 
@@ -299,7 +304,7 @@ impl Assembler {
         self.emit_number(op_code.into());
     }
 
-    fn emit_string_bytecode(&mut self, value: &str) -> u32 {
+    fn emit_string(&mut self, value: &str) -> u32 {
         let nulled_value = format!("{}\0", value);
         let words: Vec<[u8; 4]> = nulled_value
             .bytes()
@@ -323,7 +328,7 @@ impl Assembler {
         address
     }
 
-    fn emit_label_bytecode(&mut self, key: String) {
+    fn emit_label(&mut self, key: String) {
         self.emit_number(0); // Placeholder, will be replaced in backpatch.
 
         self.upsert_unresolved_label(key);
@@ -335,11 +340,8 @@ impl Assembler {
         }
     }
 
-    fn load(&mut self, token_type: &TokenType, op_code: OpCode) {
-        self.consume(
-            token_type,
-            &format!("Expected '{:?}' keyword.", token_type),
-        );
+    fn immediate(&mut self, token_type: &TokenType, op_code: OpCode, string_only: bool) {
+        self.consume(token_type, &format!("Expected '{:?}' keyword.", token_type));
 
         let destination_register = self.register("Expected destination register.");
         self.consume(
@@ -350,28 +352,22 @@ impl Assembler {
         self.emit_opcode(op_code);
         self.emit_number(destination_register);
 
-        match op_code {
-            OpCode::LoadImmediate => {
-                let immediate = self.number("Expected immediate after ','.");
+        if string_only {
+            let string = self.string("Expected string after ','.");
+            let pointer = self.emit_string(&string);
 
-                self.emit_number(immediate);
-                self.emit_padding(1);
-            }
-            _ => {
-                let string = self.string("Expected string after ','.");
-                let pointer = self.emit_string_bytecode(&string);
+            self.emit_number(pointer);
+            self.emit_padding(1);
+        } else {
+            let immediate = self.number("Expected immediate after ','.");
 
-                self.emit_number(pointer);
-                self.emit_padding(1);
-            }
+            self.emit_number(immediate);
+            self.emit_padding(1);
         }
     }
 
     fn branch(&mut self, token_type: &TokenType, op_code: OpCode) {
-        self.consume(
-            token_type,
-            &format!("Expected '{:?}' keyword.", token_type),
-        );
+        self.consume(token_type, &format!("Expected '{:?}' keyword.", token_type));
 
         let source_register_1 = self.register("Expected source register 1 after branch keyword.");
         self.consume(&TokenType::Comma, "Expected ',' after source register 1.");
@@ -386,24 +382,53 @@ impl Assembler {
         self.emit_opcode(op_code);
         self.emit_number(source_register_1);
         self.emit_number(source_register_2);
-        self.emit_label_bytecode(label_name);
+        self.emit_label(label_name);
     }
 
     fn no_register(&mut self, token_type: &TokenType, op_code: OpCode) {
-        self.consume(
-            token_type,
-            &format!("Expected '{:?}' keyword.", token_type),
-        );
+        self.consume(token_type, &format!("Expected '{:?}' keyword.", token_type));
 
         self.emit_opcode(op_code);
         self.emit_padding(3);
     }
 
+    fn no_register_string(&mut self, token_type: &TokenType, op_code: OpCode) {
+        self.consume(token_type, &format!("Expected '{:?}' keyword.", token_type));
+
+        let string = self.string("Expected string after keyword.");
+
+        match op_code {
+            OpCode::ContextSetRole => {
+                if string.is_empty() {
+                    self.error_at_previous("Role name cannot be empty.");
+                    return;
+                }
+
+                if !matches!(
+                    string.to_lowercase().as_str(),
+                    roles::USER_ROLE | roles::ASSISTANT_ROLE
+                ) {
+                    self.error_at_previous(&format!(
+                        "Invalid role name '{}'. Expected '{}' or '{}'.",
+                        string,
+                        roles::USER_ROLE,
+                        roles::ASSISTANT_ROLE
+                    ));
+                    return;
+                }
+            }
+            _ => {}
+        }
+
+        let pointer = self.emit_string(&string);
+
+        self.emit_opcode(op_code);
+        self.emit_number(pointer);
+        self.emit_padding(2);
+    }
+
     fn single_register(&mut self, token_type: &TokenType, op_code: OpCode) {
-        self.consume(
-            token_type,
-            &format!("Expected '{:?}' keyword.", token_type),
-        );
+        self.consume(token_type, &format!("Expected '{:?}' keyword.", token_type));
 
         let register = self.register(&format!("Expected register after '{:?}'.", op_code));
 
@@ -413,13 +438,12 @@ impl Assembler {
     }
 
     fn double_register(&mut self, token_type: &TokenType, op_code: OpCode) {
-        self.consume(
-            token_type,
-            &format!("Expected '{:?}' keyword.", token_type),
-        );
+        self.consume(token_type, &format!("Expected '{:?}' keyword.", token_type));
 
-        let destination_register =
-            self.register(&format!("Expected destination register after '{:?}'.", op_code));
+        let destination_register = self.register(&format!(
+            "Expected destination register after '{:?}'.",
+            op_code
+        ));
         self.consume(
             &TokenType::Comma,
             "Expected ',' after destination register.",
@@ -435,17 +459,12 @@ impl Assembler {
     }
 
     fn triple_register(&mut self, token_type: &TokenType, op_code: OpCode) {
-        self.consume(
-            token_type,
-            &format!("Expected '{:?}' keyword.", token_type),
-        );
+        self.consume(token_type, &format!("Expected '{:?}' keyword.", token_type));
 
-        let destination_register = self.register(
-            &format!(
-                "Expected destination register after '{:?}' keyword.",
-                op_code
-            ),
-        );
+        let destination_register = self.register(&format!(
+            "Expected destination register after '{:?}' keyword.",
+            op_code
+        ));
         self.consume(
             &TokenType::Comma,
             "Expected ',' after destination register.",
@@ -472,8 +491,9 @@ impl Assembler {
 
                 match token_type {
                     // Data movement.
-                    TokenType::LoadString | TokenType::LoadImmediate | TokenType::LoadFile => {
-                        self.load(&token_type, op_code)
+                    TokenType::LoadImmediate => self.immediate(&token_type, op_code, false),
+                    TokenType::LoadString | TokenType::LoadFile => {
+                        self.immediate(&token_type, op_code, true)
                     }
                     TokenType::Move => self.double_register(&token_type, op_code),
                     // Control flow.
@@ -501,6 +521,7 @@ impl Assembler {
                     | TokenType::ContextRestore
                     | TokenType::ContextPush
                     | TokenType::ContextPop => self.single_register(&token_type, op_code),
+                    TokenType::ContextSetRole => self.no_register_string(&token_type, op_code),
                     // Misc.
                     TokenType::Eof => break,
                     _ => self.error_at_current("Unexpected keyword."),

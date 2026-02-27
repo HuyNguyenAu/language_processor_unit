@@ -40,6 +40,7 @@ pub struct Registers {
     instruction: Option<[[u8; 4]; 4]>,
     data_section_pointer: usize,
     context: Vec<ContextMessage>,
+    context_role: Option<String>,
 }
 
 impl Registers {
@@ -50,6 +51,7 @@ impl Registers {
             instruction: None,
             data_section_pointer: 0,
             context: Vec::new(),
+            context_role: None,
         }
     }
 
@@ -137,5 +139,13 @@ impl Registers {
 
     pub fn pop_context(&mut self) -> Option<ContextMessage> {
         self.context.pop()
+    }
+
+    pub fn get_context_role(&self) -> Option<String> {
+        self.context_role.clone()
+    }
+
+    pub fn set_context_role(&mut self, role: &str) {
+        self.context_role = Some(role.to_string());
     }
 }

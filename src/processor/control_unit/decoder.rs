@@ -4,10 +4,10 @@ use crate::{
         control_unit::instruction::{
             AuditInstruction, BranchInstruction, BranchType, ContextClearInstruction,
             ContextDropInstruction, ContextPopInstruction, ContextPushInstruction,
-            ContextRestoreInstruction, ContextSnapshotInstruction, CorrelateInstruction,
-            DistillInstruction, ExitInstruction, Instruction, LoadFileInstruction,
-            LoadImmediateInstruction, LoadStringInstruction, MorphInstruction, MoveInstruction,
-            OutputInstruction, ProjectInstruction, SimilarityInstruction,
+            ContextRestoreInstruction, ContextSetRoleInstruction, ContextSnapshotInstruction,
+            CorrelateInstruction, DistillInstruction, ExitInstruction, Instruction,
+            LoadFileInstruction, LoadImmediateInstruction, LoadStringInstruction, MorphInstruction,
+            MoveInstruction, OutputInstruction, ProjectInstruction, SimilarityInstruction,
         },
         memory::Memory,
         registers::Registers,
@@ -28,7 +28,7 @@ impl Decoder {
         })
     }
 
-    fn text(memory: &Memory, registers: &Registers, pointer: usize, message: &str) -> String {
+    fn string(memory: &Memory, registers: &Registers, pointer: usize, message: &str) -> String {
         let mut bytes = Vec::new();
         let mut address = pointer + registers.get_data_section_pointer();
 
@@ -46,12 +46,12 @@ impl Decoder {
         }
 
         panic!(
-            "Failed to read text: reached end of data segment without null terminator. {}",
+            "Failed to read string: reached end of data segment without null terminator. {}",
             message
         );
     }
 
-    fn load(
+    fn immediate(
         memory: &Memory,
         registers: &Registers,
         op_code: OpCode,
@@ -62,23 +62,26 @@ impl Decoder {
         match op_code {
             OpCode::LoadString | OpCode::LoadFile => {
                 let pointer = u32::from_be_bytes(instruction_bytes[2]) as usize;
-                let text = Self::text(
+                let string = Self::string(
                     memory,
                     registers,
                     pointer,
                     &format!("Failed to decode {:?} string", op_code),
                 );
 
-                if op_code == OpCode::LoadString {
-                    Instruction::LoadString(LoadStringInstruction {
+                match op_code {
+                    OpCode::LoadString => Instruction::LoadString(LoadStringInstruction {
                         destination_register,
-                        value: text,
-                    })
-                } else {
-                    Instruction::LoadFile(LoadFileInstruction {
+                        value: string,
+                    }),
+                    OpCode::LoadFile => Instruction::LoadFile(LoadFileInstruction {
                         destination_register,
-                        file_path: text,
-                    })
+                        file_path: string,
+                    }),
+                    _ => panic!(
+                        "Invalid opcode '{:?}' for string-loading instruction.",
+                        op_code
+                    ),
                 }
             }
             OpCode::LoadImmediate => Instruction::LoadImmediate(LoadImmediateInstruction {
@@ -124,6 +127,31 @@ impl Decoder {
             OpCode::ContextDrop => Instruction::ContextDrop(ContextDropInstruction),
             _ => panic!(
                 "Invalid opcode '{:?}' for zero-operand instruction.",
+                op_code
+            ),
+        }
+    }
+
+    fn no_register_string(
+        memory: &Memory,
+        registers: &Registers,
+        op_code: OpCode,
+        instruction_bytes: [[u8; 4]; 4],
+    ) -> Instruction {
+        let pointer = u32::from_be_bytes(instruction_bytes[1]) as usize;
+        let string = Self::string(
+            memory,
+            registers,
+            pointer,
+            &format!("Failed to decode {:?} string", op_code),
+        );
+
+        match op_code {
+            OpCode::ContextSetRole => {
+                Instruction::ContextSetRole(ContextSetRoleInstruction { role: string })
+            }
+            _ => panic!(
+                "Invalid opcode '{:?}' for zero-register string instruction.",
                 op_code
             ),
         }
@@ -216,7 +244,7 @@ impl Decoder {
 
         match op_code {
             OpCode::LoadString | OpCode::LoadImmediate | OpCode::LoadFile | OpCode::Move => {
-                Self::load(memory, registers, op_code, instruction_bytes)
+                Self::immediate(memory, registers, op_code, instruction_bytes)
             }
             OpCode::BranchEqual
             | OpCode::BranchLess
@@ -229,6 +257,9 @@ impl Decoder {
             | OpCode::ContextRestore
             | OpCode::ContextPush
             | OpCode::ContextPop => Self::single_register(op_code, instruction_bytes),
+            OpCode::ContextSetRole => {
+                Self::no_register_string(memory, registers, op_code, instruction_bytes)
+            }
             OpCode::Morph
             | OpCode::Project
             | OpCode::Distill

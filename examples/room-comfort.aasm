@@ -6,18 +6,20 @@
 LF  X1, "examples/data/room_sensor_data.json"
 LS  X2, "It's too dark to read and I am sweating."
 
-PSH X1      ; Push the sensor data the context stack for processing.
+PSH X1          ; Push the sensor data the context stack for processing.
 
 ; Sense: Brief description of the current state of the room based on sensor data.
 LS  X3, "A sentence that describes the current state of the room. Include details about temperature, lighting, and any other relevant factors."
 MRF X5, X3
 
 DRP             ; Drop the sensor data from the context stack.
+SRL "assistant"
 PSH X5          ; Push the summarised state for context.
 
 LS  X3, "A sentence that describes the user's feedback about the room's comfort. Include details about their physical sensations and any specific complaints."
 MRF X5, X3
 
+SRL "user"
 PSH X5          ; Push the expanded user feedback for context.
 SNP X31         ; Save the current state before making adjustments, allowing for a retry if needed.
 

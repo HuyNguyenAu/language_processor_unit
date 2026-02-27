@@ -1,15 +1,19 @@
-use crate::processor::{
-    control_unit::language_logic_unit::openai::{
-        OpenAIClient,
-        chat_completion_models::{OpenAIChatCompletionRequest, OpenAIChatCompletionRequestText},
-        embeddings_models::OpenAIEmbeddingsRequest,
-        model_config::{ModelEmbeddingsConfig, ModelTextConfig},
+use crate::{
+    assembler::roles,
+    processor::{
+        control_unit::language_logic_unit::openai::{
+            OpenAIClient,
+            chat_completion_models::{
+                OpenAIChatCompletionRequest, OpenAIChatCompletionRequestText,
+            },
+            embeddings_models::OpenAIEmbeddingsRequest,
+            model_config::{ModelEmbeddingsConfig, ModelTextConfig},
+        },
+        registers::ContextMessage,
     },
-    registers::ContextMessage,
 };
 
 mod openai;
-pub mod roles;
 
 const TRUTHY_THRESHOLD: u32 = 80;
 

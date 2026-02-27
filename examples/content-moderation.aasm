@@ -6,7 +6,7 @@
 LF  X1, "examples/data/user_post.txt"
 LF  X2, "examples/data/ai_standard.txt"
 
-PSH X1      ; Push the user post content onto the context stack for processing.
+PSH X1                  ; Push the user post content onto the context stack for processing.
 
 ; Guardrails: Audit the content against the AI standard to determine if it is likely AI-generated.
 AUD X3, X2

@@ -138,7 +138,6 @@ impl Decoder {
         op_code: OpCode,
         instruction_bytes: [[u8; 4]; 4],
     ) -> Instruction {
-        println!("Decoding no-register string instruction with opcode {:?} and bytes: {:?}", op_code, instruction_bytes);
         let pointer = u32::from_be_bytes(instruction_bytes[1]) as usize;
         let string = Self::string(
             memory,

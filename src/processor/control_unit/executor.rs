@@ -4,12 +4,13 @@ use crate::processor::{
     control_unit::{
         instruction::{
             AuditInstruction, BranchInstruction, BranchType, ContextPopInstruction,
-            ContextPushInstruction, ContextRestoreInstruction, ContextSnapshotInstruction,
-            CorrelateInstruction, DistillInstruction, Instruction, LoadFileInstruction,
-            LoadImmediateInstruction, LoadStringInstruction, MorphInstruction, MoveInstruction,
-            OutputInstruction, ProjectInstruction, SimilarityInstruction,
+            ContextPushInstruction, ContextRestoreInstruction, ContextSetRoleInstruction,
+            ContextSnapshotInstruction, CorrelateInstruction, DistillInstruction, Instruction,
+            LoadFileInstruction, LoadImmediateInstruction, LoadStringInstruction, MorphInstruction,
+            MoveInstruction, OutputInstruction, ProjectInstruction, SimilarityInstruction,
         },
-        language_logic_unit::{LanguageLogicUnit, roles},
+        language_logic_unit::LanguageLogicUnit,
+        roles,
     },
     memory::Memory,
     registers::{ContextMessage, Registers, Value},
@@ -347,9 +348,18 @@ impl Executor {
                 instruction.source_register
             ),
         };
+        let role = registers
+            .get_context_role()
+            .unwrap_or(roles::USER_ROLE.to_string())
+            .to_string();
 
-        registers.push_context(ContextMessage::new(roles::USER_ROLE, &value));
+        registers.push_context(ContextMessage::new(&role, &value));
 
+        crate::debug_print!(
+            debug && registers.get_context_role().is_none(),
+            "Defaulting context role to '{}' for CONTEXT_PUSH since no role is currently set.",
+            roles::USER_ROLE
+        );
         crate::debug_print!(
             debug,
             "Executed PSH: Pushed value from r{} onto context stack.",
@@ -378,6 +388,20 @@ impl Executor {
             .expect("Failed to pop context because context stack is empty.");
 
         crate::debug_print!(debug, "Executed DRP: Dropped value from context stack.",);
+    }
+
+    fn context_set_role(
+        registers: &mut Registers,
+        instruction: &ContextSetRoleInstruction,
+        debug: bool,
+    ) {
+        registers.set_context_role(&instruction.role);
+
+        crate::debug_print!(
+            debug,
+            "Executed SRL: Set context role to '{}'.",
+            instruction.role
+        );
     }
 
     fn output(registers: &Registers, instruction: &OutputInstruction, debug: bool) {
@@ -432,6 +456,7 @@ impl Executor {
             Instruction::ContextPush(i) => Self::context_push(registers, i, debug),
             Instruction::ContextPop(i) => Self::context_pop(registers, i, debug),
             Instruction::ContextDrop(_) => Self::context_drop(registers, debug),
+            Instruction::ContextSetRole(i) => Self::context_set_role(registers, i, debug),
             // I/O operations.
             Instruction::Output(i) => Self::output(registers, i, debug),
         }

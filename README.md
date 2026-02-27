@@ -107,7 +107,7 @@ The instruction set is closely inspired by RISC-V assembly language:
 | PSH         | Push rs into the context stack                                           | `psh rs`                   |
 | POP         | Pop the bottom of the context stack into rd                              | `pop rd`                   |
 | DRP         | Drop the bottom of the context stack                                     | `drp`                      |
-| SRL         | Set the role of the context for push                                     | `srl "user"\|"assistant"`  |
+| SRL         | Set the role of the context push                                         | `srl "user"\|"assistant"`  |
 | MRF         | Change the shape to the form of rs and store in rd                       | `mrf rd, rs`               |
 | PRJ         | Predict the next step when rs occurs and store in rd                     | `prj rd, rs`               |
 | DST         | Boil down to the essence of rs and store in rd                           | `dst rd, rs`               |

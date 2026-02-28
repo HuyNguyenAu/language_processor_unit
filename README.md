@@ -23,52 +23,58 @@ Here's an example of what a program written in this assembly language might look
 LF  X1, "examples/data/room_sensor_data.json"
 LS  X2, "It's too dark to read and I am sweating."
 
-PSH X1          ; Push the sensor data the context stack for processing.
+PSH X1              ; Push the sensor data the context stack for processing.
 
 ; Sense: Brief description of the current state of the room based on sensor data.
 LS  X3, "A sentence that describes the current state of the room. Include details about temperature, lighting, and any other relevant factors."
-MRF X5, X3
+MRF X4, X3
 
-DRP             ; Drop the sensor data from the context stack.
-SRL "assistant" ; Set the role to assistant to process the sensed state.
-PSH X5          ; Push the summarised state for context.
+DRP                 ; Drop the sensor data from the context stack.
+SRL "assistant"     ; Set the role to assistant to process the sensed state.
+PSH X4              ; Push the summarised state for context.
 
-LS  X3, "A sentence that describes the user's feedback about the room's comfort. Include details about their physical sensations and any specific complaints."
-MRF X5, X3
+SRL "user"          ; Set the role to user for processing the user's feedback.
+PSH X2              ; Push the expanded user feedback for context.
+SNP X31             ; Save the current state before making adjustments, allowing for a retry if needed.
 
-SRL "user"      ; Set the role to user for processing the user's feedback.
-PSH X5          ; Push the expanded user feedback for context.
-SNP X31         ; Save the current state before making adjustments, allowing for a retry if needed.
+LI  X30, 5          ; Set a retry limit to prevent infinite loops in case of invalid adjustments.
 
 RETRY:
-RST X31         ; Restore the previous state for a retry if needed.
+RST X31             ; Restore the previous state for a retry if needed.
+DEC X30, 1          ; Decrement the retry counter.
 
 ; Think: Analyze the sensed state and determine necessary adjustments for physical comfort.
 LS  X3, "What are the changes to the room's temperature(celsius) and lighting(percent) to achieve optimal physical comfort based on the current state and user feedback."
-PRJ X6, X3
+PRJ X5, X3
 
-PSH X6          ; Push the adjustments for context.
+PSH X5              ; Push the adjustments for context.
+
+LI  X3, 0
+BEQ X30, X3, ABORT  ; If retry limit is reached, abort the operation.
+
+LS  X3, "The temperature mentioned is a number from 18 to 24."
+AUD X6, X3          ; Guardrail for temperature adjustment.
+
+LI X3, 0
+BEQ X6, X3, RETRY
+
+LS X3, "The lighting mentioned is a number from 5 to 100."
+AUD X7, X3          ; Guardrail for light intensity.
+
+LI X3, 0
+BEQ X7, X3, RETRY
 
 ; Guardrails: Ensure that the adjustments are within safe and reasonable limits.
 LS  X3, "{ \"temp_celsius\": number, \"light_percent\": number }"
-MRF X7, X3
-
-PSH X7          ; Push the adjustments for context.
-
-LS  X3, "The temperature must be between 18 and 24 degrees Celsius."
-AUD X8, X3      ; Guardrail for temperature adjustment.
-
-LI X3, 0
-BEQ X8, X3, RETRY
-
-LS X3, "The light intensity must be between 0% and 100%."
-AUD X9, X3      ; Guardrail for light intensity.
-
-LI X3, 0
-BEQ X9, X3, RETRY
+MRF X8, X3
 
 ; Act: Implement the adjustments to achieve the desired physical comfort.
-OUT X7
+OUT X8
+EXIT
+
+ABORT:
+LS  X3, "Failed to adjust the room's comfort within the 5 attempts after multiple attempts."
+OUT X3
 ```
 
 ## Registers
@@ -133,6 +139,8 @@ cd language_processor_unit
 Install [llama.cpp](https://github.com/ggml-org/llama.cpp).
 
 Download [LFM2 2.6B model](https://huggingface.co/LiquidAI/LFM2-2.6B-GGUF).
+
+> Other tested models include [LFM2 1.2B](https://huggingface.co/unsloth/LFM2-1.2B-GGUF), [LFM2 700M](https://huggingface.co/LiquidAI/LFM2-700M-GGUF), and [LFM2 350M](https://huggingface.co/unsloth/LFM2-350M-GGUF). The smaller the model you choose, the more precise you need to be with your instructions and guardrails.
 
 Start the LLama.cpp server:
 

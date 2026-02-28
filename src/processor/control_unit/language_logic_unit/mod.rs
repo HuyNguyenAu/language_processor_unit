@@ -16,7 +16,7 @@ use crate::{
 mod openai;
 
 const SYSTEM_PROMPT: &str =
-    "Output ONLY the answer. No intro. No fluff. No punctuation unless required.";
+    "You are a strict logic unit. Provide exactly the requested output. Omit all conversational text. Follow structural markers strictly.";
 
 pub struct LanguageLogicUnit;
 

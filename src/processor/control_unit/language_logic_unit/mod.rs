@@ -25,7 +25,7 @@ impl LanguageLogicUnit {
         ModelTextConfig {
             stream: false,
             return_progress: false,
-            model: "LFM2-2.6B-Q5_K_M.gguf".to_string(),
+            model: "Generative".to_string(),
             reasoning_format: "auto".to_string(),
             temperature: 0.3,
             max_tokens: -1,
@@ -62,7 +62,7 @@ impl LanguageLogicUnit {
 
     fn default_embeddings_model() -> ModelEmbeddingsConfig {
         ModelEmbeddingsConfig {
-            model: "Qwen3-Embedding-0.6B-Q4_1-imat.gguf".to_string(),
+            model: "Embedding".to_string(),
             encoding_format: "float".to_string(),
         }
     }

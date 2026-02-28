@@ -142,7 +142,7 @@ Some tips for working with smaller models:
 3. Keep the instructions and guardrails as simple and straightforward as possible. Keep it strict, and structured like `User_State: Happy \n Room_State: Cold`.
 4. Keep the context stack as clean and relevant as possible. Don't push anything that is not directly relevant to the current instruction.
 
-## Quick Start
+## Quick Start with Llama Swap (Recommended, slower but better for smaller models)
 
 Clone the repository:
 
@@ -153,9 +153,43 @@ cd language_processor_unit
 
 Install [llama.cpp](https://github.com/ggml-org/llama.cpp).
 
-Download [LFM2 2.6B model](https://huggingface.co/LiquidAI/LFM2-2.6B-GGUF).
+Install [Llama Swap](https://github.com/mostlygeek/llama-swap) and follow the instructions to set it up.
 
-> Other tested models include [LFM2 1.2B](https://huggingface.co/unsloth/LFM2-1.2B-GGUF), [LFM2 700M](https://huggingface.co/LiquidAI/LFM2-700M-GGUF), and [LFM2 350M](https://huggingface.co/unsloth/LFM2-350M-GGUF). The smaller the model you choose, the more precise you need to be with your instructions and guardrails.
+Download [LFM2 2.6B](https://huggingface.co/LiquidAI/LFM2-2.6B-GGUF).
+Download [Qwen3 Embedding 0.6B](https://huggingface.co/Qwen/Qwen3-Embedding-0.6B-GGUF).
+
+> Other tested models include [LFM2 1.2B](https://huggingface.co/unsloth/LFM2-1.2B-GGUF), [LFM2 700M](https://huggingface.co/LiquidAI/LFM2-700M-GGUF), and [LFM2 350M](https://huggingface.co/unsloth/LFM2-350M-GGUF).
+
+Create the Llama Swap config file `config.yaml`:
+
+```yaml
+models:
+  Generative:
+    cmd: llama-server.exe --port ${PORT} -m C:\llama\models\LFM2-350M-Q8_0.gguf
+  Embedding:
+    cmd: llama-server.exe --port ${PORT} --embeddings --pooling last -m C:\llama\models\Qwen3-Embedding-0.6B-Q4_1-imat.gguf
+```
+
+Run the Llama Swap server:
+
+```bash
+llama-swap --config C:\llama\config.yaml
+```
+
+## Quick Start with Llama.cpp only (Quicker but requires bigger models)
+
+Clone the repository:
+
+```bash
+git clone https://github.com/HuyNguyenAu/language_processor_unit.git
+cd language_processor_unit
+```
+
+Install [llama.cpp](https://github.com/ggml-org/llama.cpp).
+
+Download [LFM2 2.6B](https://huggingface.co/LiquidAI/LFM2-2.6B-GGUF).
+
+> Other tested models include [LFM2 1.2B](https://huggingface.co/unsloth/LFM2-1.2B-GGUF), [LFM2 700M](https://huggingface.co/LiquidAI/LFM2-700M-GGUF), and [LFM2 350M](https://huggingface.co/unsloth/LFM2-350M-GGUF).
 
 Start the LLama.cpp server:
 

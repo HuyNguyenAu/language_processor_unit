@@ -171,7 +171,7 @@ impl Executor {
         let value = Self::read_text(registers, instruction.source_register)
             .expect("Failed to read text from source register for MORPH instruction");
         let micro_prompt = format!(
-            "Rewrite the text to exactly match this template:\n{}\n\nOutput:",
+            "Rewrite to exactly match this template:\n{}\n\nOutput:",
             value
         );
         let context = registers.get_context().clone();
@@ -195,7 +195,7 @@ impl Executor {
         let value = Self::read_text(registers, instruction.source_register)
             .expect("Failed to read text from source register for PROJECT instruction");
         let micro_prompt = format!(
-            "Based on the text, what happens next if:\n{}\n\nPrediction:",
+            "What happens next if:\n{}\n\nPrediction:",
             value
         );
         let context = registers.get_context().clone();
@@ -220,7 +220,7 @@ impl Executor {
         let value = Self::read_text(registers, instruction.source_register)
             .expect("Failed to read text from source register for DISTILL instruction");
         let micro_prompt = format!(
-            "Extract only the exact information asked for here:\n{}\n\nShort Answer:",
+            "Extract only the exact information here:\n{}\n\nShort Answer:",
             value
         );
         let context = registers.get_context().clone();
@@ -245,7 +245,7 @@ impl Executor {
         let value = Self::read_text(registers, instruction.source_register)
             .expect("Failed to read text from source register for CORRELATE instruction");
         let micro_prompt = format!(
-            "Compare the text with this:\n{}\nHow are they similar or different?\n\nAnswer:",
+            "Compare with:\n{}\nHow are they similar or different?\n\nAnswer:",
             value
         );
         let context = registers.get_context().clone();
@@ -270,7 +270,7 @@ impl Executor {
         let value = Self::read_text(registers, instruction.source_register)
             .expect("Failed to read text from source register for AUDIT instruction");
         let micro_prompt = format!(
-            "Does the it follow the rule?\n{}\nAnswer with exactly one word: YES or NO.\n\nAnswer:",
+            "Does the it follow the rule:\n{}\nAnswer with exactly one word: YES or NO.\n\nAnswer:",
             value
         );
         let true_values = vec!["YES"];

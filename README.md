@@ -129,7 +129,7 @@ The instruction set is closely inspired by RISC-V assembly language:
 
 ## Smaller Models
 
-A pain point of working with smaller models (below 2.6B) is that they don't read or process text like the larger models. They proccess text as weighted semantic clusters. That is, the inputs are group semantically and are assigned weights. Certain words or phrases can steer the weight of the cluster more than others, which means that the model might completely ignore some words or phrases if they have a lesser or weaker weighting. In terms of the attention mechanism, some words will have a stronger bias to be attended to than others.
+A pain point of working with smaller models (below 2.6B) is that the attention heads are simply not deep enough to map complex relationships between words. They function much closer to advanced autocomplete engines looking for patterns in the input text. Certain words or phrases can steer outcome more than others, which means that the model might completely ignore some words or phrases.
 
 Keep in mind that the smaller the model you choose, the more precise you need to be with your instructions and guardrails. They lack reasoning capabilities, but are good at pattern matching at speed.
 

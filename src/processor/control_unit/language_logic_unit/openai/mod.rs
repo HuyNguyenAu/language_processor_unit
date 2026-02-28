@@ -29,8 +29,9 @@ impl OpenAIClient {
 
         if response.status_code != 200 {
             return Err(format!(
-                "Chat request failed with status code: {}.",
+                "Chat request failed with status code: {}. {}",
                 response.status_code,
+                response.reason_phrase
             ));
         }
 

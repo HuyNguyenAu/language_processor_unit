@@ -16,7 +16,7 @@ use crate::{
 mod openai;
 
 const SYSTEM_PROMPT: &str =
-    "You are a strict logic unit. Provide exactly the requested output. Omit all conversational text. Follow structural markers strictly.";
+    "Provide exactly the requested output. Follow structural markers strictly.";
 
 pub struct LanguageLogicUnit;
 

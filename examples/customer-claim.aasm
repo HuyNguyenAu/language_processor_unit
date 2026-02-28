@@ -3,28 +3,22 @@
 ; Output: A statement indicating whether the claim is valid or invalid.
 
 ; Load the customer's statement about the package.
-LS X1, "The package arrived, but it looks like it did go through a blender."
+LS  X1, "The package arrived, but it looks like it didn't go through a blender."
 
 PSH X1                              ; Push the customer's statement onto the context stack for processing.
 
 ; Assess the customer's statement to determine if it indicates a damaged package.
-LS X2, "Is the package damaged based on the customer's statement?"
-MRF X3, X2
-
-PSH X3                              ; Push the assessment for context.
-
-LS X2, "Is this the package damaged?"
+LS  X2, "The customer is stating that the package is ruined, broken, or in bad condition."
 AUD X4, X2                          ; Audit the validity of the claim.
 
-LI X3, 100                          ; Audit will return 0 for invalid claims and 100 for valid claims.
-BEQ X4, X3, VALID
+LI  X3, 100                          ; Audit will return 0 for invalid claims and 100 for valid claims.
+BEQ X4, X3, DAMAGE_CLAIM
 
 ; If the claim is not valid, output an invalid statement.
-LS X2, "CUSTOMER CLAIM: INVALID"   
+LS  X2, "Action: Route to general inquiries." 
 OUT X2
 EXIT
 
-; If the claim is valid, output a valid statement.
-VALID:
-LS X2, "CUSTOMER CLAIM: VALID"      ; Assume it's a damage claim until proven otherwise
+DAMAGE_CLAIM:
+LS  X2, "Action: Tagged as DAMAGE CLAIM. Route to RMA support."
 OUT X2

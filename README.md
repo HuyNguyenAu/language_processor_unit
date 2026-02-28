@@ -136,6 +136,12 @@ Keep in mind that the smaller the model you choose, the more precise you need to
 > Decompose your reasoning instructions into small simple explicit sequential steps. \
 > **KISS (Keep It Simple, Stupid).**
 
+Some tips for working with smaller models:
+1. Always tell it exactly what to do, not what not to do.
+2. Don't leave any room for interpretation.
+3. Keep the instructions and guardrails as simple and straightforward as possible. Keep it strict, and structured like `User_State: Happy \n Room_State: Cold`.
+4. Keep the context stack as clean and relevant as possible. Don't push anything that is not directly relevant to the current instruction.
+
 ## Quick Start
 
 Clone the repository:

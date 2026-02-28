@@ -171,7 +171,7 @@ impl Executor {
         let value = Self::read_text(registers, instruction.source_register)
             .expect("Failed to read text from source register for MORPH instruction");
         let micro_prompt = format!(
-            "Transform it into the following format:\n{}\n\nTransformed Output:",
+            "Rewrite to exactly match this template:\n{}\n\nOutput:",
             value
         );
         let context = registers.get_context().clone();
@@ -195,7 +195,7 @@ impl Executor {
         let value = Self::read_text(registers, instruction.source_register)
             .expect("Failed to read text from source register for PROJECT instruction");
         let micro_prompt = format!(
-            "Project how it might evolve based on this direction or trend:\n{}\n\nProjected Output:",
+            "What happens next if:\n{}\n\nPrediction:",
             value
         );
         let context = registers.get_context().clone();
@@ -220,7 +220,7 @@ impl Executor {
         let value = Self::read_text(registers, instruction.source_register)
             .expect("Failed to read text from source register for DISTILL instruction");
         let micro_prompt = format!(
-            "Distill it down following the goal or criteria:\n{}\n\nDistilled Result:",
+            "Extract only the exact information here:\n{}\n\nShort Answer:",
             value
         );
         let context = registers.get_context().clone();
@@ -245,7 +245,7 @@ impl Executor {
         let value = Self::read_text(registers, instruction.source_register)
             .expect("Failed to read text from source register for CORRELATE instruction");
         let micro_prompt = format!(
-            "Find the correlation with:\n{}\n\nRelational Analysis:",
+            "Compare with:\n{}\nHow are they similar or different?\n\nAnswer:",
             value
         );
         let context = registers.get_context().clone();
@@ -269,7 +269,10 @@ impl Executor {
     fn audit(registers: &mut Registers, instruction: &AuditInstruction, debug: bool) {
         let value = Self::read_text(registers, instruction.source_register)
             .expect("Failed to read text from source register for AUDIT instruction");
-        let micro_prompt = format!("Does it comply with:\n{}\n\nYES/NO:", value);
+        let micro_prompt = format!(
+            "Does the it follow the rule:\n{}\nAnswer with exactly one word: YES or NO.\n\nAnswer:",
+            value
+        );
         let true_values = vec!["YES"];
         let false_values = vec!["NO"];
         let context = registers.get_context().clone();

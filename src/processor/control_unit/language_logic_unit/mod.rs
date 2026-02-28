@@ -15,10 +15,8 @@ use crate::{
 
 mod openai;
 
-const TRUTHY_THRESHOLD: u32 = 80;
-
 const SYSTEM_PROMPT: &str =
-    "Output ONLY the answer. No intro. No fluff. No punctuation unless required.";
+    "Provide exactly the requested output. Follow structural markers strictly.";
 
 pub struct LanguageLogicUnit;
 
@@ -196,35 +194,32 @@ impl LanguageLogicUnit {
         let value = Self::string(micro_prompt, context)
             .map_err(|error| format!("Failed to execute boolean operation. Error: {}", error))?;
 
-        if true_values
-            .iter()
-            .any(|&true_value| true_value.eq_ignore_ascii_case(&value))
-        {
-            return Ok(100);
-        }
+        let mut true_scores = Vec::<u32>::new();
 
-        if false_values
-            .iter()
-            .any(|&false_value| false_value.eq_ignore_ascii_case(&value))
-        {
-            return Ok(0);
-        }
-
-        // If not an exact match, check cosine similarity against true values.
-        for true_value in true_values {
-            let score = Self::cosine_similarity(&value.to_lowercase(), &true_value.to_lowercase())
-                .map_err(|error| {
-                    format!(
-                        "Failed to compute cosine similarity for boolean evaluation. Error: {}",
-                        error
-                    )
-                })?;
-
-            if score >= TRUTHY_THRESHOLD {
-                return Ok(100);
+        for true_value in &true_values {
+            if let Ok(score) =
+                Self::cosine_similarity(&value.to_lowercase(), &true_value.to_lowercase())
+            {
+                true_scores.push(score);
             }
         }
 
+        let mut false_scores = Vec::<u32>::new();
+
+        for false_value in &false_values {
+            if let Ok(score) =
+                Self::cosine_similarity(&value.to_lowercase(), &false_value.to_lowercase())
+            {
+                false_scores.push(score);
+            }
+        }
+
+        let max_true_score = true_scores.into_iter().max().unwrap_or(0);
+        let max_false_score = false_scores.into_iter().max().unwrap_or(0);
+
+        if max_true_score > max_false_score {
+            return Ok(100);
+        }
         Ok(0)
     }
 }

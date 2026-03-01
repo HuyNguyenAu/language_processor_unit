@@ -25,7 +25,7 @@ impl LanguageLogicUnit {
         ModelTextConfig {
             stream: false,
             return_progress: false,
-            model: "LFM2-350M-Q8_0".to_string(),
+            model: "LFM2-2.6B-Q5_K_M".to_string(),
             reasoning_format: "auto".to_string(),
             temperature: 0.3,
             max_tokens: -1,
@@ -233,24 +233,6 @@ impl LanguageLogicUnit {
 
         if max_true_score > max_false_score {
             return Ok(100);
-        }
-
-        // Smaller models will often answer with the true or false values, but
-        // with some additional text.
-        if true_values.iter().any(|true_value| {
-            value
-                .to_ascii_uppercase()
-                .starts_with(true_value.to_ascii_uppercase().as_str())
-        }) {
-            return Ok(100);
-        }
-
-        if false_values.iter().any(|false_value| {
-            value
-                .to_ascii_uppercase()
-                .starts_with(false_value.to_ascii_uppercase().as_str())
-        }) {
-            return Ok(0);
         }
 
         Ok(0)

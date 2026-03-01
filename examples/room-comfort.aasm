@@ -23,6 +23,9 @@ SNP X31             ; Save the current state before making adjustments, allowing
 LI  X30, 5          ; Set a retry limit to prevent infinite loops in case of invalid adjustments.
 
 RETRY:
+LI  X3, 0
+BEQ X30, X3, ABORT  ; If retry limit is reached, abort the operation.
+
 RST X31             ; Restore the previous state for a retry if needed.
 DEC X30, 1          ; Decrement the retry counter.
 
@@ -31,9 +34,6 @@ LS  X3, "What are the changes to the room's temperature(celsius) and lighting(pe
 PRJ X5, X3
 
 PSH X5              ; Push the adjustments for context.
-
-LI  X3, 0
-BEQ X30, X3, ABORT  ; If retry limit is reached, abort the operation.
 
 LS  X3, "The temperature mentioned above is one of the following: 18, 19, 20, 21, 22, 23, 24."
 AUD X6, X3          ; Guardrail for temperature adjustment.

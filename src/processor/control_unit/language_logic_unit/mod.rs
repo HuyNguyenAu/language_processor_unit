@@ -157,11 +157,17 @@ impl LanguageLogicUnit {
 
     pub fn cosine_similarity(value_a: &str, value_b: &str) -> Result<u32, String> {
         let value_a_embeddings = Self::embeddings(value_a).map_err(|error| {
-            format!("Failed to get embedding for \"{}\". Error: {}", value_a, error)
+            format!(
+                "Failed to get embedding for \"{}\". Error: {}",
+                value_a, error
+            )
         })?;
 
         let value_b_embeddings = Self::embeddings(value_b).map_err(|error| {
-            format!("Failed to get embedding for \"{}\". Error: {}", value_b, error)
+            format!(
+                "Failed to get embedding for \"{}\". Error: {}",
+                value_b, error
+            )
         })?;
 
         // Compute cosine similarity.
@@ -228,6 +234,25 @@ impl LanguageLogicUnit {
         if max_true_score > max_false_score {
             return Ok(100);
         }
+
+        // Smaller models will often answer with the true or false values, but
+        // with some additional text.
+        if true_values.iter().any(|true_value| {
+            value
+                .to_ascii_uppercase()
+                .starts_with(true_value.to_ascii_uppercase().as_str())
+        }) {
+            return Ok(100);
+        }
+
+        if false_values.iter().any(|false_value| {
+            value
+                .to_ascii_uppercase()
+                .starts_with(false_value.to_ascii_uppercase().as_str())
+        }) {
+            return Ok(0);
+        }
+
         Ok(0)
     }
 }

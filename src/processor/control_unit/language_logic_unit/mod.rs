@@ -186,7 +186,7 @@ impl LanguageLogicUnit {
             Ok(embeddings) => embeddings,
             Err(exception) => {
                 return Err(Exception::LanguageLogicException(BaseException::new(
-                    format!("Failed to get embedding for \"{}\".", value_a),
+                    format!("Failed to get embedding for value a \"{}\".", value_a),
                     Some(Box::new(BaseException::from(exception))),
                 )));
             }
@@ -195,7 +195,7 @@ impl LanguageLogicUnit {
             Ok(embeddings) => embeddings,
             Err(exception) => {
                 return Err(Exception::LanguageLogicException(BaseException::new(
-                    format!("Failed to get embedding for \"{}\".", value_b),
+                    format!("Failed to get embedding for value b \"{}\".", value_b),
                     Some(Box::new(BaseException::from(exception))),
                 )));
             }

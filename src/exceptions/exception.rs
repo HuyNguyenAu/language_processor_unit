@@ -58,7 +58,10 @@ impl From<Exception> for BaseException {
             Exception::LanguageLogicException(exception) => {
                 BaseException::new(exception.message, exception.inner_exception)
             }
-            // Executor exceptions.
+            // Control unit exceptions.
+            Exception::DecoderException(exception) => {
+                BaseException::new(exception.message, exception.inner_exception)
+            }
             Exception::ExecutorException(exception) => {
                 BaseException::new(exception.message, exception.inner_exception)
             }
@@ -74,7 +77,8 @@ pub enum Exception {
     OpenAIEmbeddingsException(BaseException),
     // Language logic unit exceptions.
     LanguageLogicException(BaseException),
-    // Executor exceptions.
+    // Control unit exceptions.
+    DecoderException(BaseException),
     ExecutorException(BaseException),
 }
 

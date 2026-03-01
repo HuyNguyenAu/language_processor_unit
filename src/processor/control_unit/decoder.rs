@@ -1,5 +1,6 @@
 use crate::{
     assembler::opcode::OpCode,
+    exceptions::exception::{BaseException, Exception},
     processor::{
         control_unit::instruction::{
             AuditInstruction, BranchInstruction, BranchType, ContextClearInstruction,
@@ -18,44 +19,78 @@ use crate::{
 pub struct Decoder;
 
 impl Decoder {
-    fn op_code(bytes: &[u8; 4]) -> OpCode {
+    fn op_code(bytes: &[u8; 4]) -> Result<OpCode, Exception> {
         let value = u32::from_be_bytes(*bytes);
 
-        OpCode::try_from(value).unwrap_or_else(|error| {
-            panic!(
-                "Failed to decode opcode from byte code. Error: {}. Word: 0x{:08X}",
-                error, value
-            )
-        })
+        match OpCode::try_from(value) {
+            Ok(op_code) => Ok(op_code),
+            Err(error) => Err(Exception::DecoderException(BaseException::new(
+                format!(
+                    "Failed to decode opcode from byte code. Word: 0x{:08X}",
+                    value
+                ),
+                Some(Box::new(BaseException::from(error.to_string()))),
+            ))),
+        }
     }
 
-    fn string(memory: &Memory, registers: &Registers, pointer: usize, message: &str) -> String {
+    fn string(
+        memory: &Memory,
+        registers: &Registers,
+        pointer: usize,
+        message: &str,
+    ) -> Result<String, Exception> {
         let mut bytes = Vec::new();
         let mut address = pointer + registers.get_data_section_pointer();
 
         while let Ok(word) = memory.read(address) {
-            let value: u8 = u32::from_be_bytes(*word)
-                .try_into()
-                .expect("Failed to convert word to byte");
+            let value: u8 = match u32::from_be_bytes(*word).try_into() {
+                Ok(byte) => byte,
+                Err(error) => {
+                    return Err(Exception::DecoderException(BaseException::new(
+                        format!(
+                            "Failed decode string byte at address {}: value did not fit in a single byte.",
+                            address
+                        ),
+                        Some(Box::new(BaseException::from(error.to_string()))),
+                    )));
+                }
+            };
 
+            // Return the string if we've reached the null terminator.
             if value == 0 {
-                return String::from_utf8(bytes).expect("Failed to decode string bytes");
+                return match String::from_utf8(bytes) {
+                    Ok(string) => Ok(string),
+                    Err(error) => Err(Exception::DecoderException(BaseException::new(
+                        format!("Failed to decode string bytes at address {}.", address),
+                        Some(Box::new(BaseException::from(error.to_string()))),
+                    ))),
+                };
             }
 
             bytes.push(value);
             address += 1;
         }
 
-        panic!(
-            "Failed to read string: reached end of data segment without null terminator. {}",
-            message
-        );
+        Err(Exception::DecoderException(BaseException::new(
+            format!(
+                "Failed to decode string starting at address {}: reached end of memory without null terminator. {}",
+                pointer + registers.get_data_section_pointer(),
+                message
+            ),
+            None,
+        )))
     }
 
-    fn expect_not_nop(op_code: OpCode) {
+    fn expect_not_nop(op_code: OpCode) -> Result<(), Exception> {
         if op_code == OpCode::NoOp {
-            panic!("NoOp is not a valid instruction and should not be decoded.");
+            return Err(Exception::DecoderException(BaseException::new(
+                "NoOp is not a valid instruction and should not be decoded.".to_string(),
+                None,
+            )));
         }
+
+        Ok(())
     }
 
     fn immediate(
@@ -63,54 +98,87 @@ impl Decoder {
         registers: &Registers,
         op_code: OpCode,
         instruction_bytes: [[u8; 4]; 4],
-    ) -> Instruction {
-        Self::expect_not_nop(op_code);
+    ) -> Result<Instruction, Exception> {
+        match Self::expect_not_nop(op_code) {
+            Ok(_) => (),
+            Err(exception) => {
+                return Err(Exception::DecoderException(BaseException::new(
+                    format!(
+                        "Failed to decode immediate instruction with opcode '{:?}'.",
+                        op_code
+                    ),
+                    Some(Box::new(BaseException::from(exception))),
+                )));
+            }
+        };
 
         let register = u32::from_be_bytes(instruction_bytes[1]);
 
         match op_code {
             OpCode::LoadString | OpCode::LoadFile => {
                 let pointer = u32::from_be_bytes(instruction_bytes[2]) as usize;
-                let string = Self::string(
+                let string = match Self::string(
                     memory,
                     registers,
                     pointer,
-                    &format!("Failed to decode {:?} string", op_code),
-                );
+                    &format!("Failed decode immediate string for opcode '{:?}'", op_code),
+                ) {
+                    Ok(string) => string,
+                    Err(exception) => {
+                        return Err(Exception::DecoderException(BaseException::new(
+                            format!(
+                                "Failed to decode immediate string for opcode '{:?}'",
+                                op_code
+                            ),
+                            Some(Box::new(BaseException::from(exception))),
+                        )));
+                    }
+                };
 
                 match op_code {
-                    OpCode::LoadString => Instruction::LoadString(LoadStringInstruction {
+                    OpCode::LoadString => Ok(Instruction::LoadString(LoadStringInstruction {
                         destination_register: register,
                         value: string,
-                    }),
-                    OpCode::LoadFile => Instruction::LoadFile(LoadFileInstruction {
+                    })),
+                    OpCode::LoadFile => Ok(Instruction::LoadFile(LoadFileInstruction {
                         destination_register: register,
                         file_path: string,
-                    }),
-                    _ => panic!(
-                        "Invalid opcode '{:?}' for string-loading instruction.",
-                        op_code
-                    ),
+                    })),
+                    _ => {
+                        return Err(Exception::DecoderException(BaseException::new(
+                            format!(
+                                "Failed to decode immediate instruction: invalid opcode '{:?}'.",
+                                op_code
+                            ),
+                            None,
+                        )));
+                    }
                 }
             }
-            OpCode::LoadImmediate => Instruction::LoadImmediate(LoadImmediateInstruction {
+            OpCode::LoadImmediate => Ok(Instruction::LoadImmediate(LoadImmediateInstruction {
                 destination_register: register,
                 value: u32::from_be_bytes(instruction_bytes[2]),
-            }),
-            OpCode::Move => Instruction::Move(MoveInstruction {
+            })),
+            OpCode::Move => Ok(Instruction::Move(MoveInstruction {
                 destination_register: register,
                 source_register: u32::from_be_bytes(instruction_bytes[2]),
-            }),
+            })),
             // Misc operations.
-            OpCode::Decrement => Instruction::Decrement(DecrementInstruction {
+            OpCode::Decrement => Ok(Instruction::Decrement(DecrementInstruction {
                 source_register: register,
                 value: u32::from_be_bytes(instruction_bytes[2]),
-            }),
-            _ => panic!("Invalid opcode '{:?}' for L-type instruction.", op_code),
+            })),
+            _ => Err(Exception::DecoderException(BaseException::new(
+                format!(
+                    "Failed to decode immediate instruction: invalid opcode '{:?}'.",
+                    op_code
+                ),
+                None,
+            ))),
         }
     }
 
-    fn branch(op_code: OpCode, instruction_bytes: [[u8; 4]; 4]) -> Instruction {
+    fn branch(op_code: OpCode, instruction_bytes: [[u8; 4]; 4]) -> Result<Instruction, Exception> {
         Self::expect_not_nop(op_code);
 
         let source_register_1 = u32::from_be_bytes(instruction_bytes[1]);
@@ -123,30 +191,41 @@ impl Decoder {
             OpCode::BranchLessEqual => BranchType::LessEqual,
             OpCode::BranchGreater => BranchType::Greater,
             OpCode::BranchGreaterEqual => BranchType::GreaterEqual,
-            _ => panic!("Invalid opcode '{:?}' for branch instruction.", op_code),
+            _ => {
+                return Err(Exception::DecoderException(BaseException::new(
+                    format!(
+                        "Failed to decode branch instruction: invalid opcode '{:?}'.",
+                        op_code
+                    ),
+                    None,
+                )));
+            }
         };
 
-        Instruction::Branch(BranchInstruction {
+        Ok(Instruction::Branch(BranchInstruction {
             branch_type,
             source_register_1,
             source_register_2,
             instruction_pointer_jump_index,
-        })
+        }))
     }
 
-    fn no_register(op_code: OpCode) -> Instruction {
+    fn no_register(op_code: OpCode) -> Result<Instruction, Exception> {
         Self::expect_not_nop(op_code);
 
         match op_code {
             // Control flow.
-            OpCode::Exit => Instruction::Exit(ExitInstruction),
+            OpCode::Exit => Ok(Instruction::Exit(ExitInstruction)),
             // Context operations.
-            OpCode::ContextClear => Instruction::ContextClear(ContextClearInstruction),
-            OpCode::ContextDrop => Instruction::ContextDrop(ContextDropInstruction),
-            _ => panic!(
-                "Invalid opcode '{:?}' for zero-operand instruction.",
-                op_code
-            ),
+            OpCode::ContextClear => Ok(Instruction::ContextClear(ContextClearInstruction)),
+            OpCode::ContextDrop => Ok(Instruction::ContextDrop(ContextDropInstruction)),
+            _ => Err(Exception::DecoderException(BaseException::new(
+                format!(
+                    "Failed to decode zero-register instruction: invalid opcode '{:?}'.",
+                    op_code
+                ),
+                None,
+            ))),
         }
     }
 
@@ -155,93 +234,127 @@ impl Decoder {
         registers: &Registers,
         op_code: OpCode,
         instruction_bytes: [[u8; 4]; 4],
-    ) -> Instruction {
+    ) -> Result<Instruction, Exception> {
         Self::expect_not_nop(op_code);
 
         let pointer = u32::from_be_bytes(instruction_bytes[1]) as usize;
-        let string = Self::string(
+        let string = match Self::string(
             memory,
             registers,
             pointer,
-            &format!("Failed to decode {:?} string", op_code),
-        );
-
-        match op_code {
-            OpCode::ContextSetRole => {
-                Instruction::ContextSetRole(ContextSetRoleInstruction { role: string })
-            }
-            _ => panic!(
-                "Invalid opcode '{:?}' for zero-register string instruction.",
+            &format!(
+                "Failed to decode no register string instruction for opcode '{:?}'",
                 op_code
             ),
+        ) {
+            Ok(string) => string,
+            Err(exception) => {
+                return Err(Exception::DecoderException(BaseException::new(
+                    format!(
+                        "Failed to decode no register string instruction for opcode '{:?}'",
+                        op_code
+                    ),
+                    Some(Box::new(BaseException::from(exception))),
+                )));
+            }
+        };
+
+        match op_code {
+            OpCode::ContextSetRole => Ok(Instruction::ContextSetRole(ContextSetRoleInstruction {
+                role: string,
+            })),
+            _ => Err(Exception::DecoderException(BaseException::new(
+                format!(
+                    "Failed to decode zero-register string instruction: invalid opcode '{:?}'.",
+                    op_code
+                ),
+                None,
+            ))),
         }
     }
 
-    fn single_register(op_code: OpCode, instruction_bytes: [[u8; 4]; 4]) -> Instruction {
+    fn single_register(
+        op_code: OpCode,
+        instruction_bytes: [[u8; 4]; 4],
+    ) -> Result<Instruction, Exception> {
         Self::expect_not_nop(op_code);
 
         let register = u32::from_be_bytes(instruction_bytes[1]);
 
         match op_code {
             // I/O.
-            OpCode::Out => Instruction::Output(OutputInstruction {
+            OpCode::Out => Ok(Instruction::Output(OutputInstruction {
                 source_register: register,
-            }),
+            })),
             // Context operations.
-            OpCode::ContextSnapshot => Instruction::ContextSnapshot(ContextSnapshotInstruction {
-                destination_register: register,
-            }),
-            OpCode::ContextRestore => Instruction::ContextRestore(ContextRestoreInstruction {
+            OpCode::ContextSnapshot => {
+                Ok(Instruction::ContextSnapshot(ContextSnapshotInstruction {
+                    destination_register: register,
+                }))
+            }
+            OpCode::ContextRestore => Ok(Instruction::ContextRestore(ContextRestoreInstruction {
                 source_register: register,
-            }),
-            OpCode::ContextPush => Instruction::ContextPush(ContextPushInstruction {
+            })),
+            OpCode::ContextPush => Ok(Instruction::ContextPush(ContextPushInstruction {
                 source_register: register,
-            }),
-            OpCode::ContextPop => Instruction::ContextPop(ContextPopInstruction {
+            })),
+            OpCode::ContextPop => Ok(Instruction::ContextPop(ContextPopInstruction {
                 destination_register: register,
-            }),
-            _ => panic!(
-                "Invalid opcode '{:?}' for single-operand instruction.",
-                op_code
-            ),
+            })),
+            _ => Err(Exception::DecoderException(BaseException::new(
+                format!(
+                    "Failed to decode single-register instruction: invalid opcode '{:?}'.",
+                    op_code
+                ),
+                None,
+            ))),
         }
     }
 
-    fn double_register(op_code: OpCode, instruction_bytes: [[u8; 4]; 4]) -> Instruction {
+    fn double_register(
+        op_code: OpCode,
+        instruction_bytes: [[u8; 4]; 4],
+    ) -> Result<Instruction, Exception> {
         Self::expect_not_nop(op_code);
 
         let destination_register = u32::from_be_bytes(instruction_bytes[1]);
         let source_register = u32::from_be_bytes(instruction_bytes[2]);
 
         match op_code {
-            OpCode::Morph => Instruction::Morph(MorphInstruction {
+            OpCode::Morph => Ok(Instruction::Morph(MorphInstruction {
                 destination_register,
                 source_register,
-            }),
-            OpCode::Project => Instruction::Project(ProjectInstruction {
+            })),
+            OpCode::Project => Ok(Instruction::Project(ProjectInstruction {
                 destination_register,
                 source_register,
-            }),
-            OpCode::Distill => Instruction::Distill(DistillInstruction {
+            })),
+            OpCode::Distill => Ok(Instruction::Distill(DistillInstruction {
                 destination_register,
                 source_register,
-            }),
-            OpCode::Correlate => Instruction::Correlate(CorrelateInstruction {
+            })),
+            OpCode::Correlate => Ok(Instruction::Correlate(CorrelateInstruction {
                 destination_register,
                 source_register,
-            }),
-            OpCode::Audit => Instruction::Audit(AuditInstruction {
+            })),
+            OpCode::Audit => Ok(Instruction::Audit(AuditInstruction {
                 destination_register,
                 source_register,
-            }),
-            _ => panic!(
-                "Invalid opcode '{:?}' for double-register instruction.",
-                op_code
-            ),
+            })),
+            _ => Err(Exception::DecoderException(BaseException::new(
+                format!(
+                    "Failed to decode double-register instruction: invalid opcode '{:?}'.",
+                    op_code
+                ),
+                None,
+            ))),
         }
     }
 
-    fn triple_register(op_code: OpCode, instruction_bytes: [[u8; 4]; 4]) -> Instruction {
+    fn triple_register(
+        op_code: OpCode,
+        instruction_bytes: [[u8; 4]; 4],
+    ) -> Result<Instruction, Exception> {
         Self::expect_not_nop(op_code);
 
         let destination_register = u32::from_be_bytes(instruction_bytes[1]);
@@ -249,15 +362,18 @@ impl Decoder {
         let source_register_2 = u32::from_be_bytes(instruction_bytes[3]);
 
         match op_code {
-            OpCode::Similarity => Instruction::Similarity(SimilarityInstruction {
+            OpCode::Similarity => Ok(Instruction::Similarity(SimilarityInstruction {
                 destination_register,
                 source_register_1,
                 source_register_2,
-            }),
-            _ => panic!(
-                "Invalid opcode '{:?}' for triple-register instruction.",
-                op_code
-            ),
+            })),
+            _ => Err(Exception::DecoderException(BaseException::new(
+                format!(
+                    "Failed to decode triple-register instruction: invalid opcode '{:?}'.",
+                    op_code
+                ),
+                None,
+            ))),
         }
     }
 
@@ -265,8 +381,16 @@ impl Decoder {
         memory: &Memory,
         registers: &Registers,
         instruction_bytes: [[u8; 4]; 4],
-    ) -> Instruction {
-        let op_code = Self::op_code(&instruction_bytes[0]);
+    ) -> Result<Instruction, Exception> {
+        let op_code = match Self::op_code(&instruction_bytes[0]) {
+            Ok(op_code) => op_code,
+            Err(exception) => {
+                return Err(Exception::DecoderException(BaseException::new(
+                    "Failed to decode instruction opcode.".to_string(),
+                    Some(Box::new(BaseException::from(exception))),
+                )));
+            }
+        };
 
         match op_code {
             // Data movement.

@@ -82,7 +82,10 @@ impl ControlUnit {
             .get_instruction()
             .expect("Failed to decode instruction: no instruction loaded.");
 
-        Decoder::decode(&self.memory, &self.registers, bytes)
+        match Decoder::decode(&self.memory, &self.registers, bytes) {
+            Ok(instruction) => instruction,
+            Err(error) => panic!("Failed to decode instruction: {}", error),
+        }
     }
 
     pub fn execute(
@@ -92,13 +95,16 @@ impl ControlUnit {
         embedding_model: &str,
         debug: bool,
     ) {
-        Executor::execute(
+        match Executor::execute(
             &mut self.memory,
             &mut self.registers,
             &instruction,
             text_model,
             embedding_model,
             debug,
-        );
+        ) {
+            Ok(_) => (),
+            Err(error) => panic!("Failed to execute instruction: {}", error),
+        }
     }
 }

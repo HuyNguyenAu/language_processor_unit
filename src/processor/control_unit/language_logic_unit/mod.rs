@@ -21,11 +21,11 @@ const SYSTEM_PROMPT: &str =
 pub struct LanguageLogicUnit;
 
 impl LanguageLogicUnit {
-    fn default_text_model() -> ModelTextConfig {
+    fn default_text_model(model: &str) -> ModelTextConfig {
         ModelTextConfig {
             stream: false,
             return_progress: false,
-            model: "LFM2-2.6B-Q5_K_M.gguf".to_string(),
+            model: model.to_string(),
             reasoning_format: "auto".to_string(),
             temperature: 0.3,
             max_tokens: -1,
@@ -60,9 +60,9 @@ impl LanguageLogicUnit {
         }
     }
 
-    fn default_embeddings_model() -> ModelEmbeddingsConfig {
+    fn default_embeddings_model(model: &str) -> ModelEmbeddingsConfig {
         ModelEmbeddingsConfig {
-            model: "Qwen3-Embedding-0.6B-Q4_1-imat.gguf".to_string(),
+            model: model.to_string(),
             encoding_format: "float".to_string(),
         }
     }
@@ -71,8 +71,8 @@ impl LanguageLogicUnit {
         value.trim().replace("\n", "").to_string()
     }
 
-    fn chat(content: &str, context: Vec<ContextMessage>) -> Result<String, String> {
-        let model = Self::default_text_model();
+    fn chat(content: &str, context: Vec<ContextMessage>, text_model: &str) -> Result<String, String> {
+        let model = Self::default_text_model(text_model);
         let messages = std::iter::once(OpenAIChatCompletionRequestText {
             role: roles::SYSTEM_ROLE.to_string(),
             content: SYSTEM_PROMPT.to_string(),
@@ -132,8 +132,8 @@ impl LanguageLogicUnit {
         Ok(result)
     }
 
-    fn embeddings(content: &str) -> Result<Vec<f32>, String> {
-        let model = Self::default_embeddings_model();
+    fn embeddings(content: &str, embedding_model: &str) -> Result<Vec<f32>, String> {
+        let model = Self::default_embeddings_model(embedding_model);
         let request = OpenAIEmbeddingsRequest {
             model: model.model.to_string(),
             input: content.to_string(),
@@ -155,13 +155,19 @@ impl LanguageLogicUnit {
         Ok(embeddings.embedding.to_owned())
     }
 
-    pub fn cosine_similarity(value_a: &str, value_b: &str) -> Result<u32, String> {
-        let value_a_embeddings = Self::embeddings(value_a).map_err(|error| {
-            format!("Failed to get embedding for {}. Error: {}", value_a, error)
+    pub fn cosine_similarity(value_a: &str, value_b: &str, embedding_model: &str) -> Result<u32, String> {
+        let value_a_embeddings = Self::embeddings(value_a, embedding_model).map_err(|error| {
+            format!(
+                "Failed to get embedding for \"{}\". Error: {}",
+                value_a, error
+            )
         })?;
 
-        let value_b_embeddings = Self::embeddings(value_b).map_err(|error| {
-            format!("Failed to get embedding for {}. Error: {}", value_b, error)
+        let value_b_embeddings = Self::embeddings(value_b, embedding_model).map_err(|error| {
+            format!(
+                "Failed to get embedding for \"{}\". Error: {}",
+                value_b, error
+            )
         })?;
 
         // Compute cosine similarity.
@@ -178,8 +184,8 @@ impl LanguageLogicUnit {
         Ok(percentage_similarity.round() as u32)
     }
 
-    pub fn string(micro_prompt: &str, context: Vec<ContextMessage>) -> Result<String, String> {
-        let result = Self::chat(micro_prompt, context)
+    pub fn string(micro_prompt: &str, context: Vec<ContextMessage>, text_model: &str) -> Result<String, String> {
+        let result = Self::chat(micro_prompt, context, text_model)
             .map_err(|error| format!("Failed to execute string operation. Error: {}", error))?;
 
         Ok(result)
@@ -190,27 +196,37 @@ impl LanguageLogicUnit {
         true_values: Vec<&str>,
         false_values: Vec<&str>,
         context: Vec<ContextMessage>,
+        text_model: &str,
+        embedding_model: &str,
     ) -> Result<u32, String> {
-        let value = Self::string(micro_prompt, context)
+        let value = Self::string(micro_prompt, context, text_model)
             .map_err(|error| format!("Failed to execute boolean operation. Error: {}", error))?;
 
         let mut true_scores = Vec::<u32>::new();
 
         for true_value in &true_values {
-            if let Ok(score) =
-                Self::cosine_similarity(&value.to_lowercase(), &true_value.to_lowercase())
-            {
-                true_scores.push(score);
+            match Self::cosine_similarity(&value.to_lowercase(), &true_value.to_lowercase(), embedding_model) {
+                Ok(score) => true_scores.push(score),
+                Err(error) => {
+                    return Err(format!(
+                        "Failed to execute boolean operation for true value '{}'. Error: {}",
+                        true_value, error
+                    ));
+                }
             }
         }
 
         let mut false_scores = Vec::<u32>::new();
 
         for false_value in &false_values {
-            if let Ok(score) =
-                Self::cosine_similarity(&value.to_lowercase(), &false_value.to_lowercase())
-            {
-                false_scores.push(score);
+            match Self::cosine_similarity(&value.to_lowercase(), &false_value.to_lowercase(), embedding_model) {
+                Ok(score) => false_scores.push(score),
+                Err(error) => {
+                    return Err(format!(
+                        "Failed to execute boolean operation for false value '{}'. Error: {}",
+                        false_value, error
+                    ));
+                }
             }
         }
 
@@ -220,6 +236,7 @@ impl LanguageLogicUnit {
         if max_true_score > max_false_score {
             return Ok(100);
         }
+
         Ok(0)
     }
 }

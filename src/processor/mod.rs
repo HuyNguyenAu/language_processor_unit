@@ -1,16 +1,18 @@
-use crate::processor::control_unit::ControlUnit;
+use crate::{config::Config, processor::control_unit::ControlUnit};
 
 mod control_unit;
 mod memory;
 mod registers;
 
 pub struct Processor {
+    config: Config,
     control_unit: ControlUnit,
 }
 
 impl Processor {
-    pub fn new() -> Self {
+    pub fn new(config: Config) -> Self {
         Processor {
+            config,
             control_unit: ControlUnit::new(),
         }
     }
@@ -36,10 +38,15 @@ impl Processor {
         Ok(())
     }
 
-    pub fn run(&mut self, debug: bool) {
+    pub fn run(&mut self) {
         while self.control_unit.fetch() {
             let instruction = self.control_unit.decode();
-            self.control_unit.execute(instruction, debug);
+            self.control_unit.execute(
+                instruction,
+                &self.config.text_model,
+                &self.config.embedding_model,
+                self.config.debug_run,
+            );
         }
     }
 }

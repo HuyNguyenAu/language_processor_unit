@@ -137,6 +137,7 @@ Keep in mind that the smaller the model you choose, the more precise you need to
 > **KISS (Keep It Simple, Stupid).**
 
 Some tips for working with smaller models:
+
 1. Always tell it exactly what to do, not what not to do.
 2. Don't leave any room for interpretation.
 3. Keep the instructions and guardrails as simple and straightforward as possible. Keep it strict, and structured like `User_State: Happy \n Room_State: Cold`.
@@ -144,36 +145,54 @@ Some tips for working with smaller models:
 
 ## Quick Start
 
-Clone the repository:
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/HuyNguyenAu/language_processor_unit.git
+   cd language_processor_unit
+   ```
+2. Install [llama.cpp](https://github.com/ggml-org/llama.cpp).
+3. Download [LFM2 2.6B](https://huggingface.co/LiquidAI/LFM2-2.6B-GGUF).
+4. Download [Qwen3 Embedding 0.6B](https://huggingface.co/Qwen/Qwen3-Embedding-0.6B-GGUF).
+5. Create the `.env` file in the root directory with the following content:
 
-```bash
-git clone https://github.com/HuyNguyenAu/language_processor_unit.git
-cd language_processor_unit
-```
+   ```
+   # File name of the text model in the models directory.
+   TEXT_MODEL="LFM2-2.6B-Q5_K_M"
 
-Install [llama.cpp](https://github.com/ggml-org/llama.cpp).
+   # File name of the embedding model in the models directory.
+   EMBEDDING_MODEL="Qwen3-Embedding-0.6B-Q4_1-imat"
 
-Download [LFM2 2.6B model](https://huggingface.co/LiquidAI/LFM2-2.6B-GGUF).
+   # When true, output byte code of built assembly file.
+   DEBUG_BUILD=false
 
-> Other tested models include [LFM2 1.2B](https://huggingface.co/unsloth/LFM2-1.2B-GGUF), [LFM2 700M](https://huggingface.co/LiquidAI/LFM2-700M-GGUF), and [LFM2 350M](https://huggingface.co/unsloth/LFM2-350M-GGUF). The smaller the model you choose, the more precise you need to be with your instructions and guardrails.
+   # When true, output excuted instructions and their results.
+   DEBUG_RUN=false
+   ```
 
-Start the LLama.cpp server:
+### With Embeddings Model (Recommended)
 
-```bash
-./llama-server --embeddings --pooling mean -m C:\llama\models\LFM2-2.6B-Q5_K_M.gguf
-```
+6. Start the LLama.cpp server. Make sure to specify the `--embeddings` flag and the correct pooling strategy:
+   ```bash
+   ./llama-server --embeddings --pooling mean --models-dir C:\llama\models
+   ```
 
-Build the example program:
+### Without Embeddings Model (Faster)
 
-```bash
-cargo run build examples/room-comfort.aasm
-```
+6. Start the LLama.cpp server. This will use the text model for both text generation and embeddings, which is faster but less accurate for embeddings. Make sure to specify the `--embeddings` flag and the correct pooling strategy:
+   ```bash
+   ./llama-server --embeddings --pooling mean -m C:\llama\models\LFM2-2.6B-Q5_K_M.gguf
+   ```
 
-Run the example program:
+### Run The Example Program
 
-```bash
-cargo run run data/build/room-comfort.lpu
-```
+7. Build the example program:
+   ```bash
+   cargo run build examples/room-comfort.aasm
+   ```
+8. Run the example program:
+   ```bash
+   cargo run run build/room-comfort.lpu
+   ```
 
 ## Acknowledgements
 

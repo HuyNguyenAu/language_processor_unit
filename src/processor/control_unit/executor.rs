@@ -270,7 +270,7 @@ impl Executor {
         let value = Self::read_text(registers, instruction.source_register)
             .expect("Failed to read text from source register for AUDIT instruction");
         let micro_prompt = format!(
-            "Does the it follow the rule:\n{}\nAnswer with exactly one word: YES or NO.\n\nAswer only:",
+            "Does the it follow the rule:\n{}\nAnswer with exactly one word: YES or NO.\n\nAnswer only:",
             value
         );
         let true_values = vec!["YES"];

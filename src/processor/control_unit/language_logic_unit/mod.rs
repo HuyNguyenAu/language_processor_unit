@@ -25,7 +25,7 @@ impl LanguageLogicUnit {
         ModelTextConfig {
             stream: false,
             return_progress: false,
-            model: "Generative".to_string(),
+            model: "LFM2-350M-Q8_0".to_string(),
             reasoning_format: "auto".to_string(),
             temperature: 0.3,
             max_tokens: -1,
@@ -62,7 +62,7 @@ impl LanguageLogicUnit {
 
     fn default_embeddings_model() -> ModelEmbeddingsConfig {
         ModelEmbeddingsConfig {
-            model: "Embedding".to_string(),
+            model: "Qwen3-Embedding-0.6B-Q4_1-imat".to_string(),
             encoding_format: "float".to_string(),
         }
     }
@@ -157,11 +157,11 @@ impl LanguageLogicUnit {
 
     pub fn cosine_similarity(value_a: &str, value_b: &str) -> Result<u32, String> {
         let value_a_embeddings = Self::embeddings(value_a).map_err(|error| {
-            format!("Failed to get embedding for {}. Error: {}", value_a, error)
+            format!("Failed to get embedding for \"{}\". Error: {}", value_a, error)
         })?;
 
         let value_b_embeddings = Self::embeddings(value_b).map_err(|error| {
-            format!("Failed to get embedding for {}. Error: {}", value_b, error)
+            format!("Failed to get embedding for \"{}\". Error: {}", value_b, error)
         })?;
 
         // Compute cosine similarity.
@@ -197,20 +197,28 @@ impl LanguageLogicUnit {
         let mut true_scores = Vec::<u32>::new();
 
         for true_value in &true_values {
-            if let Ok(score) =
-                Self::cosine_similarity(&value.to_lowercase(), &true_value.to_lowercase())
-            {
-                true_scores.push(score);
+            match Self::cosine_similarity(&value.to_lowercase(), &true_value.to_lowercase()) {
+                Ok(score) => true_scores.push(score),
+                Err(error) => {
+                    return Err(format!(
+                        "Failed to execute boolean operation for true value '{}'. Error: {}",
+                        true_value, error
+                    ));
+                }
             }
         }
 
         let mut false_scores = Vec::<u32>::new();
 
         for false_value in &false_values {
-            if let Ok(score) =
-                Self::cosine_similarity(&value.to_lowercase(), &false_value.to_lowercase())
-            {
-                false_scores.push(score);
+            match Self::cosine_similarity(&value.to_lowercase(), &false_value.to_lowercase()) {
+                Ok(score) => false_scores.push(score),
+                Err(error) => {
+                    return Err(format!(
+                        "Failed to execute boolean operation for false value '{}'. Error: {}",
+                        false_value, error
+                    ));
+                }
             }
         }
 

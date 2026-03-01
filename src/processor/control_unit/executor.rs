@@ -276,9 +276,9 @@ impl Executor {
         let true_values = vec!["YES"];
         let false_values = vec!["NO"];
         let context = registers.get_context().clone();
-
+        
         let result = LanguageLogicUnit::boolean(&micro_prompt, true_values, false_values, context)
-            .unwrap_or_else(|error| panic!("Failed to perform AUDIT operation. Error: {}", error));
+        .unwrap_or_else(|error| panic!("Failed to perform AUDIT operation. Error: {}", error));
 
         crate::debug_print!(
             debug,

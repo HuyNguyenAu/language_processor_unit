@@ -137,77 +137,62 @@ Keep in mind that the smaller the model you choose, the more precise you need to
 > **KISS (Keep It Simple, Stupid).**
 
 Some tips for working with smaller models:
+
 1. Always tell it exactly what to do, not what not to do.
 2. Don't leave any room for interpretation.
 3. Keep the instructions and guardrails as simple and straightforward as possible. Keep it strict, and structured like `User_State: Happy \n Room_State: Cold`.
 4. Keep the context stack as clean and relevant as possible. Don't push anything that is not directly relevant to the current instruction.
 
-## Quick Start with Llama Swap (Recommended, slower but better for smaller models)
+## Quick Start
 
-Clone the repository:
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/HuyNguyenAu/language_processor_unit.git
+   cd language_processor_unit
+   ```
+2. Install [llama.cpp](https://github.com/ggml-org/llama.cpp).
+3. Download [LFM2 2.6B](https://huggingface.co/LiquidAI/LFM2-2.6B-GGUF).
+4. Download [Qwen3 Embedding 0.6B](https://huggingface.co/Qwen/Qwen3-Embedding-0.6B-GGUF).
+5. Create the `.env` file in the root directory with the following content:
 
-```bash
-git clone https://github.com/HuyNguyenAu/language_processor_unit.git
-cd language_processor_unit
-```
+   ```
+   # File name of the text model in the models directory.
+   TEXT_MODEL="LFM2-2.6B-Q5_K_M"
 
-Install [llama.cpp](https://github.com/ggml-org/llama.cpp).
+   # File name of the embedding model in the models directory.
+   EMBEDDING_MODEL="Qwen3-Embedding-0.6B-Q4_1-imat"
 
-Install [Llama Swap](https://github.com/mostlygeek/llama-swap) and follow the instructions to set it up.
+   # When true, output byte code of built assembly file.
+   DEBUG_BUILD=false
 
-Download [LFM2 2.6B](https://huggingface.co/LiquidAI/LFM2-2.6B-GGUF).
-Download [Qwen3 Embedding 0.6B](https://huggingface.co/Qwen/Qwen3-Embedding-0.6B-GGUF).
+   # When true, output excuted instructions and their results.
+   DEBUG_RUN=false
+   ```
 
-> Other tested models include [LFM2 1.2B](https://huggingface.co/unsloth/LFM2-1.2B-GGUF), [LFM2 700M](https://huggingface.co/LiquidAI/LFM2-700M-GGUF), and [LFM2 350M](https://huggingface.co/unsloth/LFM2-350M-GGUF).
+### With Embeddings Model (Recommended)
 
-Create the Llama Swap config file `config.yaml`:
+6. Start the LLama.cpp server. Make sure to specify the `--embeddings` flag and the correct pooling strategy:
+   ```bash
+   ./llama-server --embeddings --pooling mean --models-dir C:\llama\models
+   ```
 
-```yaml
-models:
-  Generative:
-    cmd: llama-server.exe --port ${PORT} -m C:\llama\models\LFM2-350M-Q8_0.gguf
-  Embedding:
-    cmd: llama-server.exe --port ${PORT} --embeddings --pooling last -m C:\llama\models\Qwen3-Embedding-0.6B-Q4_1-imat.gguf
-```
+### Without Embeddings Model (Faster)
 
-Run the Llama Swap server:
+6. Start the LLama.cpp server. This will use the text model for both text generation and embeddings, which is faster but less accurate for embeddings. Make sure to specify the `--embeddings` flag and the correct pooling strategy:
+   ```bash
+   ./llama-server --embeddings --pooling mean -m C:\llama\models\LFM2-2.6B-Q5_K_M.gguf
+   ```
 
-```bash
-llama-swap --config C:\llama\config.yaml
-```
+### Run The Example Program
 
-## Quick Start with Llama.cpp only (Quicker but requires bigger models)
-
-Clone the repository:
-
-```bash
-git clone https://github.com/HuyNguyenAu/language_processor_unit.git
-cd language_processor_unit
-```
-
-Install [llama.cpp](https://github.com/ggml-org/llama.cpp).
-
-Download [LFM2 2.6B](https://huggingface.co/LiquidAI/LFM2-2.6B-GGUF).
-
-> Other tested models include [LFM2 1.2B](https://huggingface.co/unsloth/LFM2-1.2B-GGUF), [LFM2 700M](https://huggingface.co/LiquidAI/LFM2-700M-GGUF), and [LFM2 350M](https://huggingface.co/unsloth/LFM2-350M-GGUF).
-
-Start the LLama.cpp server:
-
-```bash
-./llama-server --embeddings --pooling mean -m C:\llama\models\LFM2-2.6B-Q5_K_M.gguf
-```
-
-Build the example program:
-
-```bash
-cargo run build examples/room-comfort.aasm
-```
-
-Run the example program:
-
-```bash
-cargo run run data/build/room-comfort.lpu
-```
+7. Build the example program:
+   ```bash
+   cargo run build examples/room-comfort.aasm
+   ```
+8. Run the example program:
+   ```bash
+   cargo run run build/room-comfort.lpu
+   ```
 
 ## Acknowledgements
 

@@ -167,7 +167,12 @@ impl Executor {
         }
     }
 
-    fn morph(registers: &mut Registers, instruction: &MorphInstruction, debug: bool) {
+    fn morph(
+        registers: &mut Registers,
+        instruction: &MorphInstruction,
+        text_model: &str,
+        debug: bool,
+    ) {
         let value = Self::read_text(registers, instruction.source_register)
             .expect("Failed to read text from source register for MORPH instruction");
         let micro_prompt = format!(
@@ -176,7 +181,7 @@ impl Executor {
         );
         let context = registers.get_context().clone();
 
-        let result = LanguageLogicUnit::string(&micro_prompt, context)
+        let result = LanguageLogicUnit::string(&micro_prompt, context, text_model)
             .unwrap_or_else(|error| panic!("Failed to perform MORPH operation. Error: {}", error));
 
         crate::debug_print!(
@@ -191,18 +196,21 @@ impl Executor {
             .expect("Failed to set register");
     }
 
-    fn project(registers: &mut Registers, instruction: &ProjectInstruction, debug: bool) {
+    fn project(
+        registers: &mut Registers,
+        instruction: &ProjectInstruction,
+        text_model: &str,
+        debug: bool,
+    ) {
         let value = Self::read_text(registers, instruction.source_register)
             .expect("Failed to read text from source register for PROJECT instruction");
-        let micro_prompt = format!(
-            "What happens next if:\n{}\n\nPrediction only:",
-            value
-        );
+        let micro_prompt = format!("What happens next if:\n{}\n\nPrediction only:", value);
         let context = registers.get_context().clone();
 
-        let result = LanguageLogicUnit::string(&micro_prompt, context).unwrap_or_else(|error| {
-            panic!("Failed to perform PROJECT operation. Error: {}", error)
-        });
+        let result =
+            LanguageLogicUnit::string(&micro_prompt, context, text_model).unwrap_or_else(|error| {
+                panic!("Failed to perform PROJECT operation. Error: {}", error)
+            });
 
         crate::debug_print!(
             debug,
@@ -216,7 +224,12 @@ impl Executor {
             .expect("Failed to set register");
     }
 
-    fn distill(registers: &mut Registers, instruction: &DistillInstruction, debug: bool) {
+    fn distill(
+        registers: &mut Registers,
+        instruction: &DistillInstruction,
+        text_model: &str,
+        debug: bool,
+    ) {
         let value = Self::read_text(registers, instruction.source_register)
             .expect("Failed to read text from source register for DISTILL instruction");
         let micro_prompt = format!(
@@ -225,9 +238,10 @@ impl Executor {
         );
         let context = registers.get_context().clone();
 
-        let result = LanguageLogicUnit::string(&micro_prompt, context).unwrap_or_else(|error| {
-            panic!("Failed to perform DISTILL operation. Error: {}", error)
-        });
+        let result =
+            LanguageLogicUnit::string(&micro_prompt, context, text_model).unwrap_or_else(|error| {
+                panic!("Failed to perform DISTILL operation. Error: {}", error)
+            });
 
         crate::debug_print!(
             debug,
@@ -241,7 +255,12 @@ impl Executor {
             .expect("Failed to set register");
     }
 
-    fn correlate(registers: &mut Registers, instruction: &CorrelateInstruction, debug: bool) {
+    fn correlate(
+        registers: &mut Registers,
+        instruction: &CorrelateInstruction,
+        text_model: &str,
+        debug: bool,
+    ) {
         let value = Self::read_text(registers, instruction.source_register)
             .expect("Failed to read text from source register for CORRELATE instruction");
         let micro_prompt = format!(
@@ -250,9 +269,10 @@ impl Executor {
         );
         let context = registers.get_context().clone();
 
-        let result = LanguageLogicUnit::string(&micro_prompt, context).unwrap_or_else(|error| {
-            panic!("Failed to perform CORRELATE operation. Error: {}", error)
-        });
+        let result =
+            LanguageLogicUnit::string(&micro_prompt, context, text_model).unwrap_or_else(|error| {
+                panic!("Failed to perform CORRELATE operation. Error: {}", error)
+            });
 
         crate::debug_print!(
             debug,
@@ -266,7 +286,13 @@ impl Executor {
             .expect("Failed to set register");
     }
 
-    fn audit(registers: &mut Registers, instruction: &AuditInstruction, debug: bool) {
+    fn audit(
+        registers: &mut Registers,
+        instruction: &AuditInstruction,
+        text_model: &str,
+        embedding_model: &str,
+        debug: bool,
+    ) {
         let value = Self::read_text(registers, instruction.source_register)
             .expect("Failed to read text from source register for AUDIT instruction");
         let micro_prompt = format!(
@@ -276,8 +302,15 @@ impl Executor {
         let true_values = vec!["YES"];
         let false_values = vec!["NO"];
         let context = registers.get_context().clone();
-        
-        let result = LanguageLogicUnit::boolean(&micro_prompt, true_values, false_values, context)
+
+        let result = LanguageLogicUnit::boolean(
+            &micro_prompt,
+            true_values,
+            false_values,
+            context,
+            text_model,
+            embedding_model,
+        )
         .unwrap_or_else(|error| panic!("Failed to perform AUDIT operation. Error: {}", error));
 
         crate::debug_print!(
@@ -292,14 +325,19 @@ impl Executor {
             .expect("Failed to set register");
     }
 
-    fn similarity(registers: &mut Registers, instruction: &SimilarityInstruction, debug: bool) {
+    fn similarity(
+        registers: &mut Registers,
+        instruction: &SimilarityInstruction,
+        embedding_model: &str,
+        debug: bool,
+    ) {
         let value_a = Self::read_text(registers, instruction.source_register_1)
             .expect("Failed to read text from source register 1 for SIMILARITY instruction");
         let value_b = Self::read_text(registers, instruction.source_register_2)
             .expect("Failed to read text from source register 2 for SIMILARITY instruction");
 
-        let result =
-            LanguageLogicUnit::cosine_similarity(&value_a, &value_b).unwrap_or_else(|error| {
+        let result = LanguageLogicUnit::cosine_similarity(&value_a, &value_b, embedding_model)
+            .unwrap_or_else(|error| {
                 panic!("Failed to perform SIMILARITY operation. Error: {}", error)
             });
 
@@ -461,6 +499,8 @@ impl Executor {
         memory: &mut Memory,
         registers: &mut Registers,
         instruction: &Instruction,
+        text_model: &str,
+        embedding_model: &str,
         debug: bool,
     ) {
         match instruction {
@@ -475,14 +515,14 @@ impl Executor {
             // I/O operations.
             Instruction::Output(i) => Self::output(registers, i, debug),
             // Generative operations.
-            Instruction::Morph(i) => Self::morph(registers, i, debug),
-            Instruction::Project(i) => Self::project(registers, i, debug),
+            Instruction::Morph(i) => Self::morph(registers, i, text_model, debug),
+            Instruction::Project(i) => Self::project(registers, i, text_model, debug),
             // Cognitive operations.
-            Instruction::Distill(i) => Self::distill(registers, i, debug),
-            Instruction::Correlate(i) => Self::correlate(registers, i, debug),
+            Instruction::Distill(i) => Self::distill(registers, i, text_model, debug),
+            Instruction::Correlate(i) => Self::correlate(registers, i, text_model, debug),
             // Guardrails operations.
-            Instruction::Audit(i) => Self::audit(registers, i, debug),
-            Instruction::Similarity(i) => Self::similarity(registers, i, debug),
+            Instruction::Audit(i) => Self::audit(registers, i, text_model, embedding_model, debug),
+            Instruction::Similarity(i) => Self::similarity(registers, i, embedding_model, debug),
             // Context operations.
             Instruction::ContextClear(_) => Self::context_clear(registers, debug),
             Instruction::ContextSnapshot(i) => Self::context_snapshot(registers, i, debug),

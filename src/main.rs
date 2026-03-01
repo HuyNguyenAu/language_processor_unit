@@ -1,4 +1,5 @@
 mod assembler;
+mod config;
 mod constants;
 mod processor;
 
@@ -8,7 +9,37 @@ use std::{
     path::Path,
 };
 
-fn build(file_path: &str, debug: bool) -> Result<(), String> {
+use crate::config::Config;
+
+fn start_up() {
+    if let Err(error) = std::fs::create_dir_all(constants::BUILD_DIR) {
+        panic!("Failed to create build directory: {}", error);
+    }
+}
+
+fn parse_config() -> Config {
+    dotenv::dotenv().ok().expect("Failed to load .env file");
+
+    let text_model =
+        env::var(constants::TEXT_MODEL_ENV).expect("TEXT_MODEL must be set in the .env file");
+    let embedding_model = env::var(constants::EMBEDDING_MODEL_ENV)
+        .expect("EMBEDDING_MODEL must be set in the .env file");
+    let debug_build = env::var(constants::DEBUG_BUILD_ENV)
+        .map(|value| value == "true")
+        .unwrap_or(false);
+    let debug_run = env::var(constants::DEBUG_RUN_ENV)
+        .map(|value| value == "true")
+        .unwrap_or(false);
+
+    Config {
+        text_model,
+        embedding_model,
+        debug_build,
+        debug_run,
+    }
+}
+
+fn build(file_path: &str, config: &Config) -> Result<(), String> {
     let source = read_to_string(file_path).map_err(|error| format!("Build failed: {}", error))?;
     let source: &'static str = Box::leak(Box::new(source));
 
@@ -17,7 +48,7 @@ fn build(file_path: &str, debug: bool) -> Result<(), String> {
         .assemble()
         .map_err(|error| format!("Build failed: {}", error))?;
 
-    if debug {
+    if config.debug_build {
         println!("Assembled byte code ({} bytes):", byte_code.len());
         for (chunk_idx, chunk) in byte_code.chunks(4).enumerate() {
             let index = chunk_idx * 4;
@@ -40,37 +71,32 @@ fn build(file_path: &str, debug: bool) -> Result<(), String> {
     Ok(())
 }
 
-fn run(file_path: &str, debug: bool) -> Result<(), String> {
+fn run(file_path: &str, config: &Config) -> Result<(), String> {
     let data = read(file_path).map_err(|error| format!("Run failed: {}", error))?;
 
-    let mut processor = processor::Processor::new();
+    let mut processor = processor::Processor::new(config.clone());
     processor.load(data)?;
-    processor.run(debug);
+    processor.run();
 
     Ok(())
 }
 
-fn startup() {
-    if let Err(error) = std::fs::create_dir_all(constants::BUILD_DIR) {
-        panic!("Failed to create build directory: {}", error);
-    }
-}
-
 fn main() -> Result<(), String> {
-    startup();
+    start_up();
+
+    let config = parse_config();
 
     let args: Vec<String> = env::args().collect();
     let command = args
         .get(1)
-        .ok_or_else(|| "No command provided".to_string())?;
+        .ok_or_else(|| format!("No command provided. {}", constants::HELP_USAGE))?;
     let file_path = args
         .get(2)
-        .ok_or_else(|| "No file path provided".to_string())?;
-    let debug = args.get(3).is_some_and(|arg| arg == "--debug");
+        .ok_or_else(|| format!("No file path provided. {}", constants::HELP_USAGE))?;
 
     match command.as_str() {
-        "build" => build(file_path, debug),
-        "run" => run(file_path, debug),
+        "build" => build(file_path, &config),
+        "run" => run(file_path, &config),
         other => Err(format!("Unknown command: {}", other)),
     }
 }

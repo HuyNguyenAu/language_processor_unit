@@ -85,7 +85,20 @@ impl ControlUnit {
         Decoder::decode(&self.memory, &self.registers, bytes)
     }
 
-    pub fn execute(&mut self, instruction: Instruction, debug: bool) {
-        Executor::execute(&mut self.memory, &mut self.registers, &instruction, debug);
+    pub fn execute(
+        &mut self,
+        instruction: Instruction,
+        text_model: &str,
+        embedding_model: &str,
+        debug: bool,
+    ) {
+        Executor::execute(
+            &mut self.memory,
+            &mut self.registers,
+            &instruction,
+            text_model,
+            embedding_model,
+            debug,
+        );
     }
 }

@@ -6,4 +6,4 @@ edition = "2024"
 [dependencies]
 miniserde = { version = "0.1" }
 minreq = { version = "2.14.1" }
-
+dotenv = { version = "0.15.0" }

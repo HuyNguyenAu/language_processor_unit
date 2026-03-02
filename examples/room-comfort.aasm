@@ -7,20 +7,14 @@ LF  X1, "examples/data/room_sensor_data.json"
 LS  X2, "It's too dark to read and I am sweating."
 
 PSH X1              ; Push the sensor data the context stack for processing.
-
 ; Sense: Brief description of the current state of the room based on sensor data.
 LS  X3, "A sentence that describes the current state of the room. Include details about temperature, lighting, and any other relevant factors."
 MRF X4, X3
 
 DRP                 ; Drop the sensor data from the context stack.
-SRL "assistant"     ; Set the role to assistant to process the sensed state.
-LS X3, "Current state of the room:"
-PSH X3
 PSH X4              ; Push the summarised state for context.
 
 SRL "user"          ; Set the role to user for processing the user's feedback.
-LS X3, "User feedback to be considered for adjustments:"
-PSH X3
 PSH X2              ; Push the expanded user feedback for context.
 SNP X31             ; Save the current state before making adjustments, allowing for a retry if needed.
 
@@ -37,6 +31,7 @@ DEC X30, 1          ; Decrement the retry counter.
 LS  X3, "What are the changes to the room's temperature(celsius) and lighting(percent) to achieve optimal physical comfort based on the current state and user feedback."
 PRJ X5, X3
 
+SRL "assistant"     ; Set the role to assistant to process the adjustments.
 PSH X5              ; Push the adjustments for context.
 
 LS  X3, "The temperature mentioned above is one of the following: 18, 19, 20, 21, 22, 23, 24."

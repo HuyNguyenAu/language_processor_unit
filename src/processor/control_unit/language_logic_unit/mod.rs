@@ -72,48 +72,30 @@ impl LanguageLogicUnit {
         value.trim().replace("\n", "").to_string()
     }
 
-    // Merge consecutive messages with the same role into a single message, concatenating their content with a newline separator.
+    // Merge consecutive messages with the same role into a single message,
+    // joining their content with a newline. This version is easier to follow:
     fn merge_messages_by_role(
         messages: &Vec<OpenAIChatCompletionRequestText>,
     ) -> Result<Vec<OpenAIChatCompletionRequestText>, Exception> {
+        if messages.is_empty() {
+            return Ok(Vec::new());
+        }
+
         let mut merged_messages = Vec::<OpenAIChatCompletionRequestText>::new();
-        let mut current_role: Option<String> = None;
-        let mut current_content = String::new();
+        let mut current = messages[0].clone();
 
-        for (i, message) in messages.iter().enumerate() {
-            if current_role.is_none() {
-                current_role = Some(message.role.clone());
-            }
+        for message in &messages[1..] {
+            if message.role == current.role {
+                current.content.push('\n');
+                current.content.push_str(&message.content);
+            } else {
+                merged_messages.push(current);
 
-            let role = match &current_role {
-                Some(role) => role,
-                None => {
-                    return Err(Exception::LanguageLogicException(BaseException::new(
-                        "Failed to merge messages by role because current role is None."
-                            .to_string(),
-                        None,
-                    )));
-                }
-            };
-
-            if &message.role == role {
-                if !current_content.is_empty() {
-                    current_content.push_str("\n");
-                }
-
-                current_content.push_str(&message.content);
-            }
-
-            if &message.role != role || i >= messages.len() - 1 {
-                merged_messages.push(OpenAIChatCompletionRequestText {
-                    role: role.clone(),
-                    content: current_content.clone(),
-                });
-
-                current_role = Some(message.role.clone());
-                current_content = message.content.clone();
+                current = message.clone();
             }
         }
+
+        merged_messages.push(current);
 
         Ok(merged_messages)
     }
@@ -215,6 +197,13 @@ impl LanguageLogicUnit {
         }))
         .collect::<Vec<OpenAIChatCompletionRequestText>>();
 
+        println!("--- Messages ---");
+
+        messages.iter().for_each(|message| {
+            println!("{}: {}\n", message.role, message.content);
+        });
+        println!("--- End of Messages ---");
+
         let messages = match Self::merge_messages_by_role(&messages) {
             Ok(merged_messages) => merged_messages,
             Err(exception) => {
@@ -224,6 +213,13 @@ impl LanguageLogicUnit {
                 )));
             }
         };
+
+        println!("--- Merged Messages ---");
+
+        messages.iter().for_each(|message| {
+            println!("{}: {}\n", message.role, message.content);
+        });
+        println!("--- End of Merged Messages ---");
 
         match Self::validate_messages(&messages) {
             Ok(_) => {}

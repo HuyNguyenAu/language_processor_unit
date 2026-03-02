@@ -80,7 +80,7 @@ fn build(file_path: &str, config: &Config) -> Result<(), Exception> {
         Ok(source) => source,
         Err(error) => {
             return Err(Exception::ProgramException(BaseException::new(
-                format!("Failed to build. Failed to read source file: {}", file_path),
+                "Failed to build. Failed to read source file.".to_string(),
                 Some(Box::new(error.into())),
             )));
         }
@@ -92,10 +92,7 @@ fn build(file_path: &str, config: &Config) -> Result<(), Exception> {
         Ok(byte_code) => byte_code,
         Err(error) => {
             return Err(Exception::ProgramException(BaseException::new(
-                format!(
-                    "Failed to build. Failed to assemble source file: {}",
-                    file_path
-                ),
+                "Failed to build. Failed to assemble source file.".to_string(),
                 Some(Box::new(error.to_string().into())),
             )));
         }
@@ -117,10 +114,7 @@ fn build(file_path: &str, config: &Config) -> Result<(), Exception> {
         Some(stem) => stem,
         None => {
             return Err(Exception::ProgramException(BaseException::new(
-                format!(
-                    "Failed to build. Failed to determine output filename from source file: {}",
-                    file_path
-                ),
+                "Failed to build. Failed to determine output filename from source file.".to_string(),
                 None,
             )));
         }
@@ -132,10 +126,7 @@ fn build(file_path: &str, config: &Config) -> Result<(), Exception> {
         Ok(_) => (),
         Err(error) => {
             return Err(Exception::ProgramException(BaseException::new(
-                format!(
-                    "Failed to build. Failed to write byte code to output file: {}",
-                    output_file_name
-                ),
+                "Failed to build. Failed to write byte code to output file.".to_string(),
                 Some(Box::new(error.into())),
             )));
         }
@@ -151,10 +142,7 @@ fn run(file_path: &str, config: &Config) -> Result<(), Exception> {
         Ok(data) => data,
         Err(error) => {
             return Err(Exception::ProgramException(BaseException::new(
-                format!(
-                    "Failed to run. Failed to read byte code file: {}",
-                    file_path
-                ),
+                "Failed to run. Failed to read byte code file.".to_string(),
                 Some(Box::new(error.into())),
             )));
         }
@@ -166,10 +154,7 @@ fn run(file_path: &str, config: &Config) -> Result<(), Exception> {
         Ok(_) => (),
         Err(exception) => {
             return Err(Exception::ProgramException(BaseException::new(
-                format!(
-                    "Failed to run. Failed to load byte code file: {}",
-                    file_path
-                ),
+                "Failed to run. Failed to load byte code file.".to_string(),
                 Some(Box::new(exception.into())),
             )));
         }
@@ -179,10 +164,7 @@ fn run(file_path: &str, config: &Config) -> Result<(), Exception> {
         Ok(_) => (),
         Err(exception) => {
             return Err(Exception::ProgramException(BaseException::new(
-                format!(
-                    "Failed to run. Failed to execute byte code file: {}",
-                    file_path
-                ),
+                "Failed to run program.".to_string(),
                 Some(Box::new(exception.into())),
             )));
         }
@@ -195,7 +177,7 @@ fn main() {
     match start_up() {
         Ok(_) => (),
         Err(exception) => {
-            println!("Startup error: {:#?}", exception);
+            println!("Startup error: {}", exception);
             return;
         }
     }
@@ -203,7 +185,7 @@ fn main() {
     let config = match config() {
         Ok(config) => config,
         Err(exception) => {
-            println!("Configuration error: {:#?}", exception);
+            println!("Configuration error: {}", exception);
             return;
         }
     };
@@ -228,14 +210,14 @@ fn main() {
         "build" => match build(file_path, &config) {
             Ok(_) => (),
             Err(exception) => {
-                println!("Build error: {:#?}", exception);
+                println!("Build error: {}", exception);
                 return;
             }
         },
         "run" => match run(file_path, &config) {
             Ok(_) => (),
             Err(exception) => {
-                println!("Run error: {:#?}", exception);
+                println!("Run error: {}", exception);
                 return;
             }
         },

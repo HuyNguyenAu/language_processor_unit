@@ -203,9 +203,9 @@ impl Executor {
 
         crate::debug_print!(
             debug,
-            "Executed MOV: r{} = {:?}",
+            "Executed MOV: r{} = {}",
             instruction.destination_register,
-            registers.get_register(instruction.destination_register)
+            value
         );
 
         Ok(())

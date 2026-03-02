@@ -3,19 +3,11 @@ use std::{error::Error, fmt};
 #[derive(Debug)]
 pub struct BaseException {
     pub message: String,
-    pub inner_exception: Option<Box<BaseException>>,
+    pub inner_exception: Option<Box<Exception>>,
 }
-
-impl fmt::Display for BaseException {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "{:#?}", self.message)
-    }
-}
-
-impl Error for BaseException {}
 
 impl BaseException {
-    pub fn new(message: String, inner_exception: Option<Box<BaseException>>) -> Self {
+    pub fn new(message: String, inner_exception: Option<Box<Exception>>) -> Self {
         BaseException {
             message,
             inner_exception,
@@ -23,39 +15,12 @@ impl BaseException {
     }
 }
 
-impl From<std::io::Error> for BaseException {
-    fn from(error: std::io::Error) -> Self {
-        BaseException::new(format!("{:#?}", error), None)
-    }
-}
-
-impl From<&dyn Error> for BaseException {
-    fn from(error: &dyn Error) -> Self {
-        BaseException::new(format!("{:#?}", error), None)
-    }
-}
-
-impl From<minreq::Error> for BaseException {
-    fn from(error: minreq::Error) -> Self {
-        BaseException::new(format!("{:#?}", error), None)
-    }
-}
-
-impl From<miniserde::Error> for BaseException {
-    fn from(error: miniserde::Error) -> Self {
-        BaseException::new(format!("{:#?}", error), None)
-    }
-}
-
-impl From<String> for BaseException {
-    fn from(message: String) -> Self {
-        BaseException::new(message, None)
-    }
-}
-
 impl From<Exception> for BaseException {
     fn from(exception: Exception) -> Self {
         match exception {
+            Exception::BaseException(exception) => {
+                BaseException::new(exception.message, exception.inner_exception)
+            }
             Exception::ProgramException(exception) => {
                 BaseException::new(exception.message, exception.inner_exception)
             }
@@ -98,6 +63,7 @@ impl From<Exception> for BaseException {
 
 #[derive(Debug)]
 pub enum Exception {
+    BaseException(BaseException),
     ProgramException(BaseException),
     // OpenAI client exceptions.
     OpenAIChatCompletionException(BaseException),
@@ -114,6 +80,36 @@ pub enum Exception {
     MemoryException(BaseException),
     // Register exceptions.
     RegisterException(BaseException),
+}
+
+impl From<std::io::Error> for Exception {
+    fn from(error: std::io::Error) -> Self {
+        Exception::BaseException(BaseException::new(format!("{}", error), None))
+    }
+}
+
+impl From<&dyn Error> for Exception {
+    fn from(error: &dyn Error) -> Self {
+        Exception::BaseException(BaseException::new(format!("{}", error), None))
+    }
+}
+
+impl From<minreq::Error> for Exception {
+    fn from(error: minreq::Error) -> Self {
+        Exception::BaseException(BaseException::new(format!("{}", error), None))
+    }
+}
+
+impl From<miniserde::Error> for Exception {
+    fn from(error: miniserde::Error) -> Self {
+        Exception::BaseException(BaseException::new(format!("{}", error), None))
+    }
+}
+
+impl From<String> for Exception {
+    fn from(message: String) -> Self {
+        Exception::BaseException(BaseException::new(message, None))
+    }
 }
 
 impl fmt::Display for Exception {

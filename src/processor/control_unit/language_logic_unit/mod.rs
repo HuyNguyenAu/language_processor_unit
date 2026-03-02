@@ -121,70 +121,70 @@ impl LanguageLogicUnit {
     // This is because the assistant role is meant to provide additional context to the model, and should not be the final message that
     // the model sees before generating a response. By enforcing this structure, we can ensure that the model receives a clear and consistent
     // input format, which can help improve the quality of the generated responses.
-    fn ensure_messages_alternate_roles(
+    fn validate_messages(
         messages: &Vec<OpenAIChatCompletionRequestText>,
     ) -> Result<(), Exception> {
-        if messages.is_empty() {
+        if messages.len() < 2 {
             return Err(Exception::LanguageLogicException(BaseException::new(
-                "Failed to ensure messages alternate roles because messages are empty.".to_string(),
+                "Messages must contain at least a system and a user message.".to_string(),
                 None,
             )));
         }
 
-        // First message must be system role.
+        // Must start with system message and then user message.
         if messages[0].role != roles::SYSTEM_ROLE {
             return Err(Exception::LanguageLogicException(BaseException::new(
-                "The first message must have the system role.".to_string(),
+                "The first message must be a system message.".to_string(),
                 None,
             )));
         }
 
-        // Last message must be user role.
         if messages[1].role != roles::USER_ROLE {
             return Err(Exception::LanguageLogicException(BaseException::new(
-                "The message following the system message must have the user role.".to_string(),
+                "The second message must be a user message.".to_string(),
                 None,
             )));
         }
 
-        let mut current_role: String = roles::USER_ROLE.into();
+        // Messages should strictly alternate: assistant -> user -> assistant -> ...
+        // And the sequence must end on a user message (assistant message may never be last).
+        let mut expected_role = roles::ASSISTANT_ROLE;
 
-        for (i, message) in messages.iter().skip(2).enumerate() {
-            // If current role is assistant, message role must be user.
-            if current_role == roles::ASSISTANT_ROLE && message.role != roles::USER_ROLE {
+        for message in messages.iter().skip(2) {
+            if message.role != expected_role {
                 return Err(Exception::LanguageLogicException(BaseException::new(
-                    "The message following an assistant message must have the user role."
-                        .to_string(),
+                    format!(
+                        "Unexpected role '{}' in messages, expected '{}'.",
+                        message.role, expected_role
+                    ),
                     None,
                 )));
             }
 
-            // If current role is user, if not at the end, the message role can be an assistant.
-            // Otherwise, it must be the final message.
-            if current_role == roles::USER_ROLE {
-                let is_at_end = i >= messages.len() - 3;
+            // Swap expected role for next message.
+            expected_role = if expected_role == roles::ASSISTANT_ROLE {
+                roles::USER_ROLE
+            } else {
+                roles::ASSISTANT_ROLE
+            };
+        }
 
-                if is_at_end {
-                    if message.role != roles::USER_ROLE {
-                        return Err(Exception::LanguageLogicException(BaseException::new(
-                            "The last message must have the user role.".to_string(),
-                            None,
-                        )));
-                    }
-                } else {
-                    let next_role = messages[i + 3].role.clone();
-
-                    if next_role != roles::ASSISTANT_ROLE {
-                        return Err(Exception::LanguageLogicException(BaseException::new(
-                            "The message following a user message must have the assistant role."
-                                .to_string(),
-                            None,
-                        )));
-                    }
-                }
+        let last_message = match messages.last() {
+            Some(message) => message,
+            None => {
+                return Err(Exception::LanguageLogicException(BaseException::new(
+                    "Messages cannot be empty.".to_string(),
+                    None,
+                )));
             }
+        };
 
-            current_role = message.role.clone();
+        if last_message.role != roles::USER_ROLE {
+            return Err(Exception::LanguageLogicException(BaseException::new(
+                "Messages must end with a user message, but the last message has role '{}'."
+                    .to_string(),
+                None,
+            )));
         }
 
         Ok(())
@@ -223,7 +223,7 @@ impl LanguageLogicUnit {
             }
         };
 
-        match Self::ensure_messages_alternate_roles(&messages) {
+        match Self::validate_messages(&messages) {
             Ok(_) => {}
             Err(exception) => {
                 return Err(Exception::LanguageLogicException(BaseException::new(

@@ -72,6 +72,7 @@ impl LanguageLogicUnit {
         value.trim().replace("\n", "").to_string()
     }
 
+    // Merge consecutive messages with the same role into a single message, concatenating their content with a newline separator.
     fn merge_messages_by_role(
         messages: &Vec<OpenAIChatCompletionRequestText>,
     ) -> Result<Vec<OpenAIChatCompletionRequestText>, Exception> {

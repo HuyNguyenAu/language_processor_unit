@@ -72,6 +72,51 @@ impl LanguageLogicUnit {
         value.trim().replace("\n", "").to_string()
     }
 
+    fn merge_messages_by_role(
+        messages: &Vec<OpenAIChatCompletionRequestText>,
+    ) -> Result<Vec<OpenAIChatCompletionRequestText>, Exception> {
+        let mut merged_messages = Vec::<OpenAIChatCompletionRequestText>::new();
+        let mut current_role: Option<String> = None;
+        let mut current_content = String::new();
+
+        for (i, message) in messages.iter().enumerate() {
+            if current_role.is_none() {
+                current_role = Some(message.role.clone());
+            }
+
+            let role = match current_role.clone() {
+                Some(role) => role,
+                None => {
+                    return Err(Exception::LanguageLogicException(BaseException::new(
+                        "Failed to merge messages by role because current role is None."
+                            .to_string(),
+                        None,
+                    )));
+                }
+            };
+
+            if &message.role == &role {
+                if !current_content.is_empty() {
+                    current_content.push_str("\n");
+                }
+
+                current_content.push_str(&message.content);
+            }
+
+            if &message.role != &role || i >= messages.len() - 1 {
+                merged_messages.push(OpenAIChatCompletionRequestText {
+                    role,
+                    content: current_content.clone(),
+                });
+
+                current_content.clear();
+                current_role = Some(message.role.clone());
+            }
+        }
+
+        Ok(merged_messages)
+    }
+
     fn chat(
         content: &str,
         context: &Vec<ContextMessage>,
@@ -95,6 +140,15 @@ impl LanguageLogicUnit {
             content: content.to_string(),
         }))
         .collect::<Vec<OpenAIChatCompletionRequestText>>();
+        let messages = match Self::merge_messages_by_role(&messages) {
+            Ok(merged_messages) => merged_messages,
+            Err(exception) => {
+                return Err(Exception::LanguageLogicException(BaseException::new(
+                    "Failed to execute chat completion.".to_string(),
+                    Some(Box::new(exception.into())),
+                )));
+            }
+        };
 
         let request = OpenAIChatCompletionRequest {
             messages,

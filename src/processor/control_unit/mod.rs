@@ -1,4 +1,4 @@
-use crate::exceptions::exception::{self, BaseException, Exception};
+use crate::exceptions::exception::{BaseException, Exception};
 use crate::processor::control_unit::decoder::Decoder;
 use crate::processor::control_unit::executor::Executor;
 use crate::processor::{memory::Memory, registers::Registers};

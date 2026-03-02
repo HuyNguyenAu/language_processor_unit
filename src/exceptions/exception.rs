@@ -56,7 +56,7 @@ impl From<String> for BaseException {
 impl From<Exception> for BaseException {
     fn from(exception: Exception) -> Self {
         match exception {
-            Exception::StartUpException(exception) => {
+            Exception::ProgramException(exception) => {
                 BaseException::new(exception.message, exception.inner_exception)
             }
             // OpenAI client exceptions.
@@ -98,7 +98,7 @@ impl From<Exception> for BaseException {
 
 #[derive(Debug)]
 pub enum Exception {
-    StartUpException(BaseException),
+    ProgramException(BaseException),
     // OpenAI client exceptions.
     OpenAIChatCompletionException(BaseException),
     OpenAIEmbeddingsException(BaseException),

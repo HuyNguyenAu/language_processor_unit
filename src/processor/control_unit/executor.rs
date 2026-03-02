@@ -1,9 +1,8 @@
-use core::error;
 use std::fs::read_to_string;
 
 use crate::{
     assembler::roles,
-    exceptions::exception::{self, BaseException, Exception},
+    exceptions::exception::{BaseException, Exception},
     processor::{
         control_unit::{
             instruction::{

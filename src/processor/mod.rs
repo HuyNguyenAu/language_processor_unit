@@ -25,7 +25,7 @@ impl Processor {
         if !data.len().is_multiple_of(4) {
             return Err(Exception::ProcessorException(BaseException::new(
                 format!(
-                    "Failed to load bytecode. Invalid bytecode length: {}. Bytecode must be a multiple of 4 bytes.",
+                    "Failed to load byte code. Invalid byte code length: {}. Byte code must be a multiple of 4 bytes.",
                     data.len()
                 ),
                 None,
@@ -41,7 +41,7 @@ impl Processor {
                 Err(error) => {
                     return Err(Exception::ProcessorException(BaseException::new(
                         format!(
-                            "Failed to load bytecode. Byte code chunks must be exactly 4 bytes."
+                            "Failed to load byte code. Byte code chunks must be exactly 4 bytes."
                         ),
                         Some(Box::new(format!("{:#?}", error).into())),
                     )));
@@ -49,16 +49,22 @@ impl Processor {
             }
         }
 
-        self.control_unit.load(byte_code);
-
-        Ok(())
+        match self.control_unit.load(byte_code) {
+            Ok(_) => Ok(()),
+            Err(exception) => {
+                return Err(Exception::ProcessorException(BaseException::new(
+                    "Failed to load byte code into control unit.".to_string(),
+                    Some(Box::new(exception.into())),
+                )));
+            }
+        }
     }
 
     pub fn run(&mut self) -> Result<(), Exception> {
         loop {
             match self.control_unit.fetch() {
-                Ok(result) => {
-                    if result {
+                Ok(instruction_fetched) => {
+                    if !instruction_fetched {
                         return Ok(());
                     }
                 }

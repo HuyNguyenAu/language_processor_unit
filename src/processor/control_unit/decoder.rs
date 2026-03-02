@@ -185,7 +185,18 @@ impl Decoder {
     }
 
     fn branch(op_code: OpCode, instruction_bytes: [[u8; 4]; 4]) -> Result<Instruction, Exception> {
-        Self::expect_not_nop(op_code);
+        match Self::expect_not_nop(op_code) {
+            Ok(_) => (),
+            Err(exception) => {
+                return Err(Exception::DecoderException(BaseException::new(
+                    format!(
+                        "Failed to decode branch instruction with opcode '{:?}'.",
+                        op_code
+                    ),
+                    Some(Box::new(exception.into())),
+                )));
+            }
+        };
 
         let source_register_1 = u32::from_be_bytes(instruction_bytes[1]);
         let source_register_2 = u32::from_be_bytes(instruction_bytes[2]);
@@ -217,7 +228,18 @@ impl Decoder {
     }
 
     fn no_register(op_code: OpCode) -> Result<Instruction, Exception> {
-        Self::expect_not_nop(op_code);
+        match Self::expect_not_nop(op_code) {
+            Ok(_) => (),
+            Err(exception) => {
+                return Err(Exception::DecoderException(BaseException::new(
+                    format!(
+                        "Failed to decode no register instruction with opcode '{:?}'.",
+                        op_code
+                    ),
+                    Some(Box::new(exception.into())),
+                )));
+            }
+        };
 
         match op_code {
             // Control flow.
@@ -241,7 +263,18 @@ impl Decoder {
         op_code: OpCode,
         instruction_bytes: [[u8; 4]; 4],
     ) -> Result<Instruction, Exception> {
-        Self::expect_not_nop(op_code);
+        match Self::expect_not_nop(op_code) {
+            Ok(_) => (),
+            Err(exception) => {
+                return Err(Exception::DecoderException(BaseException::new(
+                    format!(
+                        "Failed to decode no register string instruction with opcode '{:?}'.",
+                        op_code
+                    ),
+                    Some(Box::new(exception.into())),
+                )));
+            }
+        };
 
         let pointer = u32::from_be_bytes(instruction_bytes[1]) as usize;
         let string = match Self::string(
@@ -283,7 +316,18 @@ impl Decoder {
         op_code: OpCode,
         instruction_bytes: [[u8; 4]; 4],
     ) -> Result<Instruction, Exception> {
-        Self::expect_not_nop(op_code);
+        match Self::expect_not_nop(op_code) {
+            Ok(_) => (),
+            Err(exception) => {
+                return Err(Exception::DecoderException(BaseException::new(
+                    format!(
+                        "Failed to decode single-register instruction with opcode '{:?}'.",
+                        op_code
+                    ),
+                    Some(Box::new(exception.into())),
+                )));
+            }
+        };
 
         let register = u32::from_be_bytes(instruction_bytes[1]);
 
@@ -321,7 +365,18 @@ impl Decoder {
         op_code: OpCode,
         instruction_bytes: [[u8; 4]; 4],
     ) -> Result<Instruction, Exception> {
-        Self::expect_not_nop(op_code);
+        match Self::expect_not_nop(op_code) {
+            Ok(_) => (),
+            Err(exception) => {
+                return Err(Exception::DecoderException(BaseException::new(
+                    format!(
+                        "Failed to decode double-register instruction with opcode '{:?}'.",
+                        op_code
+                    ),
+                    Some(Box::new(exception.into())),
+                )));
+            }
+        };
 
         let destination_register = u32::from_be_bytes(instruction_bytes[1]);
         let source_register = u32::from_be_bytes(instruction_bytes[2]);
@@ -361,7 +416,18 @@ impl Decoder {
         op_code: OpCode,
         instruction_bytes: [[u8; 4]; 4],
     ) -> Result<Instruction, Exception> {
-        Self::expect_not_nop(op_code);
+        match Self::expect_not_nop(op_code) {
+            Ok(_) => (),
+            Err(exception) => {
+                return Err(Exception::DecoderException(BaseException::new(
+                    format!(
+                        "Failed to decode triple-register instruction with opcode '{:?}'.",
+                        op_code
+                    ),
+                    Some(Box::new(exception.into())),
+                )));
+            }
+        };
 
         let destination_register = u32::from_be_bytes(instruction_bytes[1]);
         let source_register_1 = u32::from_be_bytes(instruction_bytes[2]);

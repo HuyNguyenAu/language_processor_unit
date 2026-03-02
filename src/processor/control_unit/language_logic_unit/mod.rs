@@ -72,6 +72,107 @@ impl LanguageLogicUnit {
         value.trim().replace("\n", "").to_string()
     }
 
+    // Merge consecutive messages with the same role into a single message,
+    // joining their content with a newline. This version is easier to follow:
+    fn merge_messages_by_role(
+        messages: &Vec<OpenAIChatCompletionRequestText>,
+    ) -> Result<Vec<OpenAIChatCompletionRequestText>, Exception> {
+        if messages.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let mut merged_messages = Vec::<OpenAIChatCompletionRequestText>::new();
+        let mut current = messages[0].clone();
+
+        for message in &messages[1..] {
+            if message.role == current.role {
+                current.content.push('\n');
+                current.content.push_str(&message.content);
+            } else {
+                merged_messages.push(current);
+
+                current = message.clone();
+            }
+        }
+
+        merged_messages.push(current);
+
+        Ok(merged_messages)
+    }
+
+    // Message must always start with system role, and then followed by a user role. Assistant role can only be after a user role, and never at the end.
+    // This is because the assistant role is meant to provide additional context to the model, and should not be the final message that
+    // the model sees before generating a response. By enforcing this structure, we can ensure that the model receives a clear and consistent
+    // input format, which can help improve the quality of the generated responses.
+    fn validate_messages(messages: &Vec<OpenAIChatCompletionRequestText>) -> Result<(), Exception> {
+        if messages.len() < 2 {
+            return Err(Exception::LanguageLogicException(BaseException::new(
+                "Messages must contain at least a system and a user message.".to_string(),
+                None,
+            )));
+        }
+
+        // Must start with system message and then user message.
+        if messages[0].role != roles::SYSTEM_ROLE {
+            return Err(Exception::LanguageLogicException(BaseException::new(
+                "The first message must be a system message.".to_string(),
+                None,
+            )));
+        }
+
+        if messages[1].role != roles::USER_ROLE {
+            return Err(Exception::LanguageLogicException(BaseException::new(
+                "The second message must be a user message.".to_string(),
+                None,
+            )));
+        }
+
+        // Messages should strictly alternate: assistant -> user -> assistant -> ...
+        // And the sequence must end on a user message (assistant message may never be last).
+        let mut expected_role = roles::ASSISTANT_ROLE;
+
+        for message in messages.iter().skip(2) {
+            if message.role != expected_role {
+                return Err(Exception::LanguageLogicException(BaseException::new(
+                    format!(
+                        "Unexpected role '{}' in messages, expected '{}'.",
+                        message.role, expected_role
+                    ),
+                    None,
+                )));
+            }
+
+            // Swap expected role for next message.
+            expected_role = if expected_role == roles::ASSISTANT_ROLE {
+                roles::USER_ROLE
+            } else {
+                roles::ASSISTANT_ROLE
+            };
+        }
+
+        let last_message = match messages.last() {
+            Some(message) => message,
+            None => {
+                return Err(Exception::LanguageLogicException(BaseException::new(
+                    "Messages cannot be empty.".to_string(),
+                    None,
+                )));
+            }
+        };
+
+        if last_message.role != roles::USER_ROLE {
+            return Err(Exception::LanguageLogicException(BaseException::new(
+                format!(
+                    "Messages must end with a user message, but the last message has role '{}'.",
+                    last_message.role
+                ),
+                None,
+            )));
+        }
+
+        Ok(())
+    }
+
     fn chat(
         content: &str,
         context: &Vec<ContextMessage>,
@@ -95,6 +196,26 @@ impl LanguageLogicUnit {
             content: content.to_string(),
         }))
         .collect::<Vec<OpenAIChatCompletionRequestText>>();
+
+        let messages = match Self::merge_messages_by_role(&messages) {
+            Ok(merged_messages) => merged_messages,
+            Err(exception) => {
+                return Err(Exception::LanguageLogicException(BaseException::new(
+                    "Failed to execute chat completion.".to_string(),
+                    Some(Box::new(exception.into())),
+                )));
+            }
+        };
+
+        match Self::validate_messages(&messages) {
+            Ok(_) => {}
+            Err(exception) => {
+                return Err(Exception::LanguageLogicException(BaseException::new(
+                    "Failed to execute chat completion.".to_string(),
+                    Some(Box::new(exception.into())),
+                )));
+            }
+        };
 
         let request = OpenAIChatCompletionRequest {
             messages,

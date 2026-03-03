@@ -494,7 +494,10 @@ impl Decoder {
             OpCode::Similarity => Self::triple_register(op_code, instruction_bytes),
             // Misc operations.
             OpCode::Decrement => Self::immediate(memory, registers, op_code, instruction_bytes),
-            OpCode::NoOp => panic!("NoOp is not a valid instruction and should not be decoded."),
+            OpCode::NoOp => Err(Exception::Decoder(BaseException::new(
+                "NoOp is not a valid instruction and should not be decoded.".to_string(),
+                None,
+            ))),
         }
     }
 }

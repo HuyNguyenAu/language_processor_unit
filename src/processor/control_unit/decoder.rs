@@ -52,7 +52,7 @@ impl Decoder {
                             "{}. Failed to decode string byte at address {}.",
                             message, address
                         ),
-                        Some(Box::new(exception.into())),
+                        Some(Box::new(exception)),
                     )));
                 }
             };
@@ -113,7 +113,7 @@ impl Decoder {
                         "Failed to decode immediate instruction with opcode '{:?}'.",
                         op_code
                     ),
-                    Some(Box::new(exception.into())),
+                    Some(Box::new(exception)),
                 )));
             }
         };
@@ -136,7 +136,7 @@ impl Decoder {
                                 "Failed to decode immediate string for opcode '{:?}'",
                                 op_code
                             ),
-                            Some(Box::new(exception.into())),
+                            Some(Box::new(exception)),
                         )));
                     }
                 };
@@ -193,7 +193,7 @@ impl Decoder {
                         "Failed to decode branch instruction with opcode '{:?}'.",
                         op_code
                     ),
-                    Some(Box::new(exception.into())),
+                    Some(Box::new(exception)),
                 )));
             }
         };
@@ -236,7 +236,7 @@ impl Decoder {
                         "Failed to decode no register instruction with opcode '{:?}'.",
                         op_code
                     ),
-                    Some(Box::new(exception.into())),
+                    Some(Box::new(exception)),
                 )));
             }
         };
@@ -271,7 +271,7 @@ impl Decoder {
                         "Failed to decode no register string instruction with opcode '{:?}'.",
                         op_code
                     ),
-                    Some(Box::new(exception.into())),
+                    Some(Box::new(exception)),
                 )));
             }
         };
@@ -293,7 +293,7 @@ impl Decoder {
                         "Failed to decode no register string instruction for opcode '{:?}'",
                         op_code
                     ),
-                    Some(Box::new(exception.into())),
+                    Some(Box::new(exception)),
                 )));
             }
         };
@@ -324,7 +324,7 @@ impl Decoder {
                         "Failed to decode single-register instruction with opcode '{:?}'.",
                         op_code
                     ),
-                    Some(Box::new(exception.into())),
+                    Some(Box::new(exception)),
                 )));
             }
         };
@@ -373,7 +373,7 @@ impl Decoder {
                         "Failed to decode double-register instruction with opcode '{:?}'.",
                         op_code
                     ),
-                    Some(Box::new(exception.into())),
+                    Some(Box::new(exception)),
                 )));
             }
         };
@@ -424,7 +424,7 @@ impl Decoder {
                         "Failed to decode triple-register instruction with opcode '{:?}'.",
                         op_code
                     ),
-                    Some(Box::new(exception.into())),
+                    Some(Box::new(exception)),
                 )));
             }
         };
@@ -459,7 +459,7 @@ impl Decoder {
             Err(exception) => {
                 return Err(Exception::DecoderException(BaseException::new(
                     "Failed to decode instruction opcode.".to_string(),
-                    Some(Box::new(exception.into())),
+                    Some(Box::new(exception)),
                 )));
             }
         };

@@ -29,7 +29,7 @@ impl Executor {
             Err(exception) => {
                 return Err(Exception::ExecutorException(BaseException::new(
                     "Failed to read text from register.".to_string(),
-                    Some(Box::new(exception.into())),
+                    Some(Box::new(exception)),
                 )));
             }
         };
@@ -59,7 +59,7 @@ impl Executor {
             Err(exception) => {
                 return Err(Exception::ExecutorException(BaseException::new(
                     "Failed to read number from register.".to_string(),
-                    Some(Box::new(exception.into())),
+                    Some(Box::new(exception)),
                 )));
             }
         };
@@ -95,7 +95,7 @@ impl Executor {
             Err(exception) => {
                 return Err(Exception::ExecutorException(BaseException::new(
                     "Failed to set destination register for load string instruction.".to_string(),
-                    Some(Box::new(exception.into())),
+                    Some(Box::new(exception)),
                 )));
             }
         }
@@ -123,7 +123,7 @@ impl Executor {
                 return Err(Exception::ExecutorException(BaseException::new(
                     "Failed to set destination register for load immediate instruction."
                         .to_string(),
-                    Some(Box::new(exception.into())),
+                    Some(Box::new(exception)),
                 )));
             }
         }
@@ -161,7 +161,7 @@ impl Executor {
             Err(exception) => {
                 return Err(Exception::ExecutorException(BaseException::new(
                     "Failed to set destination register for load file instruction.".to_string(),
-                    Some(Box::new(exception.into())),
+                    Some(Box::new(exception)),
                 )));
             }
         }
@@ -186,7 +186,7 @@ impl Executor {
             Err(exception) => {
                 return Err(Exception::ExecutorException(BaseException::new(
                     "Failed to read source register for move instruction.".to_string(),
-                    Some(Box::new(exception.into())),
+                    Some(Box::new(exception)),
                 )));
             }
         };
@@ -196,7 +196,7 @@ impl Executor {
             Err(exception) => {
                 return Err(Exception::ExecutorException(BaseException::new(
                     "Failed to set destination register for move instruction.".to_string(),
-                    Some(Box::new(exception.into())),
+                    Some(Box::new(exception)),
                 )));
             }
         }
@@ -222,7 +222,7 @@ impl Executor {
                 return Err(Exception::ExecutorException(BaseException::new(
                     "Failed to read number from source register 1 for branch instruction."
                         .to_string(),
-                    Some(Box::new(exception.into())),
+                    Some(Box::new(exception)),
                 )));
             }
         };
@@ -232,7 +232,7 @@ impl Executor {
                 return Err(Exception::ExecutorException(BaseException::new(
                     "Failed to read number from source register 2 for branch instruction."
                         .to_string(),
-                    Some(Box::new(exception.into())),
+                    Some(Box::new(exception)),
                 )));
             }
         };
@@ -294,7 +294,7 @@ impl Executor {
             Err(exception) => {
                 return Err(Exception::ExecutorException(BaseException::new(
                     "Failed to read source register for output instruction.".to_string(),
-                    Some(Box::new(exception.into())),
+                    Some(Box::new(exception)),
                 )));
             }
         };
@@ -324,7 +324,7 @@ impl Executor {
             Err(exception) => {
                 return Err(Exception::ExecutorException(BaseException::new(
                     "Failed to read text from source register for morph instruction.".to_string(),
-                    Some(Box::new(exception.into())),
+                    Some(Box::new(exception)),
                 )));
             }
         };
@@ -339,7 +339,7 @@ impl Executor {
             Err(exception) => {
                 return Err(Exception::ExecutorException(BaseException::new(
                     "Failed to perform morph operation.".to_string(),
-                    Some(Box::new(exception.into())),
+                    Some(Box::new(exception)),
                 )));
             }
         };
@@ -355,7 +355,7 @@ impl Executor {
             Ok(_) => Ok(()),
             Err(exception) => Err(Exception::ExecutorException(BaseException::new(
                 "Failed to set destination register for morph instruction.".to_string(),
-                Some(Box::new(exception.into())),
+                Some(Box::new(exception)),
             ))),
         }
     }
@@ -371,7 +371,7 @@ impl Executor {
             Err(exception) => {
                 return Err(Exception::ExecutorException(BaseException::new(
                     "Failed to read text from source register for project instruction.".to_string(),
-                    Some(Box::new(exception.into())),
+                    Some(Box::new(exception)),
                 )));
             }
         };
@@ -383,7 +383,7 @@ impl Executor {
             Err(exception) => {
                 return Err(Exception::ExecutorException(BaseException::new(
                     "Failed to perform project operation.".to_string(),
-                    Some(Box::new(exception.into())),
+                    Some(Box::new(exception)),
                 )));
             }
         };
@@ -399,7 +399,7 @@ impl Executor {
             Ok(_) => Ok(()),
             Err(exception) => Err(Exception::ExecutorException(BaseException::new(
                 "Failed to set destination register for project instruction.".to_string(),
-                Some(Box::new(exception.into())),
+                Some(Box::new(exception)),
             ))),
         }
     }
@@ -415,7 +415,7 @@ impl Executor {
             Err(exception) => {
                 return Err(Exception::ExecutorException(BaseException::new(
                     "Failed to read text from source register for distill instruction.".to_string(),
-                    Some(Box::new(exception.into())),
+                    Some(Box::new(exception)),
                 )));
             }
         };
@@ -430,7 +430,7 @@ impl Executor {
             Err(exception) => {
                 return Err(Exception::ExecutorException(BaseException::new(
                     "Failed to perform distill operation.".to_string(),
-                    Some(Box::new(exception.into())),
+                    Some(Box::new(exception)),
                 )));
             }
         };
@@ -446,7 +446,7 @@ impl Executor {
             Ok(_) => Ok(()),
             Err(exception) => Err(Exception::ExecutorException(BaseException::new(
                 "Failed to set destination register for distill instruction.".to_string(),
-                Some(Box::new(exception.into())),
+                Some(Box::new(exception)),
             ))),
         }
     }
@@ -463,7 +463,7 @@ impl Executor {
                 return Err(Exception::ExecutorException(BaseException::new(
                     "Failed to read text from source register for correlate instruction."
                         .to_string(),
-                    Some(Box::new(exception.into())),
+                    Some(Box::new(exception)),
                 )));
             }
         };
@@ -478,7 +478,7 @@ impl Executor {
             Err(exception) => {
                 return Err(Exception::ExecutorException(BaseException::new(
                     "Failed to perform correlate operation.".to_string(),
-                    Some(Box::new(exception.into())),
+                    Some(Box::new(exception)),
                 )));
             }
         };
@@ -494,7 +494,7 @@ impl Executor {
             Ok(_) => Ok(()),
             Err(exception) => Err(Exception::ExecutorException(BaseException::new(
                 "Failed to set destination register for correlate instruction.".to_string(),
-                Some(Box::new(exception.into())),
+                Some(Box::new(exception)),
             ))),
         }
     }
@@ -511,7 +511,7 @@ impl Executor {
             Err(exception) => {
                 return Err(Exception::ExecutorException(BaseException::new(
                     "Failed to read text from source register for audit instruction.".to_string(),
-                    Some(Box::new(exception.into())),
+                    Some(Box::new(exception)),
                 )));
             }
         };
@@ -535,7 +535,7 @@ impl Executor {
             Err(exception) => {
                 return Err(Exception::ExecutorException(BaseException::new(
                     "Failed to perform audit operation.".to_string(),
-                    Some(Box::new(exception.into())),
+                    Some(Box::new(exception)),
                 )));
             }
         };
@@ -551,7 +551,7 @@ impl Executor {
             Ok(_) => Ok(()),
             Err(exception) => Err(Exception::ExecutorException(BaseException::new(
                 "Failed to set destination register for audit instruction.".to_string(),
-                Some(Box::new(exception.into())),
+                Some(Box::new(exception)),
             ))),
         }
     }
@@ -568,7 +568,7 @@ impl Executor {
                 return Err(Exception::ExecutorException(BaseException::new(
                     "Failed to read text from source register 1 for similarity instruction."
                         .to_string(),
-                    Some(Box::new(exception.into())),
+                    Some(Box::new(exception)),
                 )));
             }
         };
@@ -578,7 +578,7 @@ impl Executor {
                 return Err(Exception::ExecutorException(BaseException::new(
                     "Failed to read text from source register 2 for similarity instruction."
                         .to_string(),
-                    Some(Box::new(exception.into())),
+                    Some(Box::new(exception)),
                 )));
             }
         };
@@ -589,7 +589,7 @@ impl Executor {
             Err(exception) => {
                 return Err(Exception::ExecutorException(BaseException::new(
                     "Failed to perform similarity operation.".to_string(),
-                    Some(Box::new(exception.into())),
+                    Some(Box::new(exception)),
                 )));
             }
         };
@@ -607,7 +607,7 @@ impl Executor {
             Ok(_) => Ok(()),
             Err(exception) => Err(Exception::ExecutorException(BaseException::new(
                 "Failed to set destination register for similarity instruction.".to_string(),
-                Some(Box::new(exception.into())),
+                Some(Box::new(exception)),
             ))),
         }
     }
@@ -631,7 +631,7 @@ impl Executor {
                 return Err(Exception::ExecutorException(BaseException::new(
                     "Failed to set destination register for context snapshot instruction."
                         .to_string(),
-                    Some(Box::new(exception.into())),
+                    Some(Box::new(exception)),
                 )));
             }
         }
@@ -655,7 +655,7 @@ impl Executor {
             Err(exception) => {
                 return Err(Exception::ExecutorException(BaseException::new(
                     "Failed to read source register for context restore instruction.".to_string(),
-                    Some(Box::new(exception.into())),
+                    Some(Box::new(exception)),
                 )));
             }
         };
@@ -665,7 +665,7 @@ impl Executor {
             Err(exception) => {
                 return Err(Exception::ExecutorException(BaseException::new(
                     "Failed to restore context from snapshot.".to_string(),
-                    Some(Box::new(exception.into())),
+                    Some(Box::new(exception)),
                 )));
             }
         }
@@ -702,7 +702,7 @@ impl Executor {
                         "Failed to read register r{} for context push instruction.",
                         instruction.source_register
                     ),
-                    Some(Box::new(exception.into())),
+                    Some(Box::new(exception)),
                 )));
             }
         };
@@ -750,7 +750,7 @@ impl Executor {
             Err(exception) => {
                 return Err(Exception::ExecutorException(BaseException::new(
                     "Failed to set register for CONTEXT_POP instruction.".to_string(),
-                    Some(Box::new(exception.into())),
+                    Some(Box::new(exception)),
                 )));
             }
         }
@@ -800,7 +800,7 @@ impl Executor {
             Err(exception) => {
                 return Err(Exception::ExecutorException(BaseException::new(
                     "Failed to read number from register for decrement instruction.".to_string(),
-                    Some(Box::new(exception.into())),
+                    Some(Box::new(exception)),
                 )));
             }
         };
@@ -822,7 +822,7 @@ impl Executor {
             Err(exception) => {
                 return Err(Exception::ExecutorException(BaseException::new(
                     "Failed to set register for decrement instruction.".to_string(),
-                    Some(Box::new(exception.into())),
+                    Some(Box::new(exception)),
                 )));
             }
         }
@@ -854,7 +854,10 @@ impl Executor {
             Instruction::Move(i) => Self::mov(registers, i, debug),
             // Control flow operations.
             Instruction::Branch(i) => Self::branch(registers, i, debug),
-            Instruction::Exit(_) => Ok(Self::exit(memory, registers, debug)),
+            Instruction::Exit(_) => {
+                Self::exit(memory, registers, debug);
+                Ok(())
+            }
             // I/O operations.
             Instruction::Output(i) => Self::output(registers, i, debug),
             // Generative operations.
@@ -867,13 +870,19 @@ impl Executor {
             Instruction::Audit(i) => Self::audit(registers, i, text_model, embedding_model, debug),
             Instruction::Similarity(i) => Self::similarity(registers, i, embedding_model, debug),
             // Context operations.
-            Instruction::ContextClear(_) => Ok(Self::context_clear(registers, debug)),
+            Instruction::ContextClear(_) => {
+                Self::context_clear(registers, debug);
+                Ok(())
+            }
             Instruction::ContextSnapshot(i) => Self::context_snapshot(registers, i, debug),
             Instruction::ContextRestore(i) => Self::context_restore(registers, i, debug),
             Instruction::ContextPush(i) => Self::context_push(registers, i, debug),
             Instruction::ContextPop(i) => Self::context_pop(registers, i, debug),
             Instruction::ContextDrop(_) => Self::context_drop(registers, debug),
-            Instruction::ContextSetRole(i) => Ok(Self::context_set_role(registers, i, debug)),
+            Instruction::ContextSetRole(i) => {
+                Self::context_set_role(registers, i, debug);
+                Ok(())
+            }
             // Misc operations.
             Instruction::Decrement(i) => Self::decrement(registers, i, debug),
         }

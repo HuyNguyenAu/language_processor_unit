@@ -150,15 +150,13 @@ impl Decoder {
                         destination_register: register,
                         file_path: string,
                     })),
-                    _ => {
-                        return Err(Exception::DecoderException(BaseException::new(
-                            format!(
-                                "Failed to decode immediate instruction: invalid opcode '{:?}'.",
-                                op_code
-                            ),
-                            None,
-                        )));
-                    }
+                    _ => Err(Exception::DecoderException(BaseException::new(
+                        format!(
+                            "Failed to decode immediate instruction: invalid opcode '{:?}'.",
+                            op_code
+                        ),
+                        None,
+                    ))),
                 }
             }
             OpCode::LoadImmediate => Ok(Instruction::LoadImmediate(LoadImmediateInstruction {

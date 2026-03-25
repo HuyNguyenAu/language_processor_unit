@@ -17,7 +17,7 @@ use crate::{
 
 fn start_up() -> Result<(), Exception> {
     if let Err(error) = std::fs::create_dir_all(constants::BUILD_DIR) {
-        return Err(Exception::ProgramException(BaseException::new(
+        return Err(Exception::Program(BaseException::new(
             format!("Failed to create build directory: {}", constants::BUILD_DIR),
             Some(Box::new(error.into())),
         )));
@@ -30,7 +30,7 @@ fn config() -> Result<Config, Exception> {
     match dotenv::dotenv().ok() {
         Some(_) => (),
         None => {
-            return Err(Exception::ProgramException(BaseException::new(
+            return Err(Exception::Program(BaseException::new(
                 "Failed to load .env file".to_string(),
                 None,
             )));
@@ -40,7 +40,7 @@ fn config() -> Result<Config, Exception> {
     let text_model = match env::var(constants::TEXT_MODEL_ENV) {
         Ok(value) => value,
         Err(error) => {
-            return Err(Exception::ProgramException(BaseException::new(
+            return Err(Exception::Program(BaseException::new(
                 format!("{} must be set in the .env file", constants::TEXT_MODEL_ENV),
                 Some(Box::new(format!("{:#?}", error).into())),
             )));
@@ -49,7 +49,7 @@ fn config() -> Result<Config, Exception> {
     let embedding_model = match env::var(constants::EMBEDDING_MODEL_ENV) {
         Ok(value) => value,
         Err(error) => {
-            return Err(Exception::ProgramException(BaseException::new(
+            return Err(Exception::Program(BaseException::new(
                 format!(
                     "{} must be set in the .env file",
                     constants::EMBEDDING_MODEL_ENV
@@ -79,19 +79,18 @@ fn build(file_path: &str, config: &Config) -> Result<(), Exception> {
     let source = match read_to_string(file_path) {
         Ok(source) => source,
         Err(error) => {
-            return Err(Exception::ProgramException(BaseException::new(
+            return Err(Exception::Program(BaseException::new(
                 "Failed to build. Failed to read source file.".to_string(),
                 Some(Box::new(error.into())),
             )));
         }
     };
-    let source: &'static str = Box::leak(Box::new(source));
 
     let mut compiler = assembler::Assembler::new(source);
     let byte_code = match compiler.assemble() {
         Ok(byte_code) => byte_code,
         Err(error) => {
-            return Err(Exception::ProgramException(BaseException::new(
+            return Err(Exception::Program(BaseException::new(
                 "Failed to build. Failed to assemble source file.".to_string(),
                 Some(Box::new(error.to_string().into())),
             )));
@@ -113,7 +112,7 @@ fn build(file_path: &str, config: &Config) -> Result<(), Exception> {
     let stem = match path.file_stem().and_then(|s| s.to_str()) {
         Some(stem) => stem,
         None => {
-            return Err(Exception::ProgramException(BaseException::new(
+            return Err(Exception::Program(BaseException::new(
                 "Failed to build. Failed to determine output filename from source file."
                     .to_string(),
                 None,
@@ -126,7 +125,7 @@ fn build(file_path: &str, config: &Config) -> Result<(), Exception> {
     match write(&output_file_name, byte_code) {
         Ok(_) => (),
         Err(error) => {
-            return Err(Exception::ProgramException(BaseException::new(
+            return Err(Exception::Program(BaseException::new(
                 "Failed to build. Failed to write byte code to output file.".to_string(),
                 Some(Box::new(error.into())),
             )));
@@ -142,7 +141,7 @@ fn run(file_path: &str, config: &Config) -> Result<(), Exception> {
     let data = match read(file_path) {
         Ok(data) => data,
         Err(error) => {
-            return Err(Exception::ProgramException(BaseException::new(
+            return Err(Exception::Program(BaseException::new(
                 "Failed to run. Failed to read byte code file.".to_string(),
                 Some(Box::new(error.into())),
             )));
@@ -151,12 +150,12 @@ fn run(file_path: &str, config: &Config) -> Result<(), Exception> {
 
     let mut processor = processor::Processor::new(config.clone());
 
-    match processor.load(data) {
+    match processor.load(&data) {
         Ok(_) => (),
         Err(exception) => {
-            return Err(Exception::ProgramException(BaseException::new(
+            return Err(Exception::Program(BaseException::new(
                 "Failed to run. Failed to load byte code file.".to_string(),
-                Some(Box::new(exception.into())),
+                Some(Box::new(exception)),
             )));
         }
     }
@@ -164,9 +163,9 @@ fn run(file_path: &str, config: &Config) -> Result<(), Exception> {
     match processor.run() {
         Ok(_) => (),
         Err(exception) => {
-            return Err(Exception::ProgramException(BaseException::new(
+            return Err(Exception::Program(BaseException::new(
                 "Failed to run program.".to_string(),
-                Some(Box::new(exception.into())),
+                Some(Box::new(exception)),
             )));
         }
     }
@@ -210,24 +209,16 @@ fn main() {
     match command.as_str() {
         "build" => match build(file_path, &config) {
             Ok(_) => (),
-            Err(exception) => {
-                println!("Build error: {}", exception);
-                return;
-            }
+            Err(exception) => println!("Build error: {}", exception),
         },
         "run" => match run(file_path, &config) {
             Ok(_) => (),
-            Err(exception) => {
-                println!("Run error: {}", exception);
-                return;
-            }
+            Err(exception) => println!("Run error: {}", exception),
         },
-        unexpected_command => {
-            println!(
-                "Unknown command: {}. {}",
-                unexpected_command,
-                constants::HELP_USAGE
-            );
-        }
+        unexpected_command => println!(
+            "Unknown command: {}. {}",
+            unexpected_command,
+            constants::HELP_USAGE
+        ),
     }
 }

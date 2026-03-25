@@ -3,7 +3,7 @@ use crate::assembler::scanner::token::{Token, TokenType};
 pub mod token;
 
 pub struct Scanner {
-    source: &'static str,
+    source: String,
     start: usize,
     current: usize,
     line: usize,
@@ -12,7 +12,7 @@ pub struct Scanner {
 }
 
 impl Scanner {
-    pub fn new(source: &'static str) -> Self {
+    pub fn new(source: String) -> Self {
         let source_len = source.len();
 
         Scanner {
@@ -76,14 +76,14 @@ impl Scanner {
         )
     }
 
-    fn make_error(&self, message: &'static str) -> Token {
+    fn make_error(&self, message: &str) -> Token {
         Token::new(
             TokenType::Error,
             self.start,
             self.current,
             self.line,
             self.column,
-            Some(message),
+            Some(message.to_string()),
         )
     }
 

@@ -24,7 +24,7 @@ impl Decoder {
 
         match OpCode::try_from(value) {
             Ok(op_code) => Ok(op_code),
-            Err(error) => Err(Exception::DecoderException(BaseException::new(
+            Err(error) => Err(Exception::Decoder(BaseException::new(
                 format!(
                     "Failed to decode opcode from byte code. Word: 0x{:08X}",
                     value
@@ -47,19 +47,19 @@ impl Decoder {
             let word = match memory.read(address) {
                 Ok(word) => word,
                 Err(exception) => {
-                    return Err(Exception::DecoderException(BaseException::new(
+                    return Err(Exception::Decoder(BaseException::new(
                         format!(
                             "{}. Failed to decode string byte at address {}.",
                             message, address
                         ),
-                        Some(Box::new(exception.into())),
+                        Some(Box::new(exception)),
                     )));
                 }
             };
             let value: u8 = match u32::from_be_bytes(*word).try_into() {
                 Ok(byte) => byte,
                 Err(error) => {
-                    return Err(Exception::DecoderException(BaseException::new(
+                    return Err(Exception::Decoder(BaseException::new(
                         format!(
                             "{}. Failed decode string byte at address {}: value did not fit in a single byte.",
                             message, address
@@ -73,7 +73,7 @@ impl Decoder {
             if value == 0 {
                 return match String::from_utf8(bytes) {
                     Ok(string) => Ok(string),
-                    Err(error) => Err(Exception::DecoderException(BaseException::new(
+                    Err(error) => Err(Exception::Decoder(BaseException::new(
                         format!(
                             "{}. Failed to decode string bytes at address {}.",
                             message, address
@@ -90,7 +90,7 @@ impl Decoder {
 
     fn expect_not_nop(op_code: OpCode) -> Result<(), Exception> {
         if op_code == OpCode::NoOp {
-            return Err(Exception::DecoderException(BaseException::new(
+            return Err(Exception::Decoder(BaseException::new(
                 "NoOp is not a valid instruction and should not be decoded.".to_string(),
                 None,
             )));
@@ -108,12 +108,12 @@ impl Decoder {
         match Self::expect_not_nop(op_code) {
             Ok(_) => (),
             Err(exception) => {
-                return Err(Exception::DecoderException(BaseException::new(
+                return Err(Exception::Decoder(BaseException::new(
                     format!(
                         "Failed to decode immediate instruction with opcode '{:?}'.",
                         op_code
                     ),
-                    Some(Box::new(exception.into())),
+                    Some(Box::new(exception)),
                 )));
             }
         };
@@ -131,12 +131,12 @@ impl Decoder {
                 ) {
                     Ok(string) => string,
                     Err(exception) => {
-                        return Err(Exception::DecoderException(BaseException::new(
+                        return Err(Exception::Decoder(BaseException::new(
                             format!(
                                 "Failed to decode immediate string for opcode '{:?}'",
                                 op_code
                             ),
-                            Some(Box::new(exception.into())),
+                            Some(Box::new(exception)),
                         )));
                     }
                 };
@@ -150,15 +150,13 @@ impl Decoder {
                         destination_register: register,
                         file_path: string,
                     })),
-                    _ => {
-                        return Err(Exception::DecoderException(BaseException::new(
-                            format!(
-                                "Failed to decode immediate instruction: invalid opcode '{:?}'.",
-                                op_code
-                            ),
-                            None,
-                        )));
-                    }
+                    _ => Err(Exception::Decoder(BaseException::new(
+                        format!(
+                            "Failed to decode immediate instruction: invalid opcode '{:?}'.",
+                            op_code
+                        ),
+                        None,
+                    ))),
                 }
             }
             OpCode::LoadImmediate => Ok(Instruction::LoadImmediate(LoadImmediateInstruction {
@@ -174,7 +172,7 @@ impl Decoder {
                 source_register: register,
                 value: u32::from_be_bytes(instruction_bytes[2]),
             })),
-            _ => Err(Exception::DecoderException(BaseException::new(
+            _ => Err(Exception::Decoder(BaseException::new(
                 format!(
                     "Failed to decode immediate instruction: invalid opcode '{:?}'.",
                     op_code
@@ -188,12 +186,12 @@ impl Decoder {
         match Self::expect_not_nop(op_code) {
             Ok(_) => (),
             Err(exception) => {
-                return Err(Exception::DecoderException(BaseException::new(
+                return Err(Exception::Decoder(BaseException::new(
                     format!(
                         "Failed to decode branch instruction with opcode '{:?}'.",
                         op_code
                     ),
-                    Some(Box::new(exception.into())),
+                    Some(Box::new(exception)),
                 )));
             }
         };
@@ -209,7 +207,7 @@ impl Decoder {
             OpCode::BranchGreater => BranchType::Greater,
             OpCode::BranchGreaterEqual => BranchType::GreaterEqual,
             _ => {
-                return Err(Exception::DecoderException(BaseException::new(
+                return Err(Exception::Decoder(BaseException::new(
                     format!(
                         "Failed to decode branch instruction: invalid opcode '{:?}'.",
                         op_code
@@ -231,12 +229,12 @@ impl Decoder {
         match Self::expect_not_nop(op_code) {
             Ok(_) => (),
             Err(exception) => {
-                return Err(Exception::DecoderException(BaseException::new(
+                return Err(Exception::Decoder(BaseException::new(
                     format!(
                         "Failed to decode no register instruction with opcode '{:?}'.",
                         op_code
                     ),
-                    Some(Box::new(exception.into())),
+                    Some(Box::new(exception)),
                 )));
             }
         };
@@ -247,7 +245,7 @@ impl Decoder {
             // Context operations.
             OpCode::ContextClear => Ok(Instruction::ContextClear(ContextClearInstruction)),
             OpCode::ContextDrop => Ok(Instruction::ContextDrop(ContextDropInstruction)),
-            _ => Err(Exception::DecoderException(BaseException::new(
+            _ => Err(Exception::Decoder(BaseException::new(
                 format!(
                     "Failed to decode zero-register instruction: invalid opcode '{:?}'.",
                     op_code
@@ -266,12 +264,12 @@ impl Decoder {
         match Self::expect_not_nop(op_code) {
             Ok(_) => (),
             Err(exception) => {
-                return Err(Exception::DecoderException(BaseException::new(
+                return Err(Exception::Decoder(BaseException::new(
                     format!(
                         "Failed to decode no register string instruction with opcode '{:?}'.",
                         op_code
                     ),
-                    Some(Box::new(exception.into())),
+                    Some(Box::new(exception)),
                 )));
             }
         };
@@ -288,12 +286,12 @@ impl Decoder {
         ) {
             Ok(string) => string,
             Err(exception) => {
-                return Err(Exception::DecoderException(BaseException::new(
+                return Err(Exception::Decoder(BaseException::new(
                     format!(
                         "Failed to decode no register string instruction for opcode '{:?}'",
                         op_code
                     ),
-                    Some(Box::new(exception.into())),
+                    Some(Box::new(exception)),
                 )));
             }
         };
@@ -302,7 +300,7 @@ impl Decoder {
             OpCode::ContextSetRole => Ok(Instruction::ContextSetRole(ContextSetRoleInstruction {
                 role: string,
             })),
-            _ => Err(Exception::DecoderException(BaseException::new(
+            _ => Err(Exception::Decoder(BaseException::new(
                 format!(
                     "Failed to decode zero-register string instruction: invalid opcode '{:?}'.",
                     op_code
@@ -319,12 +317,12 @@ impl Decoder {
         match Self::expect_not_nop(op_code) {
             Ok(_) => (),
             Err(exception) => {
-                return Err(Exception::DecoderException(BaseException::new(
+                return Err(Exception::Decoder(BaseException::new(
                     format!(
                         "Failed to decode single-register instruction with opcode '{:?}'.",
                         op_code
                     ),
-                    Some(Box::new(exception.into())),
+                    Some(Box::new(exception)),
                 )));
             }
         };
@@ -351,7 +349,7 @@ impl Decoder {
             OpCode::ContextPop => Ok(Instruction::ContextPop(ContextPopInstruction {
                 destination_register: register,
             })),
-            _ => Err(Exception::DecoderException(BaseException::new(
+            _ => Err(Exception::Decoder(BaseException::new(
                 format!(
                     "Failed to decode single-register instruction: invalid opcode '{:?}'.",
                     op_code
@@ -368,12 +366,12 @@ impl Decoder {
         match Self::expect_not_nop(op_code) {
             Ok(_) => (),
             Err(exception) => {
-                return Err(Exception::DecoderException(BaseException::new(
+                return Err(Exception::Decoder(BaseException::new(
                     format!(
                         "Failed to decode double-register instruction with opcode '{:?}'.",
                         op_code
                     ),
-                    Some(Box::new(exception.into())),
+                    Some(Box::new(exception)),
                 )));
             }
         };
@@ -402,7 +400,7 @@ impl Decoder {
                 destination_register,
                 source_register,
             })),
-            _ => Err(Exception::DecoderException(BaseException::new(
+            _ => Err(Exception::Decoder(BaseException::new(
                 format!(
                     "Failed to decode double-register instruction: invalid opcode '{:?}'.",
                     op_code
@@ -419,12 +417,12 @@ impl Decoder {
         match Self::expect_not_nop(op_code) {
             Ok(_) => (),
             Err(exception) => {
-                return Err(Exception::DecoderException(BaseException::new(
+                return Err(Exception::Decoder(BaseException::new(
                     format!(
                         "Failed to decode triple-register instruction with opcode '{:?}'.",
                         op_code
                     ),
-                    Some(Box::new(exception.into())),
+                    Some(Box::new(exception)),
                 )));
             }
         };
@@ -439,7 +437,7 @@ impl Decoder {
                 source_register_1,
                 source_register_2,
             })),
-            _ => Err(Exception::DecoderException(BaseException::new(
+            _ => Err(Exception::Decoder(BaseException::new(
                 format!(
                     "Failed to decode triple-register instruction: invalid opcode '{:?}'.",
                     op_code
@@ -457,9 +455,9 @@ impl Decoder {
         let op_code = match Self::op_code(&instruction_bytes[0]) {
             Ok(op_code) => op_code,
             Err(exception) => {
-                return Err(Exception::DecoderException(BaseException::new(
+                return Err(Exception::Decoder(BaseException::new(
                     "Failed to decode instruction opcode.".to_string(),
-                    Some(Box::new(exception.into())),
+                    Some(Box::new(exception)),
                 )));
             }
         };
@@ -496,7 +494,10 @@ impl Decoder {
             OpCode::Similarity => Self::triple_register(op_code, instruction_bytes),
             // Misc operations.
             OpCode::Decrement => Self::immediate(memory, registers, op_code, instruction_bytes),
-            OpCode::NoOp => panic!("NoOp is not a valid instruction and should not be decoded."),
+            OpCode::NoOp => Err(Exception::Decoder(BaseException::new(
+                "NoOp is not a valid instruction and should not be decoded.".to_string(),
+                None,
+            ))),
         }
     }
 }

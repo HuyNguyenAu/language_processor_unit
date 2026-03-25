@@ -61,7 +61,7 @@ impl Registers {
         let idx = match usize::try_from(register_number) {
             Ok(value) => value,
             Err(error) => {
-                return Err(Exception::RegisterException(BaseException::new(
+                return Err(Exception::Register(BaseException::new(
                     format!(
                         "Failed to convert register number to usize. Invalid register number: {}. Must be a non-negative integer.",
                         register_number
@@ -72,7 +72,7 @@ impl Registers {
         };
 
         if !(1..=32).contains(&idx) {
-            return Err(Exception::RegisterException(BaseException::new(
+            return Err(Exception::Register(BaseException::new(
                 format!(
                     "Failed to convert register number. Invalid register number: {}. Valid register numbers are from 1 to 32.",
                     register_number
@@ -88,9 +88,9 @@ impl Registers {
         let idx = match Self::to_index(register_number) {
             Ok(value) => value,
             Err(error) => {
-                return Err(Exception::RegisterException(BaseException::new(
+                return Err(Exception::Register(BaseException::new(
                     format!("Failed to get register: {}", error),
-                    Some(Box::new(error.into())),
+                    Some(Box::new(error)),
                 )));
             }
         };
@@ -102,9 +102,9 @@ impl Registers {
         let idx = match Self::to_index(register_number) {
             Ok(value) => value,
             Err(error) => {
-                return Err(Exception::RegisterException(BaseException::new(
+                return Err(Exception::Register(BaseException::new(
                     format!("Failed to set register: {}", error),
-                    Some(Box::new(error.into())),
+                    Some(Box::new(error)),
                 )));
             }
         };
@@ -145,7 +145,7 @@ impl Registers {
         self.context.clear();
     }
 
-    pub fn get_context(&self) -> &Vec<ContextMessage> {
+    pub fn get_context(&self) -> &[ContextMessage] {
         &self.context
     }
 
@@ -157,7 +157,7 @@ impl Registers {
         self.context = match miniserde::json::from_str(snapshot) {
             Ok(context) => context,
             Err(error) => {
-                return Err(Exception::RegisterException(BaseException::new(
+                return Err(Exception::Register(BaseException::new(
                     format!("Failed to restore context from snapshot: {}", error),
                     Some(Box::new(format!("{:#?}", error).into())),
                 )));

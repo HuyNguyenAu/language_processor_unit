@@ -21,9 +21,9 @@ impl Processor {
         }
     }
 
-    pub fn load(&mut self, data: Vec<u8>) -> Result<(), Exception> {
+    pub fn load(&mut self, data: &[u8]) -> Result<(), Exception> {
         if !data.len().is_multiple_of(4) {
-            return Err(Exception::ProcessorException(BaseException::new(
+            return Err(Exception::Processor(BaseException::new(
                 format!(
                     "Processor failed to load byte code. Invalid byte code length: {}. Byte code must be a multiple of 4 bytes.",
                     data.len()
@@ -39,24 +39,20 @@ impl Processor {
             match chunk.try_into() {
                 Ok(bytes) => byte_code.push(bytes),
                 Err(error) => {
-                    return Err(Exception::ProcessorException(BaseException::new(
-                        format!(
-                            "Processor failed to load byte code. Byte code chunks must be exactly 4 bytes."
-                        ),
+                    return Err(Exception::Processor(BaseException::new(
+                        "Processor failed to load byte code. Byte code chunks must be exactly 4 bytes.".to_string(),
                         Some(Box::new(format!("{:#?}", error).into())),
                     )));
                 }
             }
         }
 
-        match self.control_unit.load(byte_code) {
+        match self.control_unit.load(&byte_code) {
             Ok(_) => Ok(()),
-            Err(exception) => {
-                return Err(Exception::ProcessorException(BaseException::new(
-                    "Processor failed to load byte code into control unit.".to_string(),
-                    Some(Box::new(exception.into())),
-                )));
-            }
+            Err(exception) => Err(Exception::Processor(BaseException::new(
+                "Processor failed to load byte code into control unit.".to_string(),
+                Some(Box::new(exception)),
+            ))),
         }
     }
 
@@ -69,9 +65,9 @@ impl Processor {
                     }
                 }
                 Err(exception) => {
-                    return Err(Exception::ProcessorException(BaseException::new(
+                    return Err(Exception::Processor(BaseException::new(
                         "Processor failed to fetch instruction.".to_string(),
-                        Some(Box::new(exception.into())),
+                        Some(Box::new(exception)),
                     )));
                 }
             }
@@ -79,9 +75,9 @@ impl Processor {
             let instruction = match self.control_unit.decode() {
                 Ok(instruction) => instruction,
                 Err(exception) => {
-                    return Err(Exception::ProcessorException(BaseException::new(
+                    return Err(Exception::Processor(BaseException::new(
                         "Processor failed to decode instruction.".to_string(),
-                        Some(Box::new(exception.into())),
+                        Some(Box::new(exception)),
                     )));
                 }
             };
@@ -94,9 +90,9 @@ impl Processor {
             ) {
                 Ok(_) => (),
                 Err(exception) => {
-                    return Err(Exception::ProcessorException(BaseException::new(
+                    return Err(Exception::Processor(BaseException::new(
                         "Processor failed to execute instruction.".to_string(),
-                        Some(Box::new(exception.into())),
+                        Some(Box::new(exception)),
                     )));
                 }
             }

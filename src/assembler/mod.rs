@@ -29,13 +29,10 @@ impl From<TokenType> for OpCode {
             // I/O.
             TokenType::Out => OpCode::Out,
             // Generative operations.
-            TokenType::Morph => OpCode::Morph,
-            TokenType::Project => OpCode::Project,
+            TokenType::Map => OpCode::Map,
             // Cognitive operations.
-            TokenType::Distill => OpCode::Distill,
-            TokenType::Correlate => OpCode::Correlate,
+            TokenType::Eval => OpCode::Eval,
             // Guardrails operations.
-            TokenType::Audit => OpCode::Audit,
             TokenType::Similarity => OpCode::Similarity,
             // Context operations.
             TokenType::ContextClear => OpCode::ContextClear,
@@ -595,11 +592,7 @@ impl Assembler {
             // I/O.
             TokenType::Out => self.single_register(token_type, op_code),
             // Generative, cognitive, and guardrails operations.
-            TokenType::Morph
-            | TokenType::Project
-            | TokenType::Distill
-            | TokenType::Correlate
-            | TokenType::Audit => self.double_register(token_type, op_code),
+            TokenType::Map | TokenType::Eval => self.double_register(token_type, op_code),
             TokenType::Similarity => self.triple_register(token_type, op_code),
             // Context operations.
             TokenType::ContextClear | TokenType::ContextDrop => {

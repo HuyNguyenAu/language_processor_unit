@@ -3,13 +3,12 @@ use crate::{
     exception::{BaseException, Exception},
     processor::{
         control_unit::instruction::{
-            AuditInstruction, BranchInstruction, BranchType, ContextClearInstruction,
-            ContextDropInstruction, ContextPopInstruction, ContextPushInstruction,
-            ContextRestoreInstruction, ContextSetRoleInstruction, ContextSnapshotInstruction,
-            CorrelateInstruction, DecrementInstruction, DistillInstruction, ExitInstruction,
-            Instruction, LoadFileInstruction, LoadImmediateInstruction, LoadStringInstruction,
-            MorphInstruction, MoveInstruction, OutputInstruction, ProjectInstruction,
-            SimilarityInstruction,
+            BranchInstruction, BranchType, ContextClearInstruction, ContextDropInstruction,
+            ContextPopInstruction, ContextPushInstruction, ContextRestoreInstruction,
+            ContextSetRoleInstruction, ContextSnapshotInstruction, DecrementInstruction,
+            EvalInstruction, ExitInstruction, Instruction, LoadFileInstruction,
+            LoadImmediateInstruction, LoadStringInstruction, MapInstruction, MoveInstruction,
+            OutputInstruction, SimilarityInstruction,
         },
         memory::Memory,
         registers::Registers,
@@ -264,23 +263,11 @@ impl Decoder {
         let source_register = u32::from_be_bytes(instruction_bytes[2]);
 
         match op_code {
-            OpCode::Morph => Ok(Instruction::Morph(MorphInstruction {
+            OpCode::Map => Ok(Instruction::Map(MapInstruction {
                 destination_register,
                 source_register,
             })),
-            OpCode::Project => Ok(Instruction::Project(ProjectInstruction {
-                destination_register,
-                source_register,
-            })),
-            OpCode::Distill => Ok(Instruction::Distill(DistillInstruction {
-                destination_register,
-                source_register,
-            })),
-            OpCode::Correlate => Ok(Instruction::Correlate(CorrelateInstruction {
-                destination_register,
-                source_register,
-            })),
-            OpCode::Audit => Ok(Instruction::Audit(AuditInstruction {
+            OpCode::Eval => Ok(Instruction::Eval(EvalInstruction {
                 destination_register,
                 source_register,
             })),
@@ -351,11 +338,7 @@ impl Decoder {
                 Self::no_register_string(memory, registers, op_code, instruction_bytes)
             }
             // Generative, cognitive, and guardrails operations.
-            OpCode::Morph
-            | OpCode::Project
-            | OpCode::Distill
-            | OpCode::Correlate
-            | OpCode::Audit => Self::double_register(op_code, instruction_bytes),
+            OpCode::Map | OpCode::Eval => Self::double_register(op_code, instruction_bytes),
             OpCode::Similarity => Self::triple_register(op_code, instruction_bytes),
             // Misc operations.
             OpCode::Decrement => Self::immediate(memory, registers, op_code, instruction_bytes),

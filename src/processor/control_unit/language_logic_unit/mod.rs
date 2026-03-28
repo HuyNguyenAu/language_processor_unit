@@ -28,24 +28,16 @@ impl LanguageLogicUnit {
             return_progress: false,
             model: model.to_string(),
             reasoning_format: "auto".to_string(),
-            temperature: 0.3,
-            max_tokens: -1,
+            temperature: 0.1,
             dynatemp_range: 0.0,
             dynatemp_exponent: 1.0,
-            top_k: 40,
+            top_k: 50,
             top_p: 0.95,
-            min_p: 0.15,
+            min_p: 0.05,
             xtc_probability: 0.0,
             xtc_threshold: 0.1,
             typ_p: 1.0,
-            repeat_last_n: 64,
-            repeat_penalty: 1.05,
-            presence_penalty: 0.0,
-            frequency_penalty: 0.0,
-            dry_multiplier: 0.0,
-            dry_base: 1.75,
-            dry_allowed_length: 2,
-            dry_penalty_last_n: -1,
+            max_tokens: -1,
             samplers: vec![
                 "penalties".to_string(),
                 "dry".to_string(),
@@ -57,6 +49,14 @@ impl LanguageLogicUnit {
                 "xtc".to_string(),
                 "temperature".to_string(),
             ],
+            repeat_last_n: 64,
+            repeat_penalty: 1.05,
+            presence_penalty: 0.0,
+            frequency_penalty: 0.0,
+            dry_multiplier: 0.0,
+            dry_base: 1.75,
+            dry_allowed_length: 2,
+            dry_penalty_last_n: -1,
             timings_per_token: false,
         }
     }
@@ -177,6 +177,7 @@ impl LanguageLogicUnit {
         content: &str,
         context: &[ContextMessage],
         text_model: &str,
+        debug_chat: bool,
     ) -> Result<String, Exception> {
         let model = Self::default_text_model(text_model);
         let messages = std::iter::once(OpenAIChatCompletionRequestText {
@@ -199,6 +200,14 @@ impl LanguageLogicUnit {
 
         let messages = Self::merge_messages_by_role(&messages)?;
         Self::validate_messages(&messages)?;
+
+        if debug_chat {
+            println!("--- Chat Messages ---");
+            for message in &messages {
+                println!("Role: {}, Content: {}", message.role, message.content);
+            }
+            println!("---------------------");
+        }
 
         let request = OpenAIChatCompletionRequest::new(messages, model);
         let response = OpenAIClient::chat_completion(request)?;
@@ -254,8 +263,9 @@ impl LanguageLogicUnit {
         micro_prompt: &str,
         context: &[ContextMessage],
         text_model: &str,
+        debug_chat: bool,
     ) -> Result<String, Exception> {
-        Self::chat(micro_prompt, context, text_model)
+        Self::chat(micro_prompt, context, text_model, debug_chat)
     }
 
     pub fn boolean(
@@ -265,8 +275,9 @@ impl LanguageLogicUnit {
         context: &[ContextMessage],
         text_model: &str,
         embedding_model: &str,
+        debug_chat: bool,
     ) -> Result<u32, Exception> {
-        let value = Self::string(micro_prompt, context, text_model)?;
+        let value = Self::string(micro_prompt, context, text_model, debug_chat)?;
 
         let max_true_score = true_values
             .iter()

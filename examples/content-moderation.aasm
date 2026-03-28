@@ -3,13 +3,13 @@
 ; Output: A status of "ACCEPTED" or "REJECTED" along with reasons for rejection if applicable.
 
 ; Load the candidate content and the AI standard.
-LF  X1, "examples/data/user_post.txt"
+LF   X1, "examples/data/user_post.txt"
 
-PSH X1                  ; Push the user post content onto the context stack for processing.
+PSH  X1                  ; Push the user post content onto the context stack for processing.
 
 ; Guardrails: Audit the content against the AI standard to determine if it is likely AI-generated.
-LS  X2, "Is the following content likely to be AI-generated?"
-AUD X3, X2
+LS   X2, "Is the following content likely to be AI-generated?"
+EVAL X3, X2
 
 LI  X2, 100             ; Audit will return 100, the the content is 100% likely to be AI-generated.
 BGE X3, X2, REJECT
@@ -29,7 +29,7 @@ SIM X4, X2, X1
 
 ; Find the specific reasons for rejection by comparing the content against the AI standard.
 LS  X2, "Extract all corporate buzzwords from the text into a comma-separated list."
-COR X5, X2  
+MAP X5, X2  
 
 LS  X2, "AI Similarity Score (%):"
 OUT X2

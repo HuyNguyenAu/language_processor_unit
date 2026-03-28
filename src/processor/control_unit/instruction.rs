@@ -22,31 +22,13 @@ pub struct MoveInstruction {
 }
 
 #[derive(Debug)]
-pub struct MorphInstruction {
+pub struct MapInstruction {
     pub destination_register: u32,
     pub source_register: u32,
 }
 
 #[derive(Debug)]
-pub struct ProjectInstruction {
-    pub destination_register: u32,
-    pub source_register: u32,
-}
-
-#[derive(Debug)]
-pub struct DistillInstruction {
-    pub destination_register: u32,
-    pub source_register: u32,
-}
-
-#[derive(Debug)]
-pub struct CorrelateInstruction {
-    pub destination_register: u32,
-    pub source_register: u32,
-}
-
-#[derive(Debug)]
-pub struct AuditInstruction {
+pub struct EvalInstruction {
     pub destination_register: u32,
     pub source_register: u32,
 }
@@ -133,13 +115,9 @@ pub enum Instruction {
     // I/O.
     Output(OutputInstruction),
     // Generative operations.
-    Morph(MorphInstruction),
-    Project(ProjectInstruction),
-    // Cognitive operations.
-    Distill(DistillInstruction),
-    Correlate(CorrelateInstruction),
+    Map(MapInstruction),
     // Guardrails operations.
-    Audit(AuditInstruction),
+    Eval(EvalInstruction),
     Similarity(SimilarityInstruction),
     // Context operations.
     ContextClear(ContextClearInstruction),

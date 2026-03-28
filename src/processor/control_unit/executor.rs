@@ -6,12 +6,11 @@ use crate::{
     processor::{
         control_unit::{
             instruction::{
-                AuditInstruction, BranchInstruction, BranchType, ContextPopInstruction,
-                ContextPushInstruction, ContextRestoreInstruction, ContextSetRoleInstruction,
-                ContextSnapshotInstruction, CorrelateInstruction, DecrementInstruction,
-                DistillInstruction, Instruction, LoadFileInstruction, LoadImmediateInstruction,
-                LoadStringInstruction, MorphInstruction, MoveInstruction, OutputInstruction,
-                ProjectInstruction, SimilarityInstruction,
+                BranchInstruction, BranchType, ContextPopInstruction, ContextPushInstruction,
+                ContextRestoreInstruction, ContextSetRoleInstruction, ContextSnapshotInstruction,
+                DecrementInstruction, EvalInstruction, Instruction, LoadFileInstruction,
+                LoadImmediateInstruction, LoadStringInstruction, MapInstruction, MoveInstruction,
+                OutputInstruction, SimilarityInstruction,
             },
             language_logic_unit::LanguageLogicUnit,
         },
@@ -216,23 +215,20 @@ impl Executor {
         Ok(())
     }
 
-    fn morph(
+    fn map(
         registers: &mut Registers,
-        instruction: &MorphInstruction,
+        instruction: &MapInstruction,
         text_model: &str,
         debug: bool,
+        debug_chat: bool,
     ) -> Result<(), Exception> {
         let value = Self::read_text(registers, instruction.source_register)?.clone();
-        let micro_prompt = format!(
-            "Rewrite to exactly match this template:\n{}\n\nAnswer only:",
-            value
-        );
         let context = registers.get_context();
-        let result = LanguageLogicUnit::string(&micro_prompt, context, text_model)?;
+        let result = LanguageLogicUnit::string(&value, context, text_model, debug_chat)?;
 
         crate::debug_print!(
             debug,
-            "Executed MRF : r{} = '{:?}'",
+            "Executed MAP : r{} = '{:?}'",
             instruction.destination_register,
             result
         );
@@ -240,89 +236,21 @@ impl Executor {
         registers.set_register(instruction.destination_register, &Value::Text(result))
     }
 
-    fn project(
+    fn eval(
         registers: &mut Registers,
-        instruction: &ProjectInstruction,
-        text_model: &str,
-        debug: bool,
-    ) -> Result<(), Exception> {
-        let value = Self::read_text(registers, instruction.source_register)?.clone();
-        let micro_prompt = format!("What happens next if:\n{}\n\nPrediction only:", value);
-        let context = registers.get_context();
-        let result = LanguageLogicUnit::string(&micro_prompt, context, text_model)?;
-
-        crate::debug_print!(
-            debug,
-            "Executed PRJ : r{} = '{:?}'",
-            instruction.destination_register,
-            result
-        );
-
-        registers.set_register(instruction.destination_register, &Value::Text(result))
-    }
-
-    fn distill(
-        registers: &mut Registers,
-        instruction: &DistillInstruction,
-        text_model: &str,
-        debug: bool,
-    ) -> Result<(), Exception> {
-        let value = Self::read_text(registers, instruction.source_register)?.clone();
-        let micro_prompt = format!(
-            "Extract only the exact information here:\n{}\n\nShort answer only:",
-            value
-        );
-        let context = registers.get_context();
-        let result = LanguageLogicUnit::string(&micro_prompt, context, text_model)?;
-
-        crate::debug_print!(
-            debug,
-            "Executed DST : r{} = '{:?}'",
-            instruction.destination_register,
-            result
-        );
-
-        registers.set_register(instruction.destination_register, &Value::Text(result))
-    }
-
-    fn correlate(
-        registers: &mut Registers,
-        instruction: &CorrelateInstruction,
-        text_model: &str,
-        debug: bool,
-    ) -> Result<(), Exception> {
-        let value = Self::read_text(registers, instruction.source_register)?.clone();
-        let micro_prompt = format!(
-            "Compare with:\n{}\nHow are they similar or different?\n\nAnswer only:",
-            value
-        );
-        let context = registers.get_context();
-        let result = LanguageLogicUnit::string(&micro_prompt, context, text_model)?;
-
-        crate::debug_print!(
-            debug,
-            "Executed CORR : r{} = '{:?}'",
-            instruction.destination_register,
-            result
-        );
-
-        registers.set_register(instruction.destination_register, &Value::Text(result))
-    }
-
-    fn audit(
-        registers: &mut Registers,
-        instruction: &AuditInstruction,
+        instruction: &EvalInstruction,
         text_model: &str,
         embedding_model: &str,
         debug: bool,
+        debug_chat: bool,
     ) -> Result<(), Exception> {
         let value = Self::read_text(registers, instruction.source_register)?.clone();
         let micro_prompt = format!(
-            "Does the it follow the rule:\n{}\nAnswer with exactly one word: YES or NO.\n\nAnswer only:",
+            "{}\nAnswer with exactly one word: YES or NO, TRUE or FALSE.\n\nAnswer only:",
             value
         );
-        let true_values = vec!["YES"];
-        let false_values = vec!["NO"];
+        let true_values = vec!["YES", "TRUE"];
+        let false_values = vec!["NO", "FALSE"];
         let context = registers.get_context();
 
         let result = LanguageLogicUnit::boolean(
@@ -332,11 +260,12 @@ impl Executor {
             context,
             text_model,
             embedding_model,
+            debug_chat,
         )?;
 
         crate::debug_print!(
             debug,
-            "Executed AUD : r{} = '{:?}'",
+            "Executed EVAL: r{} = '{:?}'",
             instruction.destination_register,
             result
         );
@@ -532,6 +461,7 @@ impl Executor {
         text_model: &str,
         embedding_model: &str,
         debug: bool,
+        debug_chat: bool,
     ) -> Result<(), Exception> {
         match instruction {
             // Data movement operations.
@@ -548,13 +478,11 @@ impl Executor {
             // I/O operations.
             Instruction::Output(i) => Self::output(registers, i, debug),
             // Generative operations.
-            Instruction::Morph(i) => Self::morph(registers, i, text_model, debug),
-            Instruction::Project(i) => Self::project(registers, i, text_model, debug),
-            // Cognitive operations.
-            Instruction::Distill(i) => Self::distill(registers, i, text_model, debug),
-            Instruction::Correlate(i) => Self::correlate(registers, i, text_model, debug),
+            Instruction::Map(i) => Self::map(registers, i, text_model, debug, debug_chat),
             // Guardrails operations.
-            Instruction::Audit(i) => Self::audit(registers, i, text_model, embedding_model, debug),
+            Instruction::Eval(i) => {
+                Self::eval(registers, i, text_model, embedding_model, debug, debug_chat)
+            }
             Instruction::Similarity(i) => Self::similarity(registers, i, embedding_model, debug),
             // Context operations.
             Instruction::ContextClear(_) => {

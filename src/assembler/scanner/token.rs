@@ -21,13 +21,9 @@ pub enum TokenType {
     // I/O keywords.
     Out,
     // Generative operations keywords.
-    Morph,
-    Project,
-    // Cognitive operations keywords.
-    Distill,
-    Correlate,
+    Map,
     // Guardrails operations keywords.
-    Audit,
+    Eval,
     Similarity,
     // Context operations keywords.
     ContextClear,
@@ -65,13 +61,9 @@ impl TryFrom<&str> for TokenType {
             // I/O.
             "out" => Ok(TokenType::Out),
             // Generative operations.
-            "mrf" => Ok(TokenType::Morph),
-            "prj" => Ok(TokenType::Project),
-            // Cognitive operations.
-            "dst" => Ok(TokenType::Distill),
-            "cor" => Ok(TokenType::Correlate),
+            "map" => Ok(TokenType::Map),
             // Guardrails operations.
-            "aud" => Ok(TokenType::Audit),
+            "eval" => Ok(TokenType::Eval),
             "sim" => Ok(TokenType::Similarity),
             // Context operations.
             "clr" => Ok(TokenType::ContextClear),

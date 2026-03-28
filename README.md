@@ -10,7 +10,7 @@ Think of this assembly language as a middle ground between traditional programmi
 
 ## Why?
 
-I really wanted to imagin a future where we can write code where we don't have to worry about edge cases or complex logic to handle unstructured data. Instead, we can just write code that describes what we want to achieve, and let the language model handle the complexity of how to achieve it. In short, **we can write code that is more focused on the "what" rather than the "how"**.
+I really wanted to imagine a future where we can write code where we don't have to worry about edge cases or complex logic to handle unstructured data. Instead, we can just write code that describes what we want to achieve, and let the language model handle the complexity of how to achieve it. In short, **we can write code that is more focused on the "what" rather than the "how"**.
 
 Here's an example of what a program written in this assembly language looks like:
 

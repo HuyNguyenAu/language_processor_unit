@@ -143,7 +143,7 @@ There are 32 general-purpose registers, named X1 to X32. These registers can hol
 
 The context stack is a FILO (First In, Last Out) structure that holds a sequence of messages that the LPU uses to maintain context across multiple instructions. When you push a register onto the context stack, its content is added to the bottom of the stack as a message. When you pop from the context stack, the bottom message is removed and stored in a register. The context stack can be refined during the lifetime of the program, which allows remaining relevant information while discarding irrelevant details.
 
-The instructions `snp`, `rst`, `psh`, `pop`, and `drp` are used to manage the context stack. Whilst `mrf`, `prj`, `dst`, `cor`, and `aud` takes a source register and operates using the context stack as context/previous input. The result of these operations are stored in a destination register.
+The instructions `SNP`, `RST`, `PSH`, `POP`, and `DRP` are used to manage the context stack. Whilst `MAP` is used to change the form of the source register, and `EVAL` takes the question/query from the source register and evaluates it as a boolean question, both of these instructions use the context stack previous history. This means that you can refine and manage the context stack to improve performance for the `MAP` and `EVAL` instructions, which is especially important when working with smaller models that have less attention capacity.
 
 ## Instruction Terminology
 
@@ -206,7 +206,7 @@ Some tips for working with smaller models:
    cd language_processor_unit
    ```
 2. Install [llama.cpp](https://github.com/ggml-org/llama.cpp).
-3. Download [LFM2 2.6B](https://huggingface.co/LiquidAI/LFM2-2.6B-GGUF).
+3. Download [LFM2 2.6B](https://huggingface.co/LiquidAI/LFM2-2.6B-GGUF). [LFM2 8B-A1B](https://huggingface.co/LiquidAI/LFM2-8B-A1B-GGUF) is also a very good option if you have the hardware for it.
 4. Download [Qwen3 Embedding 0.6B](https://huggingface.co/Qwen/Qwen3-Embedding-0.6B-GGUF).
 5. Create the `.env` file in the root directory with the following content:
 
@@ -224,7 +224,7 @@ Some tips for working with smaller models:
    DEBUG_RUN=false
 
    # LFM2-2.6B recommended parameters.
-   TEXT_MODEL_TEMPERATURE=0.3 
+   TEXT_MODEL_TEMPERATURE=0.3
    TEXT_MODEL_MIN_P=0.15
    TEXT_MODEL_REPEAT_PENALTY=1.05
    ```
@@ -242,6 +242,9 @@ Some tips for working with smaller models:
    ```bash
    ./llama-server -np 1 --embeddings --pooling mean -m C:\llama\models\LFM2.5-1.2B-Instruct-Q8_0.gguf
    ```
+
+### Why Use LFM2 models?
+LFM2 models are very fast and capable enough for general purpose tasks relative to their size and have decent knowledge and reasoning capabilities. Here we are more concerned with the speed of the model because the LPU is designed to work with smaller models that can run on consumer hardware.
 
 ### Run The Example Program
 

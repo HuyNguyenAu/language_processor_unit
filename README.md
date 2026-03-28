@@ -228,14 +228,14 @@ Some tips for working with smaller models:
 
 6. Start the LLama.cpp server. Make sure to specify the `--embeddings` flag and the correct pooling strategy:
    ```bash
-   ./llama-server --embeddings --pooling mean --models-dir C:\llama\models
+   ./llama-server -np 1 --embeddings --pooling mean --models-dir C:\llama\models
    ```
 
 ### Without Embeddings Model (Faster)
 
 6. Start the LLama.cpp server. This will use the text model for both text generation and embeddings, which is faster but less accurate for embeddings. Make sure to specify the `--embeddings` flag and the correct pooling strategy:
    ```bash
-   ./llama-server --embeddings --pooling mean -m C:\llama\models\LFM2.5-1.2B-Instruct-Q8_0.gguf
+   ./llama-server -np 1 --embeddings --pooling mean -m C:\llama\models\LFM2.5-1.2B-Instruct-Q8_0.gguf
    ```
 
 ### Run The Example Program

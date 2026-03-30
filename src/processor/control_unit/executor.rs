@@ -9,8 +9,8 @@ use crate::{
                 BranchInstruction, BranchType, ContextDropInstruction, ContextPopInstruction,
                 ContextPushInstruction, EvalulateInstruction, InferenceInstruction, Instruction,
                 LoadContentInstruction, LoadImmediateInstruction, LoadStringInstruction,
-                MoveContextInstruction, MoveInstruction, PrintInstruction, PrintLineInstruction,
-                SimilarityInstruction, SubtractImmediateInstruction,
+                MoveContextInstruction, MoveInstruction, PrintContextInstruction, PrintInstruction,
+                PrintLineInstruction, SimilarityInstruction, SubtractImmediateInstruction,
             },
             language_logic_unit::LanguageLogicUnit,
         },
@@ -203,7 +203,7 @@ impl Executor {
 
         crate::debug_print!(
             debug,
-            "Executed PRINT : r{} = {:?}",
+            "Executed PUT : r{} = {:?}",
             instruction.source_register,
             value
         );
@@ -224,13 +224,34 @@ impl Executor {
 
         crate::debug_print!(
             debug,
-            "Executed PRINTLN : r{} = {:?}",
+            "Executed PLN : r{} = {:?}",
             instruction.source_register,
             value
         );
 
         if !debug {
             println!("{}", value);
+        }
+
+        Ok(())
+    }
+
+    fn print_context(
+        registers: &Registers,
+        instruction: &PrintContextInstruction,
+        debug: bool,
+    ) -> Result<(), Exception> {
+        let context = registers.get_context(instruction.source_context_register)?;
+
+        crate::debug_print!(
+            debug,
+            "Executed PCX : c{} = {:?}",
+            instruction.source_context_register,
+            context
+        );
+
+        if !debug {
+            println!("{:?}", context);
         }
 
         Ok(())
@@ -465,6 +486,7 @@ impl Executor {
             // I/O operations.
             Instruction::Print(i) => Self::print(registers, i, debug),
             Instruction::PrintLine(i) => Self::print_line(registers, i, debug),
+            Instruction::PrintContext(i) => Self::print_context(registers, &i, debug),
             // Generative operations.
             Instruction::Inference(i) => Self::inference(
                 registers,

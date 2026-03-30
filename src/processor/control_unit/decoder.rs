@@ -3,11 +3,7 @@ use crate::{
     exception::{BaseException, Exception},
     processor::{
         control_unit::instruction::{
-            BranchInstruction, BranchType, ContextDropInstruction, ContextPopInstruction,
-            ContextPushInstruction, EvalulateInstruction, ExitInstruction, InferenceInstruction,
-            Instruction, LoadContentInstruction, LoadImmediateInstruction, LoadStringInstruction,
-            MoveContextInstruction, MoveInstruction, PrintInstruction, PrintLineInstruction,
-            SimilarityInstruction, SubtractImmediateInstruction,
+            BranchInstruction, BranchType, ContextDropInstruction, ContextPopInstruction, ContextPushInstruction, EvalulateInstruction, ExitInstruction, InferenceInstruction, Instruction, LoadContentInstruction, LoadImmediateInstruction, LoadStringInstruction, MoveContextInstruction, MoveInstruction, PrintContextInstruction, PrintInstruction, PrintLineInstruction, SimilarityInstruction, SubtractImmediateInstruction
         },
         memory::Memory,
         registers::Registers,
@@ -199,6 +195,9 @@ impl Decoder {
             OpCode::PrintLine => Ok(Instruction::PrintLine(PrintLineInstruction {
                 source_register: register,
             })),
+            OpCode::PrintContext => Ok(Instruction::PrintContext(PrintContextInstruction {
+                source_context_register: register,
+            })),
             // Context operations.
             OpCode::ContextDrop => Ok(Instruction::ContextDrop(ContextDropInstruction {
                 source_context_register: register,
@@ -334,6 +333,7 @@ impl Decoder {
             // I/O.
             OpCode::Print => Self::single_register(op_code, instruction_bytes),
             OpCode::PrintLine => Self::single_register(op_code, instruction_bytes),
+            OpCode::PrintContext => Self::single_register(op_code, instruction_bytes),
             // Context operations.
             OpCode::ContextPush => {
                 Self::double_register_string(memory, registers, op_code, instruction_bytes)

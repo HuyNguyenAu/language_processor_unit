@@ -100,6 +100,11 @@ pub struct PrintLineInstruction {
 }
 
 #[derive(Debug)]
+pub struct PrintContextInstruction {
+    pub source_context_register: u32,
+}
+
+#[derive(Debug)]
 pub struct ExitInstruction;
 
 #[derive(Debug)]
@@ -115,6 +120,7 @@ pub enum Instruction {
     // I/O.
     Print(PrintInstruction),
     PrintLine(PrintLineInstruction),
+    PrintContext(PrintContextInstruction),
     // Generative operations.
     Inference(InferenceInstruction),
     // Guardrails operations.

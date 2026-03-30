@@ -3,7 +3,11 @@ use crate::{
     exception::{BaseException, Exception},
     processor::{
         control_unit::instruction::{
-            BranchInstruction, BranchType, ContextDropInstruction, ContextPopInstruction, ContextPushInstruction, EvalulateInstruction, ExitInstruction, InferenceInstruction, Instruction, LoadContentInstruction, LoadImmediateInstruction, LoadStringInstruction, MoveContextInstruction, MoveInstruction, PrintContextInstruction, PrintInstruction, PrintLineInstruction, SimilarityInstruction, SubtractImmediateInstruction
+            BranchInstruction, BranchType, ContextDropInstruction, ContextPopInstruction,
+            ContextPushInstruction, EvalulateInstruction, ExitInstruction, InferenceInstruction,
+            Instruction, LoadContentInstruction, LoadImmediateInstruction, LoadStringInstruction,
+            MoveContextInstruction, MoveInstruction, PrintContextInstruction, PrintInstruction,
+            PrintLineInstruction, SimilarityInstruction, SubtractImmediateInstruction,
         },
         memory::Memory,
         registers::Registers,
@@ -63,25 +67,12 @@ impl Decoder {
         }
     }
 
-    fn expect_not_nop(op_code: OpCode) -> Result<(), Exception> {
-        if op_code == OpCode::NoOp {
-            return Err(Exception::Decoder(BaseException::new(
-                "NoOp is not a valid instruction and should not be decoded.".to_string(),
-                None,
-            )));
-        }
-
-        Ok(())
-    }
-
     fn immediate(
         memory: &Memory,
         registers: &Registers,
         op_code: OpCode,
         instruction_bytes: [[u8; 4]; 4],
     ) -> Result<Instruction, Exception> {
-        Self::expect_not_nop(op_code)?;
-
         let register = u32::from_be_bytes(instruction_bytes[1]);
 
         match op_code {
@@ -94,16 +85,16 @@ impl Decoder {
                     &format!("Decoding string for {:?}", op_code),
                 )?;
 
-                match op_code {
-                    OpCode::LoadString => Ok(Instruction::LoadString(LoadStringInstruction {
+                if op_code == OpCode::LoadString {
+                    Ok(Instruction::LoadString(LoadStringInstruction {
                         destination_register: register,
                         value: string,
-                    })),
-                    OpCode::LoadContent => Ok(Instruction::LoadContent(LoadContentInstruction {
+                    }))
+                } else {
+                    Ok(Instruction::LoadContent(LoadContentInstruction {
                         destination_register: register,
                         path: string,
-                    })),
-                    _ => unreachable!(),
+                    }))
                 }
             }
             OpCode::LoadImmediate => Ok(Instruction::LoadImmediate(LoadImmediateInstruction {
@@ -114,7 +105,6 @@ impl Decoder {
                 destination_register: register,
                 source_register: u32::from_be_bytes(instruction_bytes[2]),
             })),
-            // Arithmetic operations.
             OpCode::SubtractImmediate => Ok(Instruction::SubtractImmediate(
                 SubtractImmediateInstruction {
                     source_register: register,
@@ -132,8 +122,6 @@ impl Decoder {
     }
 
     fn branch(op_code: OpCode, instruction_bytes: [[u8; 4]; 4]) -> Result<Instruction, Exception> {
-        Self::expect_not_nop(op_code)?;
-
         let source_register_1 = u32::from_be_bytes(instruction_bytes[1]);
         let source_register_2 = u32::from_be_bytes(instruction_bytes[2]);
         let instruction_pointer_jump_index = u32::from_be_bytes(instruction_bytes[3]);
@@ -164,8 +152,6 @@ impl Decoder {
     }
 
     fn no_register(op_code: OpCode) -> Result<Instruction, Exception> {
-        Self::expect_not_nop(op_code)?;
-
         match op_code {
             // Control flow.
             OpCode::Exit => Ok(Instruction::Exit(ExitInstruction)),
@@ -183,8 +169,6 @@ impl Decoder {
         op_code: OpCode,
         instruction_bytes: [[u8; 4]; 4],
     ) -> Result<Instruction, Exception> {
-        Self::expect_not_nop(op_code)?;
-
         let register = u32::from_be_bytes(instruction_bytes[1]);
 
         match op_code {
@@ -216,8 +200,6 @@ impl Decoder {
         op_code: OpCode,
         instruction_bytes: [[u8; 4]; 4],
     ) -> Result<Instruction, Exception> {
-        Self::expect_not_nop(op_code)?;
-
         let destination_register = u32::from_be_bytes(instruction_bytes[1]);
         let source_register = u32::from_be_bytes(instruction_bytes[2]);
 
@@ -246,8 +228,6 @@ impl Decoder {
         op_code: OpCode,
         instruction_bytes: [[u8; 4]; 4],
     ) -> Result<Instruction, Exception> {
-        Self::expect_not_nop(op_code)?;
-
         let destination_context_register = u32::from_be_bytes(instruction_bytes[1]);
         let source_register = u32::from_be_bytes(instruction_bytes[2]);
         let string_pointer = u32::from_be_bytes(instruction_bytes[3]) as usize;
@@ -279,8 +259,6 @@ impl Decoder {
         op_code: OpCode,
         instruction_bytes: [[u8; 4]; 4],
     ) -> Result<Instruction, Exception> {
-        Self::expect_not_nop(op_code)?;
-
         let destination_register = u32::from_be_bytes(instruction_bytes[1]);
         let source_register_1 = u32::from_be_bytes(instruction_bytes[2]);
         let source_register_2 = u32::from_be_bytes(instruction_bytes[3]);
@@ -318,9 +296,20 @@ impl Decoder {
     ) -> Result<Instruction, Exception> {
         let op_code = Self::op_code(&instruction_bytes[0])?;
 
+        if op_code == OpCode::NoOp {
+            return Err(Exception::Decoder(BaseException::new(
+                "NoOp is not a valid instruction and should not be decoded.".to_string(),
+                None,
+            )));
+        }
+
         match op_code {
             // Data movement.
-            OpCode::LoadString | OpCode::LoadImmediate | OpCode::LoadContent | OpCode::Move => {
+            OpCode::LoadString
+            | OpCode::LoadImmediate
+            | OpCode::LoadContent
+            | OpCode::Move
+            | OpCode::SubtractImmediate => {
                 Self::immediate(memory, registers, op_code, instruction_bytes)
             }
             // Control flow.
@@ -331,29 +320,21 @@ impl Decoder {
             | OpCode::BranchGreaterEqual => Self::branch(op_code, instruction_bytes),
             OpCode::Exit => Self::no_register(op_code),
             // I/O.
-            OpCode::Print => Self::single_register(op_code, instruction_bytes),
-            OpCode::PrintLine => Self::single_register(op_code, instruction_bytes),
-            OpCode::PrintContext => Self::single_register(op_code, instruction_bytes),
+            OpCode::Print | OpCode::PrintLine | OpCode::PrintContext | OpCode::ContextDrop => {
+                Self::single_register(op_code, instruction_bytes)
+            }
             // Context operations.
             OpCode::ContextPush => {
                 Self::double_register_string(memory, registers, op_code, instruction_bytes)
             }
-            OpCode::ContextPop => Self::double_register(op_code, instruction_bytes),
-            OpCode::ContextDrop => Self::single_register(op_code, instruction_bytes),
-            OpCode::MoveContext => Self::double_register(op_code, instruction_bytes),
+            OpCode::ContextPop | OpCode::MoveContext => {
+                Self::double_register(op_code, instruction_bytes)
+            }
             // Generative, cognitive, and guardrails operations.
             OpCode::Inference | OpCode::Evaluate | OpCode::Similarity => {
                 Self::triple_register(op_code, instruction_bytes)
             }
-            // Arithmetic operations.
-            OpCode::SubtractImmediate => {
-                Self::immediate(memory, registers, op_code, instruction_bytes)
-            }
-            // Misc.
-            OpCode::NoOp => Err(Exception::Decoder(BaseException::new(
-                "NoOp is not a valid instruction and should not be decoded.".to_string(),
-                None,
-            ))),
+            OpCode::NoOp => unreachable!(),
         }
     }
 }

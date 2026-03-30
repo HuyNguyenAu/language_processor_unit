@@ -170,16 +170,18 @@ impl Executor {
             registers.set_instruction_pointer(pointer);
         }
 
+        let label = match instruction.branch_type {
+            BranchType::Equal => "BEQ",
+            BranchType::Less => "BLT",
+            BranchType::LessEqual => "BLE",
+            BranchType::Greater => "BGT",
+            BranchType::GreaterEqual => "BGE",
+        };
+
         crate::debug_print!(
             debug,
             "Executed {} : {:?} {:?} -> {} jump {}",
-            match instruction.branch_type {
-                BranchType::Equal => "BEQ",
-                BranchType::Less => "BLT",
-                BranchType::LessEqual => "BLE",
-                BranchType::Greater => "BGT",
-                BranchType::GreaterEqual => "BGE",
-            },
+            label,
             value_a,
             value_b,
             is_true,
@@ -353,7 +355,9 @@ impl Executor {
         instruction: &ContextPushInstruction,
         debug: bool,
     ) -> Result<(), Exception> {
-        let value = match registers.get_register(instruction.source_register)? {
+        let register_value = registers.get_register(instruction.source_register)?;
+
+        let value = match register_value {
             Value::Text(text) => text.clone(),
             Value::Number(number) => number.to_string(),
             Value::None => {

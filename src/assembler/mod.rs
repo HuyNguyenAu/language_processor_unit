@@ -293,35 +293,36 @@ impl Assembler {
     }
 
     fn backpatch_labels(&mut self) -> Result<(), Exception> {
-        let mut resolved_keys = Vec::with_capacity(self.unresolved_labels.len());
+        let mut error = None;
 
-        for (key, unresolved) in &self.unresolved_labels {
-            if let Some(&byte_code_index) = self.labels.get(key) {
-                let index = match u32::try_from(byte_code_index) {
-                    Ok(v) => v,
-                    Err(_) => {
-                        let message = format!(
-                            "Failed to convert byte code index to u32 for backpatching. Byte code index exceeds {}. Found byte code index: {}.",
-                            u32::MAX,
-                            byte_code_index
-                        );
-                        let _ = self.error_at_current(&message);
-                        return Err(Exception::Assembler(BaseException::new(message, None)));
-                    }
-                };
+        self.unresolved_labels.retain(|key, unresolved| {
+            let Some(byte_code_index) = self.labels.get(key) else {
+                return true; // keep unresolved
+            };
 
-                let bytes = (HEADER_SIZE + index).to_be_bytes();
-
-                for &idx in &unresolved.indices {
-                    self.text_segment[idx] = bytes;
+            let index = match u32::try_from(*byte_code_index) {
+                Ok(v) => v,
+                Err(_) => {
+                    error = Some(format!(
+                        "Failed to convert byte code index to u32 for backpatching. Byte code index exceeds {}. Found byte code index: {}.",
+                        u32::MAX, byte_code_index
+                    ));
+                    return true;
                 }
+            };
 
-                resolved_keys.push(key.clone());
+            let bytes = (HEADER_SIZE + index).to_be_bytes();
+            
+            for &idx in &unresolved.indices {
+                self.text_segment[idx] = bytes;
             }
-        }
 
-        for key in resolved_keys {
-            self.unresolved_labels.remove(&key);
+            false // remove resolved
+        });
+
+        if let Some(message) = error {
+            let _ = self.error_at_current(&message);
+            return Err(Exception::Assembler(BaseException::new(message, None)));
         }
 
         Ok(())
@@ -369,14 +370,15 @@ impl Assembler {
 
     fn validate_op_code(&mut self, op_code: OpCode) -> Result<(), Exception> {
         if op_code == OpCode::NoOp {
-            self.error_at_current("Invalid opcode: NoOp is reserved for labels and placeholders and cannot be used in instructions.")?;
-            Err(Exception::Assembler(BaseException::new(
-                "Invalid opcode: NoOp is reserved for labels and placeholders and cannot be used in instructions.".to_string(),
+            let message = "Invalid opcode: NoOp is reserved for labels and placeholders and cannot be used in instructions.";
+            self.error_at_current(message)?;
+            return Err(Exception::Assembler(BaseException::new(
+                message.to_string(),
                 None,
-            )))
-        } else {
-            Ok(())
+            )));
         }
+
+        Ok(())
     }
 
     fn validate_role(&mut self, role: &str) -> Result<(), Exception> {
@@ -444,8 +446,10 @@ impl Assembler {
         self.validate_op_code(op_code)?;
         self.consume(token_type, &format!("Expected '{:?}' keyword.", token_type))?;
 
-        let register =
-            self.register(&format!("Expected register after '{:?}'.", op_code), register_is_context)?;
+        let register = self.register(
+            &format!("Expected register after '{:?}'.", op_code),
+            register_is_context,
+        )?;
 
         self.emit_opcode(op_code);
         self.emit_number(register);
@@ -620,9 +624,12 @@ impl Assembler {
 
         match token_type {
             // Data movement.
-            TokenType::LoadString => self.single_register_string(token_type, op_code, false),
-            TokenType::LoadImmediate => self.single_register_number(token_type, op_code),
-            TokenType::LoadContent => self.single_register_string(token_type, op_code, false),
+            TokenType::LoadString | TokenType::LoadContent => {
+                self.single_register_string(token_type, op_code, false)
+            }
+            TokenType::LoadImmediate | TokenType::SubtractImmediate => {
+                self.single_register_number(token_type, op_code)
+            }
             TokenType::Move => self.double_register(token_type, op_code, false, false),
             // Control flow.
             TokenType::BranchEqual
@@ -633,8 +640,9 @@ impl Assembler {
             TokenType::Exit => self.no_register(token_type, op_code),
             TokenType::Label => self.label(),
             // I/O.
-            TokenType::Print => self.single_register(token_type, op_code, false),
-            TokenType::PrintLine => self.single_register(token_type, op_code, false),
+            TokenType::Print | TokenType::PrintLine => {
+                self.single_register(token_type, op_code, false)
+            }
             TokenType::PrintContext => self.single_register(token_type, op_code, true),
             // Generative, cognitive, and guardrails operations.
             TokenType::Inference | TokenType::Evaluate => {
@@ -646,8 +654,6 @@ impl Assembler {
             TokenType::ContextPop => self.double_register(token_type, op_code, false, true),
             TokenType::ContextDrop => self.single_register(token_type, op_code, true),
             TokenType::MoveContext => self.double_register(token_type, op_code, true, true),
-            // Arithmetic operations.
-            TokenType::SubtractImmediate => self.single_register_number(token_type, op_code),
             _ => self.error_at_current("Unexpected keyword."),
         }
     }

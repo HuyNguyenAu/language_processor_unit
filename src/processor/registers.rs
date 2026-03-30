@@ -143,17 +143,12 @@ impl Registers {
             )));
         }
 
-        let message = match self.context[idx].pop() {
-            Some(msg) => msg,
-            None => {
-                return Err(Exception::Register(BaseException::new(
-                    format!("Context stack for register {} is empty.", register_number),
-                    None,
-                )));
-            }
-        };
-
-        Ok(message)
+        self.context[idx].pop().ok_or_else(|| {
+            Exception::Register(BaseException::new(
+                format!("Context stack for register {} is empty.", register_number),
+                None,
+            ))
+        })
     }
 
     pub fn get_instruction_pointer(&self) -> usize {

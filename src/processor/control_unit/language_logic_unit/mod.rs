@@ -20,6 +20,12 @@ mod openai;
 const SYSTEM_PROMPT: &str =
     "Provide exactly the requested output. Follow structural markers strictly.";
 
+pub struct BooleanEvalParams<'a> {
+    pub true_values: &'a [&'a str],
+    pub false_values: &'a [&'a str],
+    pub embedding_model: &'a str,
+}
+
 pub struct LanguageLogicUnit;
 
 impl LanguageLogicUnit {
@@ -260,11 +266,9 @@ impl LanguageLogicUnit {
 
     pub fn boolean(
         micro_prompt: &str,
-        true_values: &[&str],
-        false_values: &[&str],
+        eval_params: &BooleanEvalParams,
         context: &[ContextMessage],
         text_model: &str,
-        embedding_model: &str,
         text_model_overrides: &TextModelOverrides,
         debug_chat: bool,
     ) -> Result<u32, Exception> {
@@ -276,20 +280,22 @@ impl LanguageLogicUnit {
             debug_chat,
         )?;
 
-        let max_true_score = true_values
+        let max_true_score = eval_params
+            .true_values
             .iter()
             .map(|tv| {
-                Self::cosine_similarity(&value.to_lowercase(), &tv.to_lowercase(), embedding_model)
+                Self::cosine_similarity(&value.to_lowercase(), &tv.to_lowercase(), eval_params.embedding_model)
             })
             .collect::<Result<Vec<_>, _>>()?
             .into_iter()
             .max()
             .unwrap_or(0);
 
-        let max_false_score = false_values
+        let max_false_score = eval_params
+            .false_values
             .iter()
             .map(|fv| {
-                Self::cosine_similarity(&value.to_lowercase(), &fv.to_lowercase(), embedding_model)
+                Self::cosine_similarity(&value.to_lowercase(), &fv.to_lowercase(), eval_params.embedding_model)
             })
             .collect::<Result<Vec<_>, _>>()?
             .into_iter()

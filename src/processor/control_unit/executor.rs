@@ -12,7 +12,7 @@ use crate::{
                 MoveContextInstruction, MoveInstruction, PrintContextInstruction, PrintInstruction,
                 PrintLineInstruction, SimilarityInstruction, SubtractImmediateInstruction,
             },
-            language_logic_unit::LanguageLogicUnit,
+            language_logic_unit::{BooleanEvalParams, LanguageLogicUnit},
         },
         memory::Memory,
         registers::{ContextMessage, Registers, Value},
@@ -306,13 +306,17 @@ impl Executor {
         let false_values = vec!["NO", "FALSE"];
         let context = registers.get_context(instruction.context_register)?;
 
+        let eval_params = BooleanEvalParams {
+            true_values: &true_values,
+            false_values: &false_values,
+            embedding_model,
+        };
+
         let result = LanguageLogicUnit::boolean(
             &micro_prompt,
-            &true_values,
-            &false_values,
+            &eval_params,
             context,
             text_model,
-            embedding_model,
             text_model_overrides,
             debug_chat,
         )?;

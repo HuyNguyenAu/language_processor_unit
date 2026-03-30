@@ -9,7 +9,7 @@ pub enum TokenType {
     // Data movement keywords.
     LoadString,
     LoadImmediate,
-    LoadFile,
+    LoadContent,
     Move,
     // Control flow keywords.
     BranchEqual,
@@ -21,18 +21,14 @@ pub enum TokenType {
     // I/O keywords.
     Out,
     // Generative operations keywords.
-    Map,
+    Inference,
     // Guardrails operations keywords.
     Eval,
     Similarity,
     // Context operations keywords.
-    ContextClear,
-    ContextSnapshot,
-    ContextRestore,
     ContextPush,
     ContextPop,
     ContextDrop,
-    ContextSetRole,
     // Misc operations keywords.
     Decrement,
     // Misc keywords.
@@ -48,7 +44,7 @@ impl TryFrom<&str> for TokenType {
         match value {
             // Data movement.
             "ls" => Ok(TokenType::LoadString),
-            "lf" => Ok(TokenType::LoadFile),
+            "lc" => Ok(TokenType::LoadContent),
             "li" => Ok(TokenType::LoadImmediate),
             "mv" => Ok(TokenType::Move),
             // Control flow.
@@ -61,18 +57,14 @@ impl TryFrom<&str> for TokenType {
             // I/O.
             "out" => Ok(TokenType::Out),
             // Generative operations.
-            "map" => Ok(TokenType::Map),
+            "inf" => Ok(TokenType::Inference),
             // Guardrails operations.
             "eval" => Ok(TokenType::Eval),
             "sim" => Ok(TokenType::Similarity),
             // Context operations.
-            "clr" => Ok(TokenType::ContextClear),
-            "snp" => Ok(TokenType::ContextSnapshot),
-            "rst" => Ok(TokenType::ContextRestore),
             "psh" => Ok(TokenType::ContextPush),
             "pop" => Ok(TokenType::ContextPop),
             "drp" => Ok(TokenType::ContextDrop),
-            "srl" => Ok(TokenType::ContextSetRole),
             // Misc operations.
             "dec" => Ok(TokenType::Decrement),
             _ => Err("String does not correspond to any known token type.".to_string()),

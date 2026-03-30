@@ -17,7 +17,7 @@ impl From<TokenType> for OpCode {
             // Data movement.
             TokenType::LoadString => OpCode::LoadString,
             TokenType::LoadImmediate => OpCode::LoadImmediate,
-            TokenType::LoadFile => OpCode::LoadFile,
+            TokenType::LoadContent => OpCode::LoadContent,
             TokenType::Move => OpCode::Move,
             // Control flow.
             TokenType::BranchEqual => OpCode::BranchEqual,
@@ -29,19 +29,15 @@ impl From<TokenType> for OpCode {
             // I/O.
             TokenType::Out => OpCode::Out,
             // Generative operations.
-            TokenType::Map => OpCode::Map,
+            TokenType::Inference => OpCode::Inference,
             // Cognitive operations.
             TokenType::Eval => OpCode::Eval,
             // Guardrails operations.
             TokenType::Similarity => OpCode::Similarity,
             // Context operations.
-            TokenType::ContextClear => OpCode::ContextClear,
-            TokenType::ContextSnapshot => OpCode::ContextSnapshot,
-            TokenType::ContextRestore => OpCode::ContextRestore,
             TokenType::ContextPush => OpCode::ContextPush,
             TokenType::ContextPop => OpCode::ContextPop,
             TokenType::ContextDrop => OpCode::ContextDrop,
-            TokenType::ContextSetRole => OpCode::ContextSetRole,
             // Misc operations.
             TokenType::Decrement => OpCode::Decrement,
             // Misc.
@@ -212,12 +208,17 @@ impl Assembler {
         }
     }
 
-    fn register(&mut self, message: &str) -> Result<u32, Exception> {
+    fn register(&mut self, message: &str, context: bool) -> Result<u32, Exception> {
         self.consume(&TokenType::Identifier, message)?;
         let lexeme = self.previous_lexeme()?;
 
-        if !lexeme.to_lowercase().starts_with('x') {
-            let err = format!("Invalid register format: '{}'. Expected xN (1-32).", lexeme);
+        let expected_prefixes = if context { 'c' } else { 'x' };
+
+        if !lexeme.to_lowercase().starts_with(expected_prefixes) {
+            let err = format!(
+                "Invalid register format: '{}'. Expected {}N, where N is between 0 and 32.",
+                lexeme, expected_prefixes
+            );
             self.error_at_previous(&err)?;
             return Err(Exception::Assembler(BaseException::new(err, None)));
         }
@@ -231,8 +232,8 @@ impl Assembler {
             }
         };
 
-        if !(1..=32).contains(&register_number) {
-            let err = format!("Register number {} out of range (1-32).", register_number);
+        if !(0..=32).contains(&register_number) {
+            let err = format!("Register number {} out of range (0-32).", register_number);
             self.error_at_previous(&err)?;
             return Err(Exception::Assembler(BaseException::new(err, None)));
         }
@@ -417,7 +418,7 @@ impl Assembler {
 
         self.consume(token_type, &format!("Expected '{:?}' keyword.", token_type))?;
 
-        let destination_register = self.register("Expected destination register.")?;
+        let destination_register = self.register("Expected destination register.", false)?;
         self.consume(
             &TokenType::Comma,
             "Expected ',' after destination register.",
@@ -446,10 +447,10 @@ impl Assembler {
         self.consume(token_type, &format!("Expected '{:?}' keyword.", token_type))?;
 
         let source_register_1 =
-            self.register("Expected source register 1 after branch keyword.")?;
+            self.register("Expected source register 1 after branch keyword.", false)?;
         self.consume(&TokenType::Comma, "Expected ',' after source register 1.")?;
 
-        let source_register_2 = self.register("Expected source register 2 after ','.")?;
+        let source_register_2 = self.register("Expected source register 2 after ','.", false)?;
         self.consume(&TokenType::Comma, "Expected ',' after source register 2.")?;
 
         let label_name = self
@@ -482,10 +483,6 @@ impl Assembler {
 
         let string = self.string("Expected string after keyword.")?;
 
-        if op_code == OpCode::ContextSetRole {
-            self.validate_role(&string)?;
-        }
-
         let pointer = self.emit_string(&string)?;
 
         self.emit_opcode(op_code);
@@ -503,7 +500,8 @@ impl Assembler {
         self.validate_op_code(op_code)?;
         self.consume(token_type, &format!("Expected '{:?}' keyword.", token_type))?;
 
-        let register = self.register(&format!("Expected register after '{:?}'.", op_code))?;
+        let register =
+            self.register(&format!("Expected register after '{:?}'.", op_code), false)?;
 
         self.emit_opcode(op_code);
         self.emit_number(register);
@@ -516,21 +514,24 @@ impl Assembler {
         &mut self,
         token_type: &TokenType,
         op_code: OpCode,
+        source_register_is_context: bool,
     ) -> Result<(), Exception> {
         self.validate_op_code(op_code)?;
         self.consume(token_type, &format!("Expected '{:?}' keyword.", token_type))?;
 
-        let destination_register = self.register(&format!(
-            "Expected destination register after '{:?}'.",
-            op_code
-        ))?;
+        let destination_register = self.register(
+            &format!("Expected destination register after '{:?}'.", op_code),
+            false,
+        )?;
         self.consume(
             &TokenType::Comma,
             "Expected ',' after destination register.",
         )?;
 
-        let source_register =
-            self.register(&format!("Expected source register after '{:?}'.", op_code))?;
+        let source_register = self.register(
+            &format!("Expected source register after '{:?}'.", op_code),
+            source_register_is_context,
+        )?;
 
         self.emit_opcode(op_code);
         self.emit_number(destination_register);
@@ -540,27 +541,72 @@ impl Assembler {
         Ok(())
     }
 
-    fn triple_register(
+    fn double_register_string(
         &mut self,
         token_type: &TokenType,
         op_code: OpCode,
+        destination_register_is_context: bool,
+        validate_role: bool,
     ) -> Result<(), Exception> {
         self.validate_op_code(op_code)?;
         self.consume(token_type, &format!("Expected '{:?}' keyword.", token_type))?;
 
-        let destination_register = self.register(&format!(
-            "Expected destination register after '{:?}' keyword.",
-            op_code
-        ))?;
+        let destination_register = self.register(
+            &format!("Expected destination register after '{:?}'.", op_code),
+            destination_register_is_context,
+        )?;
         self.consume(
             &TokenType::Comma,
             "Expected ',' after destination register.",
         )?;
 
-        let source_register_1 = self.register("Expected source register 1 after ','.")?;
+        let source_register = self.register(
+            &format!("Expected source register after '{:?}'.", op_code),
+            false,
+        )?;
+
+        let string = self.string("Expected string after source register.")?;
+
+        if validate_role {
+            self.validate_role(&string)?;
+        }
+
+        self.emit_opcode(op_code);
+        self.emit_number(destination_register);
+        self.emit_number(source_register);
+        self.emit_string(&string);
+
+        Ok(())
+    }
+
+    fn triple_register(
+        &mut self,
+        token_type: &TokenType,
+        op_code: OpCode,
+        source_register_2_is_context: bool,
+    ) -> Result<(), Exception> {
+        self.validate_op_code(op_code)?;
+        self.consume(token_type, &format!("Expected '{:?}' keyword.", token_type))?;
+
+        let destination_register = self.register(
+            &format!(
+                "Expected destination register after '{:?}' keyword.",
+                op_code
+            ),
+            false,
+        )?;
+        self.consume(
+            &TokenType::Comma,
+            "Expected ',' after destination register.",
+        )?;
+
+        let source_register_1 = self.register("Expected source register 1 after ','.", false)?;
         self.consume(&TokenType::Comma, "Expected ',' after source register 1.")?;
 
-        let source_register_2 = self.register("Expected source register 2 after ','.")?;
+        let source_register_2 = self.register(
+            "Expected source register 2 after ','.",
+            source_register_2_is_context,
+        )?;
 
         self.emit_opcode(op_code);
         self.emit_number(destination_register);
@@ -576,10 +622,10 @@ impl Assembler {
         match token_type {
             // Data movement.
             TokenType::LoadImmediate => self.immediate(token_type, op_code, false, false),
-            TokenType::LoadString | TokenType::LoadFile => {
+            TokenType::LoadString | TokenType::LoadContent => {
                 self.immediate(token_type, op_code, true, false)
             }
-            TokenType::Move => self.double_register(token_type, op_code),
+            TokenType::Move => self.double_register(token_type, op_code, false),
             // Control flow.
             TokenType::BranchEqual
             | TokenType::BranchLess
@@ -591,17 +637,14 @@ impl Assembler {
             // I/O.
             TokenType::Out => self.single_register(token_type, op_code),
             // Generative, cognitive, and guardrails operations.
-            TokenType::Map | TokenType::Eval => self.double_register(token_type, op_code),
-            TokenType::Similarity => self.triple_register(token_type, op_code),
-            // Context operations.
-            TokenType::ContextClear | TokenType::ContextDrop => {
-                self.no_register(token_type, op_code)
+            TokenType::Inference | TokenType::Eval => {
+                self.triple_register(token_type, op_code, true)
             }
-            TokenType::ContextSnapshot
-            | TokenType::ContextRestore
-            | TokenType::ContextPush
-            | TokenType::ContextPop => self.single_register(token_type, op_code),
-            TokenType::ContextSetRole => self.no_register_string(token_type, op_code),
+            TokenType::Similarity => self.triple_register(token_type, op_code, false),
+            // Context operations.
+            TokenType::ContextPush => self.double_register_string(token_type, op_code, true, true),
+            TokenType::ContextPop => self.double_register(token_type, op_code, true),
+            TokenType::ContextDrop => self.no_register(token_type, op_code),
             // Misc operations.
             TokenType::Decrement => self.immediate(token_type, op_code, false, true),
             _ => self.error_at_current("Unexpected keyword."),

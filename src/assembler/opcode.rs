@@ -2,7 +2,7 @@
 pub enum OpCode {
     // Data movement.
     LoadString = 0x00,
-    LoadFile = 0x01,
+    LoadContent = 0x01,
     LoadImmediate = 0x02,
     Move = 0x03,
     // Control flow.
@@ -15,20 +15,16 @@ pub enum OpCode {
     // I/O.
     Out = 0x0A,
     // Generative operations.
-    Map = 0x0B,
+    Inference = 0x0B,
     // Guardrails operations.
     Eval = 0x0C,
     Similarity = 0x0D,
     // Context operations.
-    ContextClear = 0x0E,
-    ContextSnapshot = 0x0F,
-    ContextRestore = 0x10,
-    ContextPush = 0x11,
-    ContextPop = 0x12,
-    ContextDrop = 0x13,
-    ContextSetRole = 0x14,
+    ContextPush = 0x0E,
+    ContextPop = 0x0F,
+    ContextDrop = 0x10,
     // Misc.
-    Decrement = 0x15,
+    Decrement = 0x11,
     // Misc.
     NoOp = 0xFF,
 }
@@ -39,7 +35,7 @@ impl TryFrom<u32> for OpCode {
     fn try_from(value: u32) -> Result<Self, Self::Error> {
         match value {
             0x00 => Ok(OpCode::LoadString),
-            0x01 => Ok(OpCode::LoadFile),
+            0x01 => Ok(OpCode::LoadContent),
             0x02 => Ok(OpCode::LoadImmediate),
             0x03 => Ok(OpCode::Move),
             0x04 => Ok(OpCode::BranchEqual),
@@ -49,17 +45,13 @@ impl TryFrom<u32> for OpCode {
             0x08 => Ok(OpCode::BranchGreater),
             0x09 => Ok(OpCode::Exit),
             0x0A => Ok(OpCode::Out),
-            0x0B => Ok(OpCode::Map),
+            0x0B => Ok(OpCode::Inference),
             0x0C => Ok(OpCode::Eval),
             0x0D => Ok(OpCode::Similarity),
-            0x0E => Ok(OpCode::ContextClear),
-            0x0F => Ok(OpCode::ContextSnapshot),
-            0x10 => Ok(OpCode::ContextRestore),
-            0x11 => Ok(OpCode::ContextPush),
-            0x12 => Ok(OpCode::ContextPop),
-            0x13 => Ok(OpCode::ContextDrop),
-            0x14 => Ok(OpCode::ContextSetRole),
-            0x15 => Ok(OpCode::Decrement),
+            0x0E => Ok(OpCode::ContextPush),
+            0x0F => Ok(OpCode::ContextPop),
+            0x10 => Ok(OpCode::ContextDrop),
+            0x11 => Ok(OpCode::Decrement),
             _ => Err(format!("Unknown opcode value: 0x{:02X}", value)),
         }
     }

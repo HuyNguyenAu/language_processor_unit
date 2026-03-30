@@ -618,8 +618,9 @@ impl Assembler {
 
         match token_type {
             // Data movement.
+            TokenType::LoadString => self.single_register_string(token_type, op_code, false),
             TokenType::LoadImmediate => self.single_register_number(token_type, op_code),
-            TokenType::LoadContent => self.single_register_string(token_type, op_code, true),
+            TokenType::LoadContent => self.single_register_string(token_type, op_code, false),
             TokenType::Move => self.double_register(token_type, op_code, false, false),
             // Control flow.
             TokenType::BranchEqual

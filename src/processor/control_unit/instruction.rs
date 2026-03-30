@@ -88,7 +88,12 @@ pub struct DecrementInstruction {
 }
 
 #[derive(Debug)]
-pub struct OutputInstruction {
+pub struct PrintInstruction {
+    pub source_register: u32,
+}
+
+#[derive(Debug)]
+pub struct PrintLineInstruction {
     pub source_register: u32,
 }
 
@@ -106,7 +111,8 @@ pub enum Instruction {
     Branch(BranchInstruction),
     Exit(ExitInstruction),
     // I/O.
-    Output(OutputInstruction),
+    Print(PrintInstruction),
+    PrintLine(PrintLineInstruction),
     // Generative operations.
     Inference(InferenceInstruction),
     // Guardrails operations.

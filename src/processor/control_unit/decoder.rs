@@ -6,8 +6,8 @@ use crate::{
             BranchInstruction, BranchType, ContextDropInstruction, ContextPopInstruction,
             ContextPushInstruction, DecrementInstruction, EvalulateInstruction, ExitInstruction,
             InferenceInstruction, Instruction, LoadContentInstruction, LoadImmediateInstruction,
-            LoadStringInstruction, MoveContextInstruction, MoveInstruction, OutputInstruction,
-            SimilarityInstruction,
+            LoadStringInstruction, MoveContextInstruction, MoveInstruction, PrintInstruction,
+            PrintLineInstruction, SimilarityInstruction,
         },
         memory::Memory,
         registers::Registers,
@@ -193,7 +193,10 @@ impl Decoder {
 
         match op_code {
             // I/O.
-            OpCode::Out => Ok(Instruction::Output(OutputInstruction {
+            OpCode::Print => Ok(Instruction::Print(PrintInstruction {
+                source_register: register,
+            })),
+            OpCode::PrintLine => Ok(Instruction::PrintLine(PrintLineInstruction {
                 source_register: register,
             })),
             _ => Err(Exception::Decoder(BaseException::new(
@@ -325,7 +328,8 @@ impl Decoder {
             | OpCode::BranchGreaterEqual => Self::branch(op_code, instruction_bytes),
             OpCode::Exit => Self::no_register(op_code),
             // I/O.
-            OpCode::Out => Self::single_register(op_code, instruction_bytes),
+            OpCode::Print => Self::single_register(op_code, instruction_bytes),
+            OpCode::PrintLine => Self::single_register(op_code, instruction_bytes),
             // Context operations.
             OpCode::ContextPush => {
                 Self::double_register_string(memory, registers, op_code, instruction_bytes)

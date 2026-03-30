@@ -9,7 +9,8 @@ use crate::{
                 BranchInstruction, BranchType, ContextPopInstruction, ContextPushInstruction,
                 DecrementInstruction, EvalulateInstruction, InferenceInstruction, Instruction,
                 LoadContentInstruction, LoadImmediateInstruction, LoadStringInstruction,
-                MoveContextInstruction, MoveInstruction, OutputInstruction, SimilarityInstruction,
+                MoveContextInstruction, MoveInstruction, PrintInstruction, PrintLineInstruction,
+                SimilarityInstruction,
             },
             language_logic_unit::LanguageLogicUnit,
         },
@@ -193,16 +194,37 @@ impl Executor {
         registers.set_instruction_pointer(memory.length());
     }
 
-    fn output(
+    fn print(
         registers: &Registers,
-        instruction: &OutputInstruction,
+        instruction: &PrintInstruction,
         debug: bool,
     ) -> Result<(), Exception> {
         let value = registers.get_register(instruction.source_register)?.clone();
 
         crate::debug_print!(
             debug,
-            "Executed OUT : r{} = {:?}",
+            "Executed PRINT : r{} = {:?}",
+            instruction.source_register,
+            value
+        );
+
+        if !debug {
+            print!("{}", value);
+        }
+
+        Ok(())
+    }
+
+    fn print_line(
+        registers: &Registers,
+        instruction: &PrintLineInstruction,
+        debug: bool,
+    ) -> Result<(), Exception> {
+        let value = registers.get_register(instruction.source_register)?.clone();
+
+        crate::debug_print!(
+            debug,
+            "Executed PRINTLN : r{} = {:?}",
             instruction.source_register,
             value
         );
@@ -437,7 +459,8 @@ impl Executor {
                 Ok(())
             }
             // I/O operations.
-            Instruction::Output(i) => Self::output(registers, i, debug),
+            Instruction::Print(i) => Self::print(registers, i, debug),
+            Instruction::PrintLine(i) => Self::print_line(registers, i, debug),
             // Generative operations.
             Instruction::Inference(i) => Self::inference(
                 registers,

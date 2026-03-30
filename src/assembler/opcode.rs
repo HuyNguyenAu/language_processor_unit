@@ -13,59 +13,49 @@ pub enum OpCode {
     BranchGreater = 0x08,
     Exit = 0x09,
     // I/O.
-    Out = 0x0A,
+    Print = 0x0A,
+    PrintLine = 0x0B,
     // Generative operations.
-    Inference = 0x0B,
+    Inference = 0x0C,
     // Guardrails operations.
-    Evaluate = 0x0C,
-    Similarity = 0x0D,
+    Evaluate = 0x0D,
+    Similarity = 0x0E,
     // Context operations.
-    ContextPush = 0x0E,
-    ContextPop = 0x0F,
-    ContextDrop = 0x10,
-    MoveContext = 0x11,
+    ContextPush = 0x0F,
+    ContextPop = 0x10,
+    ContextDrop = 0x11,
+    MoveContext = 0x12,
     // Misc.
-    Decrement = 0x12,
+    Decrement = 0x13,
     // Misc.
     NoOp = 0xFF,
 }
 
-impl TryFrom<u32> for OpCode {
-    type Error = String;
-
-    fn try_from(value: u32) -> Result<Self, Self::Error> {
-        match value {
-            0x00 => Ok(OpCode::LoadString),
-            0x01 => Ok(OpCode::LoadContent),
-            0x02 => Ok(OpCode::LoadImmediate),
-            0x03 => Ok(OpCode::Move),
-            0x04 => Ok(OpCode::BranchEqual),
-            0x05 => Ok(OpCode::BranchLessEqual),
-            0x06 => Ok(OpCode::BranchLess),
-            0x07 => Ok(OpCode::BranchGreaterEqual),
-            0x08 => Ok(OpCode::BranchGreater),
-            0x09 => Ok(OpCode::Exit),
-            0x0A => Ok(OpCode::Out),
-            0x0B => Ok(OpCode::Inference),
-            0x0C => Ok(OpCode::Evaluate),
-            0x0D => Ok(OpCode::Similarity),
-            0x0E => Ok(OpCode::ContextPush),
-            0x0F => Ok(OpCode::ContextPop),
-            0x10 => Ok(OpCode::ContextDrop),
-            0x11 => Ok(OpCode::MoveContext),
-            0x12 => Ok(OpCode::Decrement),
-            _ => Err(format!("Unknown opcode value: 0x{:02X}", value)),
-        }
-    }
-}
-
-impl From<OpCode> for u32 {
-    fn from(op: OpCode) -> u32 {
-        op as u32
-    }
-}
-
 impl OpCode {
+    const ALL: &[OpCode] = &[
+        OpCode::LoadString,
+        OpCode::LoadContent,
+        OpCode::LoadImmediate,
+        OpCode::Move,
+        OpCode::BranchEqual,
+        OpCode::BranchLessEqual,
+        OpCode::BranchLess,
+        OpCode::BranchGreaterEqual,
+        OpCode::BranchGreater,
+        OpCode::Exit,
+        OpCode::Print,
+        OpCode::PrintLine,
+        OpCode::Inference,
+        OpCode::Evaluate,
+        OpCode::Similarity,
+        OpCode::ContextPush,
+        OpCode::ContextPop,
+        OpCode::ContextDrop,
+        OpCode::MoveContext,
+        OpCode::Decrement,
+        OpCode::NoOp,
+    ];
+
     pub fn to_be_bytes(self) -> [u8; 4] {
         (self as u32).to_be_bytes()
     }
@@ -73,5 +63,23 @@ impl OpCode {
     pub fn from_be_bytes(bytes: [u8; 4]) -> Result<OpCode, String> {
         let value = u32::from_be_bytes(bytes);
         OpCode::try_from(value)
+    }
+}
+
+impl TryFrom<u32> for OpCode {
+    type Error = String;
+
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
+        OpCode::ALL
+            .iter()
+            .find(|&&op| op as u32 == value)
+            .copied()
+            .ok_or_else(|| format!("Unknown opcode value: 0x{:02X}", value))
+    }
+}
+
+impl From<OpCode> for u32 {
+    fn from(op: OpCode) -> u32 {
+        op as u32
     }
 }

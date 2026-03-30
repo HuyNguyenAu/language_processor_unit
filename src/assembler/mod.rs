@@ -27,7 +27,8 @@ impl From<TokenType> for OpCode {
             TokenType::BranchGreater => OpCode::BranchGreater,
             TokenType::Exit => OpCode::Exit,
             // I/O.
-            TokenType::Out => OpCode::Out,
+            TokenType::Print => OpCode::Print,
+            TokenType::PrintLine => OpCode::PrintLine,
             // Generative operations.
             TokenType::Inference => OpCode::Inference,
             // Cognitive operations.
@@ -401,47 +402,6 @@ impl Assembler {
         Ok(())
     }
 
-    fn immediate(
-        &mut self,
-        token_type: &TokenType,
-        op_code: OpCode,
-        string_only: bool,
-        number_only: bool,
-    ) -> Result<(), Exception> {
-        self.validate_op_code(op_code)?;
-
-        if string_only && number_only {
-            return Err(Exception::Assembler(BaseException::new(
-                "An instruction cannot be both string-only and number-only.".to_string(),
-                None,
-            )));
-        }
-
-        self.consume(token_type, &format!("Expected '{:?}' keyword.", token_type))?;
-
-        let destination_register = self.register("Expected destination register.", false)?;
-        self.consume(
-            &TokenType::Comma,
-            "Expected ',' after destination register.",
-        )?;
-
-        self.emit_opcode(op_code);
-        self.emit_number(destination_register);
-
-        if string_only {
-            let string = self.string("Expected string after ','.")?;
-            let pointer = self.emit_string(&string)?;
-            self.emit_number(pointer);
-            self.emit_padding(1);
-        } else {
-            let immediate = self.number("Expected number after ','.")?;
-            self.emit_number(immediate);
-            self.emit_padding(1);
-        }
-
-        Ok(())
-    }
-
     fn branch(&mut self, token_type: &TokenType, op_code: OpCode) -> Result<(), Exception> {
         self.validate_op_code(op_code)?;
 
@@ -488,6 +448,57 @@ impl Assembler {
         self.emit_opcode(op_code);
         self.emit_number(register);
         self.emit_padding(2);
+
+        Ok(())
+    }
+
+    fn single_register_string(
+        &mut self,
+        token_type: &TokenType,
+        op_code: OpCode,
+        validate_role: bool,
+    ) -> Result<(), Exception> {
+        self.validate_op_code(op_code)?;
+        self.consume(token_type, &format!("Expected '{:?}' keyword.", token_type))?;
+
+        let register =
+            self.register(&format!("Expected register after '{:?}'.", op_code), false)?;
+        self.consume(&TokenType::Comma, "Expected ',' after register.")?;
+
+        let string = self.string("Expected string after register.")?;
+
+        if validate_role {
+            self.validate_role(&string)?;
+        }
+
+        self.emit_opcode(op_code);
+        self.emit_number(register);
+
+        let pointer = self.emit_string(&string)?;
+        self.emit_number(pointer);
+        self.emit_padding(1);
+
+        Ok(())
+    }
+
+    fn single_register_number(
+        &mut self,
+        token_type: &TokenType,
+        op_code: OpCode,
+    ) -> Result<(), Exception> {
+        self.validate_op_code(op_code)?;
+        self.consume(token_type, &format!("Expected '{:?}' keyword.", token_type))?;
+
+        let register =
+            self.register(&format!("Expected register after '{:?}'.", op_code), false)?;
+        self.consume(&TokenType::Comma, "Expected ',' after register.")?;
+
+        let number = self.number("Expected number after register.")?;
+
+        self.emit_opcode(op_code);
+        self.emit_number(register);
+        self.emit_number(number);
+        self.emit_padding(1);
 
         Ok(())
     }
@@ -607,10 +618,8 @@ impl Assembler {
 
         match token_type {
             // Data movement.
-            TokenType::LoadImmediate => self.immediate(token_type, op_code, false, false),
-            TokenType::LoadString | TokenType::LoadContent => {
-                self.immediate(token_type, op_code, true, false)
-            }
+            TokenType::LoadImmediate => self.single_register_number(token_type, op_code),
+            TokenType::LoadContent => self.single_register_string(token_type, op_code, true),
             TokenType::Move => self.double_register(token_type, op_code, false, false),
             // Control flow.
             TokenType::BranchEqual
@@ -621,7 +630,8 @@ impl Assembler {
             TokenType::Exit => self.no_register(token_type, op_code),
             TokenType::Label => self.label(),
             // I/O.
-            TokenType::Out => self.single_register(token_type, op_code),
+            TokenType::Print => self.single_register(token_type, op_code),
+            TokenType::PrintLine => self.single_register(token_type, op_code),
             // Generative, cognitive, and guardrails operations.
             TokenType::Inference | TokenType::Evaluate => {
                 self.triple_register(token_type, op_code, true)
@@ -633,7 +643,7 @@ impl Assembler {
             TokenType::ContextDrop => self.no_register(token_type, op_code),
             TokenType::MoveContext => self.double_register(token_type, op_code, true, true),
             // Misc operations.
-            TokenType::Decrement => self.immediate(token_type, op_code, false, true),
+            TokenType::Decrement => self.single_register_number(token_type, op_code),
             _ => self.error_at_current("Unexpected keyword."),
         }
     }

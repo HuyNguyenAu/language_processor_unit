@@ -137,9 +137,8 @@ OUT X3
 
 ## Registers
 
-There are 32 general-purpose registers, named X1 to X32. These registers can hold text and positive numbers (currently working on support images and audio).
-
-Context registers are named C1 to C32 and are used to manage the context stack. They hold a sequence of messages that the LPU uses to maintain context across multiple instructions.
+There are 33 general-purpose registers, named X0 to X32. These registers can hold text and positive numbers (currently working on support images and audio).
+Similary, there are 33 context registers, named C0 to C32. These registers are used to manage the context stack, which is a FILO (First In, Last Out) structure that holds a sequence of messages that the LPU uses to maintain context across multiple instructions.
 
 ## Context Stack
 
@@ -153,7 +152,8 @@ The instructions `MVC`, `PSH`, `POP`, and `DRP` are used to manage the context s
 - `rs` - source general-purpose register
 - `rdc` - destination context register
 - `rsc` - source context register
-- `imm` - immediate value can be a string or a number
+- `imm` - immediate value
+- `str` - string value
 - `label_name` - a label used for branching
 
 ## Instruction Set
@@ -162,9 +162,9 @@ The instruction set is closely inspired by RISC-V assembly language:
 
 | Instruction | Description                                                                                                                      | Use                                |
 | ----------- | -------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
-| LS          | Load string into `rd`                                                                                                            | `ls rd, "example"`                 |
+| LS          | Load string into `rd`                                                                                                            | `ls rd, str`                       |
 | LI          | Load immediate into `rd`                                                                                                         | `li rd, imm`                       |
-| LC          | Load the content from the path `rs` into `rd`                                                                                    | `lc rd, "file_path"`               |
+| LC          | Load the content from the path `rs` into `rd`                                                                                    | `lc rd, str`                       |
 | MV          | Copy `rs` into `rd`                                                                                                              | `mv rd, rs`                        |
 | MVC         | Copy `rsc` into `rdc`                                                                                                            | `mvc rdc, rsc`                     |
 | BEQ         | Go to label if `rs1` = `rs2`                                                                                                     | `beq rs1, rs2, label_name`         |
@@ -179,7 +179,8 @@ The instruction set is closely inspired by RISC-V assembly language:
 | EVAL        | Boolean evaluation of the question `rs` and store the response in `rd` (0 = false/no, 1 = true/yes) using context register `rsc` | `eval rd, rs, rsc`                 |
 | SIM         | Cosine similarity between `rs` and `rs` and store the result in `rd` (0 - 100)                                                   | `sim rd, rs`                       |
 | LABEL       | Define a label. Required for branching instructions                                                                              | `label_name:`                      |
-| OUT         | Print the value of `rs`                                                                                                          | `out rs\|imm`                      |
+| PRINT       | Print the value of `rs`                                                                                                          | `print rs`                         |
+| PRINTLN     | Print the value of `rs` followed by a newline                                                                                    | `println rs`                       |
 | DEC         | Decrement the value in `rs` by `num`                                                                                             | `dec rd, num`                      |
 | EXIT        | Exit the program                                                                                                                 | `exit`                             |
 

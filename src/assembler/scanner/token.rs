@@ -19,7 +19,8 @@ pub enum TokenType {
     BranchGreater,
     Exit,
     // I/O keywords.
-    Out,
+    Print,
+    PrintLine,
     // Generative operations keywords.
     Inference,
     // Guardrails operations keywords.
@@ -56,7 +57,8 @@ impl TryFrom<&str> for TokenType {
             "bgt" => Ok(TokenType::BranchGreater),
             "exit" => Ok(TokenType::Exit),
             // I/O.
-            "out" => Ok(TokenType::Out),
+            "print" => Ok(TokenType::Print),
+            "println" => Ok(TokenType::PrintLine),
             // Generative operations.
             "inf" => Ok(TokenType::Inference),
             // Guardrails operations.

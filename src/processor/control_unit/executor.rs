@@ -1,7 +1,6 @@
 use std::fs::read_to_string;
 
 use crate::{
-    assembler::roles,
     config::TextModelOverrides,
     exception::{BaseException, Exception},
     processor::{
@@ -10,7 +9,7 @@ use crate::{
                 BranchInstruction, BranchType, ContextPopInstruction, ContextPushInstruction,
                 DecrementInstruction, EvalulateInstruction, InferenceInstruction, Instruction,
                 LoadContentInstruction, LoadImmediateInstruction, LoadStringInstruction,
-                MoveInstruction, OutputInstruction, SimilarityInstruction,
+                MoveContextInstruction, MoveInstruction, OutputInstruction, SimilarityInstruction,
             },
             language_logic_unit::LanguageLogicUnit,
         },
@@ -135,7 +134,7 @@ impl Executor {
 
         crate::debug_print!(
             debug,
-            "Executed MOV : r{} = {}",
+            "Executed MV  : r{} = {}",
             instruction.destination_register,
             value
         );
@@ -344,8 +343,7 @@ impl Executor {
         instruction: &ContextPopInstruction,
         debug: bool,
     ) -> Result<(), Exception> {
-        let context = registers
-            .pop_context(instruction.source_context_register)?;
+        let context = registers.pop_context(instruction.source_context_register)?;
 
         registers.set_register(
             instruction.destination_register,
@@ -361,6 +359,24 @@ impl Executor {
         registers.pop_context(0)?;
 
         crate::debug_print!(debug, "Executed DRP : Dropped value from context stack.",);
+
+        Ok(())
+    }
+
+    fn move_context(
+        registers: &mut Registers,
+        instruction: &MoveContextInstruction,
+        debug: bool,
+    ) -> Result<(), Exception> {
+        let value = registers.get_context(instruction.source_context_register)?.to_vec();
+        registers.set_context(instruction.destination_context_register, &value)?;
+
+        crate::debug_print!(
+            debug,
+            "Executed MVC : c{} = c{}",
+            instruction.destination_context_register,
+            instruction.source_context_register
+        );
 
         Ok(())
     }
@@ -444,6 +460,7 @@ impl Executor {
             Instruction::ContextPush(i) => Self::context_push(registers, i, debug),
             Instruction::ContextPop(i) => Self::context_pop(registers, i, debug),
             Instruction::ContextDrop(_) => Self::context_drop(registers, debug),
+            Instruction::MoveContext(i) => Self::move_context(registers, i, debug),
             // Misc operations.
             Instruction::Decrement(i) => Self::decrement(registers, i, debug),
         }

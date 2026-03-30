@@ -23,8 +23,9 @@ pub enum OpCode {
     ContextPush = 0x0E,
     ContextPop = 0x0F,
     ContextDrop = 0x10,
+    MoveContext = 0x11,
     // Misc.
-    Decrement = 0x11,
+    Decrement = 0x12,
     // Misc.
     NoOp = 0xFF,
 }
@@ -51,7 +52,8 @@ impl TryFrom<u32> for OpCode {
             0x0E => Ok(OpCode::ContextPush),
             0x0F => Ok(OpCode::ContextPop),
             0x10 => Ok(OpCode::ContextDrop),
-            0x11 => Ok(OpCode::Decrement),
+            0x11 => Ok(OpCode::MoveContext),
+            0x12 => Ok(OpCode::Decrement),
             _ => Err(format!("Unknown opcode value: 0x{:02X}", value)),
         }
     }

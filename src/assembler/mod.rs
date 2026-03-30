@@ -38,6 +38,7 @@ impl From<TokenType> for OpCode {
             TokenType::ContextPush => OpCode::ContextPush,
             TokenType::ContextPop => OpCode::ContextPop,
             TokenType::ContextDrop => OpCode::ContextDrop,
+            TokenType::MoveContext => OpCode::MoveContext,
             // Misc operations.
             TokenType::Decrement => OpCode::Decrement,
             // Misc.
@@ -514,6 +515,7 @@ impl Assembler {
         &mut self,
         token_type: &TokenType,
         op_code: OpCode,
+        destination_register_is_context: bool,
         source_register_is_context: bool,
     ) -> Result<(), Exception> {
         self.validate_op_code(op_code)?;
@@ -521,7 +523,7 @@ impl Assembler {
 
         let destination_register = self.register(
             &format!("Expected destination register after '{:?}'.", op_code),
-            false,
+            destination_register_is_context,
         )?;
         self.consume(
             &TokenType::Comma,
@@ -625,7 +627,7 @@ impl Assembler {
             TokenType::LoadString | TokenType::LoadContent => {
                 self.immediate(token_type, op_code, true, false)
             }
-            TokenType::Move => self.double_register(token_type, op_code, false),
+            TokenType::Move => self.double_register(token_type, op_code, false, false),
             // Control flow.
             TokenType::BranchEqual
             | TokenType::BranchLess
@@ -643,8 +645,9 @@ impl Assembler {
             TokenType::Similarity => self.triple_register(token_type, op_code, false),
             // Context operations.
             TokenType::ContextPush => self.double_register_string(token_type, op_code, true, true),
-            TokenType::ContextPop => self.double_register(token_type, op_code, true),
+            TokenType::ContextPop => self.double_register(token_type, op_code, false, true),
             TokenType::ContextDrop => self.no_register(token_type, op_code),
+            TokenType::MoveContext => self.double_register(token_type, op_code, true, true),
             // Misc operations.
             TokenType::Decrement => self.immediate(token_type, op_code, false, true),
             _ => self.error_at_current("Unexpected keyword."),

@@ -29,6 +29,7 @@ pub enum TokenType {
     ContextPush,
     ContextPop,
     ContextDrop,
+    MoveContext,
     // Misc operations keywords.
     Decrement,
     // Misc keywords.
@@ -65,6 +66,7 @@ impl TryFrom<&str> for TokenType {
             "psh" => Ok(TokenType::ContextPush),
             "pop" => Ok(TokenType::ContextPop),
             "drp" => Ok(TokenType::ContextDrop),
+            "mvc" => Ok(TokenType::MoveContext),
             // Misc operations.
             "dec" => Ok(TokenType::Decrement),
             _ => Err("String does not correspond to any known token type.".to_string()),

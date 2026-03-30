@@ -173,8 +173,6 @@ impl Decoder {
         match op_code {
             // Control flow.
             OpCode::Exit => Ok(Instruction::Exit(ExitInstruction)),
-            // Context operations.
-            OpCode::ContextDrop => Ok(Instruction::ContextDrop(ContextDropInstruction)),
             _ => Err(Exception::Decoder(BaseException::new(
                 format!(
                     "Failed to decode zero-register instruction: invalid opcode '{:?}'.",
@@ -200,6 +198,10 @@ impl Decoder {
             })),
             OpCode::PrintLine => Ok(Instruction::PrintLine(PrintLineInstruction {
                 source_register: register,
+            })),
+            // Context operations.
+            OpCode::ContextDrop => Ok(Instruction::ContextDrop(ContextDropInstruction {
+                source_context_register: register,
             })),
             _ => Err(Exception::Decoder(BaseException::new(
                 format!(
@@ -337,7 +339,7 @@ impl Decoder {
                 Self::double_register_string(memory, registers, op_code, instruction_bytes)
             }
             OpCode::ContextPop => Self::double_register(op_code, instruction_bytes),
-            OpCode::ContextDrop => Self::no_register(op_code),
+            OpCode::ContextDrop => Self::single_register(op_code, instruction_bytes),
             OpCode::MoveContext => Self::double_register(op_code, instruction_bytes),
             // Generative, cognitive, and guardrails operations.
             OpCode::Inference | OpCode::Evaluate | OpCode::Similarity => {

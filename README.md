@@ -174,7 +174,7 @@ The instruction set is closely inspired by RISC-V assembly language:
 | BGE         | Go to label if `rs1` >= `rs2`                                                                                                    | `bge rs1, rs2, label_name`         |
 | PSH         | Push `rs` into the context stack `rdc` with role                                                                                 | `psh rdc, rs, "user"\|"assistant"` |
 | POP         | Pop the bottom of the context stack `rsc` into `rd`                                                                              | `pop rd, rsc`                      |
-| DRP         | Drop the bottom of the context stack                                                                                             | `drp`                              |
+| DRP         | Drop the bottom of the context stack `rsc`                                                                                       | `drp rsc`                          |
 | GEN         | Use `rs` as the next message and store the response in `rd` using context register `rsc`                                         | `gen rd, rs, rsc`                  |
 | EVAL        | Boolean evaluation of the question `rs` and store the response in `rd` (0 = false/no, 1 = true/yes) using context register `rsc` | `eval rd, rs, rsc`                 |
 | SIM         | Cosine similarity between `rs` and `rs` and store the result in `rd` (0 - 100)                                                   | `sim rd, rs`                       |

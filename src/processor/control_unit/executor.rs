@@ -6,11 +6,11 @@ use crate::{
     processor::{
         control_unit::{
             instruction::{
-                BranchInstruction, BranchType, ContextPopInstruction, ContextPushInstruction,
-                EvalulateInstruction, InferenceInstruction, Instruction, LoadContentInstruction,
-                LoadImmediateInstruction, LoadStringInstruction, MoveContextInstruction,
-                MoveInstruction, PrintInstruction, PrintLineInstruction, SimilarityInstruction,
-                SubtractImmediateInstruction,
+                BranchInstruction, BranchType, ContextDropInstruction, ContextPopInstruction,
+                ContextPushInstruction, EvalulateInstruction, InferenceInstruction, Instruction,
+                LoadContentInstruction, LoadImmediateInstruction, LoadStringInstruction,
+                MoveContextInstruction, MoveInstruction, PrintInstruction, PrintLineInstruction,
+                SimilarityInstruction, SubtractImmediateInstruction,
             },
             language_logic_unit::LanguageLogicUnit,
         },
@@ -377,8 +377,12 @@ impl Executor {
         Ok(())
     }
 
-    fn context_drop(registers: &mut Registers, debug: bool) -> Result<(), Exception> {
-        registers.pop_context(0)?;
+    fn context_drop(
+        registers: &mut Registers,
+        instruction: &ContextDropInstruction,
+        debug: bool,
+    ) -> Result<(), Exception> {
+        registers.pop_context(instruction.source_context_register)?;
 
         crate::debug_print!(debug, "Executed DRP : Dropped value from context stack.",);
 
@@ -484,7 +488,7 @@ impl Executor {
             // Context operations.
             Instruction::ContextPush(i) => Self::context_push(registers, i, debug),
             Instruction::ContextPop(i) => Self::context_pop(registers, i, debug),
-            Instruction::ContextDrop(_) => Self::context_drop(registers, debug),
+            Instruction::ContextDrop(i) => Self::context_drop(registers, i, debug),
             Instruction::MoveContext(i) => Self::move_context(registers, i, debug),
             // Arithmetic operations.
             Instruction::SubtractImmediate(i) => Self::subtract_immediate(registers, i, debug),

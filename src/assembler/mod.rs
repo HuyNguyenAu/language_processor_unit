@@ -438,12 +438,13 @@ impl Assembler {
         &mut self,
         token_type: &TokenType,
         op_code: OpCode,
+        register_is_context: bool,
     ) -> Result<(), Exception> {
         self.validate_op_code(op_code)?;
         self.consume(token_type, &format!("Expected '{:?}' keyword.", token_type))?;
 
         let register =
-            self.register(&format!("Expected register after '{:?}'.", op_code), false)?;
+            self.register(&format!("Expected register after '{:?}'.", op_code), register_is_context)?;
 
         self.emit_opcode(op_code);
         self.emit_number(register);
@@ -631,8 +632,8 @@ impl Assembler {
             TokenType::Exit => self.no_register(token_type, op_code),
             TokenType::Label => self.label(),
             // I/O.
-            TokenType::Print => self.single_register(token_type, op_code),
-            TokenType::PrintLine => self.single_register(token_type, op_code),
+            TokenType::Print => self.single_register(token_type, op_code, false),
+            TokenType::PrintLine => self.single_register(token_type, op_code, false),
             // Generative, cognitive, and guardrails operations.
             TokenType::Inference | TokenType::Evaluate => {
                 self.triple_register(token_type, op_code, true)
@@ -641,7 +642,7 @@ impl Assembler {
             // Context operations.
             TokenType::ContextPush => self.double_register_string(token_type, op_code, true, true),
             TokenType::ContextPop => self.double_register(token_type, op_code, false, true),
-            TokenType::ContextDrop => self.no_register(token_type, op_code),
+            TokenType::ContextDrop => self.single_register(token_type, op_code, true),
             TokenType::MoveContext => self.double_register(token_type, op_code, true, true),
             // Arithmetic operations.
             TokenType::SubtractImmediate => self.single_register_number(token_type, op_code),

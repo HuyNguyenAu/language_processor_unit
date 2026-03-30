@@ -73,7 +73,9 @@ pub struct ContextPopInstruction {
 }
 
 #[derive(Debug)]
-pub struct ContextDropInstruction;
+pub struct ContextDropInstruction {
+    pub source_context_register: u32,
+}
 
 #[derive(Debug)]
 pub struct MoveContextInstruction {

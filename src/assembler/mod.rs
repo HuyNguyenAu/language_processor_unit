@@ -547,6 +547,7 @@ impl Assembler {
             &format!("Expected source register after '{:?}'.", op_code),
             false,
         )?;
+        self.consume(&TokenType::Comma, "Expected ',' after source register.")?;
 
         let string = self.string("Expected string after source register.")?;
 
@@ -557,7 +558,9 @@ impl Assembler {
         self.emit_opcode(op_code);
         self.emit_number(destination_register);
         self.emit_number(source_register);
-        self.emit_string(&string)?;
+
+        let pointer = self.emit_string(&string)?;
+        self.emit_number(pointer);
 
         Ok(())
     }

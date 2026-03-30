@@ -144,7 +144,7 @@ Similary, there are 33 context registers, named C0 to C32. These registers are u
 
 The context stack is a FILO (First In, Last Out) structure that holds a sequence of messages that the LPU uses to maintain context across multiple instructions. When you push a register onto the context stack, its content is added to the bottom of the stack as a message. When you pop from the context stack, the bottom message is removed and stored in a register. The context stack can be refined during the lifetime of the program, which allows remaining relevant information while discarding irrelevant details.
 
-The instructions `MVC`, `PSH`, `POP`, and `DRP` are used to manage the context stack. `INF` creates a model response prompt, and `EVAL` takes the question/query from the source register and evaluates it as a boolean question. Both of these instructions use the context stack previous history. This means that you can refine and manage the context stack to improve performance for the `MAP` and `EVAL` instructions, which is especially important when working with smaller models that have less attention capacity.
+The instructions `MVC`, `PSH`, `POP`, and `DRP` are used to manage the context stack. `GEN` creates a model response prompt, and `EVAL` takes the question/query from the source register and evaluates it as a boolean question. Both of these instructions use the context stack previous history. This means that you can refine and manage the context stack to improve performance for the `MAP` and `EVAL` instructions, which is especially important when working with smaller models that have less attention capacity.
 
 ## Instruction Terminology
 
@@ -175,12 +175,12 @@ The instruction set is closely inspired by RISC-V assembly language:
 | PSH         | Push `rs` into the context stack `rdc` with role                                                                                 | `psh rdc, rs, "user"\|"assistant"` |
 | POP         | Pop the bottom of the context stack `rsc` into `rd`                                                                              | `pop rd, rsc`                      |
 | DRP         | Drop the bottom of the context stack                                                                                             | `drp`                              |
-| INF         | Use `rs` as the next message and store the response in `rd` using context register `rsc`                                         | `inf rd, rs, rsc`                  |
+| GEN         | Use `rs` as the next message and store the response in `rd` using context register `rsc`                                         | `gen rd, rs, rsc`                  |
 | EVAL        | Boolean evaluation of the question `rs` and store the response in `rd` (0 = false/no, 1 = true/yes) using context register `rsc` | `eval rd, rs, rsc`                 |
 | SIM         | Cosine similarity between `rs` and `rs` and store the result in `rd` (0 - 100)                                                   | `sim rd, rs`                       |
 | LABEL       | Define a label. Required for branching instructions                                                                              | `label_name:`                      |
-| PRINT       | Print the value of `rs`                                                                                                          | `print rs`                         |
-| PRINTLN     | Print the value of `rs` followed by a newline                                                                                    | `println rs`                       |
+| PUT         | Print the value of `rs`                                                                                                          | `put rs`                           |
+| PLN         | Print the value of `rs` followed by a newline                                                                                    | `pln rs`                           |
 | DEC         | Decrement the value in `rs` by `num`                                                                                             | `dec rd, num`                      |
 | EXIT        | Exit the program                                                                                                                 | `exit`                             |
 

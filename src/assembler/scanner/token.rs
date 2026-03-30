@@ -57,8 +57,8 @@ impl TryFrom<&str> for TokenType {
             "bgt" => Ok(TokenType::BranchGreater),
             "exit" => Ok(TokenType::Exit),
             // I/O.
-            "print" => Ok(TokenType::Print),
-            "println" => Ok(TokenType::PrintLine),
+            "put" => Ok(TokenType::Print),
+            "pln" => Ok(TokenType::PrintLine),
             // Generative operations.
             "inf" => Ok(TokenType::Inference),
             // Guardrails operations.

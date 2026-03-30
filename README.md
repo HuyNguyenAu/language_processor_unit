@@ -19,120 +19,152 @@ Here's an example of what a program written in this assembly language looks like
 ; Objective: Adjust the room's temperature and lighting based on sensor data to achieve optimal physical comfort.
 ; Output: Adjusted temperature and lighting settings.
 
+; Registers:
+; X1: Sensor data (JSON format)
+; X2: User feedback (string)
+; X3: Temporary register for constructing prompts
+; X4: Current temperature information extracted from sensor data
+; X5: Classified category of temperature feedback
+; X6: Classified intensity of temperature feedback
+; X7: Current light intensity information extracted from sensor data
+; X8: Classified category of light feedback
+; X9: Classified intensity of light feedback
+; X10: Adjusted temperature based on feedback
+; X11: Validation result for adjusted temperature
+; X12: Adjusted light intensity based on feedback
+; X13: Output JSON containing the final adjusted temperature and light intensity
+; C1: Context stack for sensor data
+; C10: Context stack for processing feedback and adjustments
+; C30: Saved context for temperature feedback
+; C31: Saved context for light feedback
+
 ; Load sensor data and user feedback.
-LF   X1, "examples/data/room_sensor_data.json"
+LC   X1, "examples/data/room_sensor_data.json"
 LS   X2, "It's too dark to read and I am sweating."
 
-PSH  X1                     ; Push the sensor data the context stack for processing.
+PSH  C1, X1, "user"                     ; Push the sensor data the context stack for processing.
 
-; Sense: Brief description of the current state of the room based on sensor data.
-LS  X3, "A sentence that describes the current state of the room with only the following information: temperature in celsius, and light intensity in percentage."
-MAP  X4, X3
+; Sense: Build the temperature feedback context for adjustments.
+LS   X3, "A sentence that describes the current state of the room with only the temperature information in celsius."
+INF  X4, X3, C1
 
-; Build the context for adjustments.
-DRP                         ; Clear context stack to build a new context for adjustments.
+LS   X3, "User feedback:"
+PSH  C10, X3, "user"
+PSH  C10, X2, "user"                     ; Push the user feedback to the context stack for processing.
+
+LS   X3, "If the user feedback is related to temperature, classify the feedback into one of the following categories: TOO_COLD, TOO_WARM, COMFORTABLE, UNRELATED. Category:"
+INF  X5, X3, C10
+
+LS   X3, "If the user feedback is related to temperature, classify the intensity of the feedback into one of the following levels: Mild, Moderate, Severe. Intensity:"
+INF  X6, X3, C10
+
+MVC  C10, C0                            ; Clear context stack to classify the temperature feedback.
 
 LS   X3, "Current room state:"
-PSH  X3
-PSH  X4                     ; Push the summarised state for context.
+PSH  C10, X3, "user"
+PSH  C10, X4, "user"                    ; Push the temperature information for context.
 
-SNP  X31                    ; Save the current room state context for later adjustment.
+LS   X3, "Category and intensity of the temperature feedback:"
+PSH  C10, X3, "user"
+PSH  C10, X5, "user"                    ; Push the temperature feedback category for context.
+PSH  C10, X6, "user"                    ; Push the temperature feedback intensity for context.
 
-; Build the temperature feedback context for adjustments.
-CLR                         ; Clear context stack to classify user temperature feedback for adjustments.
-PSH  X2                     ; Push the user feedback to the context stack for processing.
+MVC C30, C10                            ; Save the temperature feedback context for later adjustment.
 
-LS   X3, "Classify the following temperature feedback into a category (TOO_COLD, TOO_WARM, COMFORTABLE, UNRELATED) and intensity level (Mild, Moderate, Severe). Category:\nIntensity:"
-MAP  X5, X3
+; Sense: Build the light feedback context for adjustments.
+LS   X3, "A sentence that describes the current state of the room with only the light intensity information in percentage."
+INF  X7, X3, C1
 
-RST  X31                    ; Restore the room state context to combine with the classified temperature feedback for adjustments.
+MVC  C10, C0                            ; Clear context stack to classify the light feedback.
 
-LS   X3, "Temperature user feedback:"
-PSH  X3
-PSH  X5                     ; Push the user feedback for context.
+LS   X3, "User feedback:"
+PSH  C10, X3, "user"
+PSH  C10, X2, "user"                    ; Push the user feedback to the context stack for processing.
 
-SNP  X30                    ; Save the temperature feedback context for later adjustment.
+LS   X3, "If the user feedback is related to light, classify the feedback into one of the following categories: TOO_DARK, TOO_BRIGHT, COMFORTABLE, UNRELATED. Category:"
+INF  X8, X3, C10
 
-; Build the light feedback context for adjustments.
-CLR                         ; Clear context stack to classify user light feedback for adjustments.
-PSH  X2                     ; Push the user feedback to the context stack for processing.
+LS  X3, "If the user feedback is related to light, classify the intensity of the feedback into one of the following levels: Mild, Moderate, Severe. Intensity:"
+INF  X9, X3, C10
 
-LS   X3, "Classify the following light feedback into a category (TOO_DARK, TOO_BRIGHT, COMFORTABLE, UNRELATED) and intensity level (Mild, Moderate, Severe). Category:\nIntensity:"
-MAP  X6, X3
+MVC  C10, C0                            ; Clear context stack to build the light feedback context for adjustments.
 
-RST  X31                    ; Restore the room state context to combine with the classified light feedback for adjustments.
+LS   X3, "Current room state:"
+PSH  C10, X3, "user"
+PSH  C10, X7, "user"                    ; Push the light intensity information for context.
 
-LS   X3, "Light intensity user feedback:"
-PSH  X3
-PSH  X6                     ; Push the light feedback for context.
+LS   X3, "Category and intensity of the light feedback:"
+PSH  C10, X3, "user"
+PSH  C10, X8, "user"                    ; Push the light feedback category for context.
+PSH  C10, X9, "user"                    ; Push the light feedback intensity for context.
 
-SNP  X31                    ; Save the light feedback context for later adjustment.
+MVC  C31, C10                            ; Save the light feedback context for later adjustment.
 
 ; Think: Adjust the temperature based on the classified feedback.
-LI   X29, 5                 ; Set a retry limit to prevent infinite loops in case of invalid adjustments.
+LI   X31, 5                             ; Set a retry limit to prevent infinite loops in case of invalid adjustments.
 
 RETRY_TEMP:
-RST  X30                    ; Restore the temperature feedback context for adjustments.
-DEC  X29, 1                 ; Decrement the retry counter.
+MVC  C10, C30                           ; Restore the temperature feedback context for adjustments.
+SUBI X31, 1                             ; Decrement the retry counter.
 
 LI   X3, 0
-BEQ  X29, X3, ABORT_TEMP    ; If retry limit is reached, abort the operation.
+BEQ  X31, X3, ABORT_TEMP                ; If retry limit is reached, abort the operation.
 
 LS   X3, "Intensity Factor: Mild = 1, Moderate = 2, Severe = 3. If 'TOO_COLD', increase temperature by (0.5 * intensity_factor). If 'TOO_WARM', decrease temperature by (0.5 * intensity_factor). If 'COMFORTABLE', no change to temperature. If 'UNRELATED', no change to temperature.\nWhat is the new room temperature?"
-MAP  X7, X3
+INF  X10, X3, C10
 
 ; Guardrails: Ensure that the temperature adjustments are within safe and reasonable limits.
-CLR                         ; Clear context stack to validate the adjusted temperature.
-PSH  X7                     ; Push the adjusted temperature for validation.
+MVC  C10, C0                             ; Clear context stack to validate the adjusted temperature.
+PSH  C10, X10, "user"                    ; Push the adjusted temperature for validation.
 
-LS   X3, "Is the temperature mentioned above one of the following: 18°C, 19°C, 20°C, 21°C, 22°C, 23°C, 24°C?"
-EVAL X8, X3
+LS   X3, "Is the temperature mentioned above one of the following: 18°C, 18.5°C, 19°C, 19.5°C, 20°C, 20.5°C, 21°C, 21.5°C, 22°C, 22.5°C, 23°C, 23.5°C, 24°C?"
+EVAL X11, X3, C10
 
 LI   X3, 0
-BEQ  X8, X3, RETRY_TEMP
+BEQ  X11, X3, RETRY_TEMP
 
 ; Think: Adjust the light intensity based on the classified feedback.
-LI   X29, 5                 ; Set a retry limit to prevent infinite loops in case of invalid adjustments.
+LI   X31, 5                             ; Set a retry limit to prevent infinite loops in case of invalid adjustments.
 
 RETRY_LIGHT:
-RST  X31                    ; Restore the light feedback context for adjustments.
-DEC  X29, 1                 ; Decrement the retry counter.
+MVC  C10, C31                           ; Restore the light feedback context for adjustments.
+SUBI X31, 1                             ; Decrement the retry counter.
 
 LI   X3, 0
-BEQ  X29, X3, ABORT_LIGHT   ; If retry limit is reached, abort the operation.
+BEQ  X31, X3, ABORT_LIGHT               ; If retry limit is reached, abort the operation.
 
-LS   X3, "Intensity Factor: Mild = 1, Moderate = 2, Severe = 3. If 'TOO_DARK', increase light by (10% * intensity). If 'TOO_BRIGHT', decrease light by (10% * intensity). If 'COMFORTABLE', no change to light. If 'UNRELATED', no change to light.\nWhat is the new light intensity percentage?"
-MAP  X9, X3
+LS   X3, "Intensity Factor: Mild = 1, Moderate = 2, Severe = 3. If 'TOO_DARK', increase light by (5 * intensity). If 'TOO_BRIGHT', decrease light by (5 * intensity). If 'COMFORTABLE', no change to light. If 'UNRELATED', no change to light.\nWhat is the new light percentage?"
+INF  X12, X3, C10
 
 ; Guardrails: Ensure that the light intensity adjustments are within safe and reasonable limits.
-CLR                         ; Clear context stack to validate the adjusted light intensity.
-PSH  X9                     ; Push the adjusted light intensity for validation.
+MVC  C10, C0                             ; Clear context stack to validate the adjusted light intensity.
+PSH  C10, X12, "user"                    ; Push the adjusted light intensity for validation.
 
 LS   X3, "Is the light intensity percentage mentioned above between 0% and 100%?"
-EVAL X10, X3
+EVAL X13, X3, C10
 
 LI   X3, 0
-BEQ  X10, X3, RETRY_LIGHT
+BEQ  X13, X3, RETRY_LIGHT
 
 ; Act: Implement the adjustments to achieve the desired physical comfort.
-CLR                         ; Clear context stack to prepare for output.
-PSH  X7                     ; Push the final adjusted temperature for output.
-PSH  X9                     ; Push the final adjusted light intensity for output.
+MVC  C10, C0                             ; Clear context stack to prepare for output.
+PSH  C10, X10, "user"                    ; Push the final adjusted temperature for output.
+PSH  C10, X12, "user"                    ; Push the final adjusted light intensity for output.
 
 LS   X3, "{ \"temp_celsius\": number, \"light_percent\": number }"
-MAP  X11, X3
+INF  X13, X3, C10
 
-OUT  X11
+PLN X13
 EXIT
 
 ABORT_TEMP:
-LS  X3, "Failed to adjust the room's temperature within the 5 attempts after multiple attempts."
-OUT X3
+LS   X3, "Failed to adjust the room's temperature within the 5 attempts after multiple attempts."
+PLN  X3
 EXIT
 
 ABORT_LIGHT:
-LS  X3, "Failed to adjust the room's light intensity within the 5 attempts after multiple attempts."
-OUT X3
+LS   X3, "Failed to adjust the room's light intensity within the 5 attempts after multiple attempts."
+PLN  X3
 ```
 
 ## Registers

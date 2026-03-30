@@ -100,7 +100,7 @@ impl Registers {
     pub fn set_context(
         &mut self,
         register_number: u32,
-        messages: Vec<ContextMessage>,
+        messages: &[ContextMessage],
     ) -> Result<(), Exception> {
         let idx = Self::to_index(register_number)?;
 
@@ -111,7 +111,7 @@ impl Registers {
             )));
         }
 
-        self.context[idx] = messages;
+        self.context[idx] = messages.to_vec();
         Ok(())
     }
 

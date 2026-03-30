@@ -76,6 +76,12 @@ pub struct ContextPopInstruction {
 pub struct ContextDropInstruction;
 
 #[derive(Debug)]
+pub struct MoveContextInstruction {
+    pub destination_context_register: u32,
+    pub source_context_register: u32,
+}
+
+#[derive(Debug)]
 pub struct DecrementInstruction {
     pub source_register: u32,
     pub value: u32,
@@ -110,6 +116,7 @@ pub enum Instruction {
     ContextPush(ContextPushInstruction),
     ContextPop(ContextPopInstruction),
     ContextDrop(ContextDropInstruction),
+    MoveContext(MoveContextInstruction),
     // Misc.
     Decrement(DecrementInstruction),
 }

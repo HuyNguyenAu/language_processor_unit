@@ -6,7 +6,8 @@ use crate::{
             BranchInstruction, BranchType, ContextDropInstruction, ContextPopInstruction,
             ContextPushInstruction, DecrementInstruction, EvalulateInstruction, ExitInstruction,
             InferenceInstruction, Instruction, LoadContentInstruction, LoadImmediateInstruction,
-            LoadStringInstruction, MoveInstruction, OutputInstruction, SimilarityInstruction,
+            LoadStringInstruction, MoveContextInstruction, MoveInstruction, OutputInstruction,
+            SimilarityInstruction,
         },
         memory::Memory,
         registers::Registers,
@@ -219,6 +220,10 @@ impl Decoder {
                 destination_register,
                 source_context_register: source_register,
             })),
+            OpCode::MoveContext => Ok(Instruction::MoveContext(MoveContextInstruction {
+                destination_context_register: destination_register,
+                source_context_register: source_register,
+            })),
             _ => Err(Exception::Decoder(BaseException::new(
                 format!(
                     "Failed to decode double-register instruction: invalid opcode '{:?}'.",
@@ -327,6 +332,7 @@ impl Decoder {
             }
             OpCode::ContextPop => Self::double_register(op_code, instruction_bytes),
             OpCode::ContextDrop => Self::no_register(op_code),
+            OpCode::MoveContext => Self::double_register(op_code, instruction_bytes),
             // Generative, cognitive, and guardrails operations.
             OpCode::Inference | OpCode::Evaluate | OpCode::Similarity => {
                 Self::triple_register(op_code, instruction_bytes)

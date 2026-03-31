@@ -355,6 +355,8 @@ impl Executor {
         instruction: &InferenceInstruction,
         text_model: &str,
         text_model_overrides: &TextModelOverrides,
+        base_url: &str,
+        chat_completion_endpoint: &str,
         debug: bool,
         debug_chat: bool,
     ) -> Result<(), Exception> {
@@ -385,6 +387,8 @@ impl Executor {
             context,
             text_model,
             text_model_overrides,
+            base_url,
+            chat_completion_endpoint,
             debug_chat,
         )
         .map_err(|e| Exception::Executor(BaseException::caused_by("Text generation failed.", e)))?;
@@ -415,6 +419,9 @@ impl Executor {
         text_model: &str,
         embedding_model: &str,
         text_model_overrides: &TextModelOverrides,
+        base_url: &str,
+        chat_completion_endpoint: &str,
+        embeddings_endpoint: &str,
         debug: bool,
         debug_chat: bool,
     ) -> Result<(), Exception> {
@@ -459,6 +466,9 @@ impl Executor {
             context,
             text_model,
             text_model_overrides,
+            base_url,
+            chat_completion_endpoint,
+            embeddings_endpoint,
             debug_chat,
         )
         .map_err(|e| {
@@ -489,6 +499,8 @@ impl Executor {
         registers: &mut Registers,
         instruction: &SimilarityInstruction,
         embedding_model: &str,
+        base_url: &str,
+        embeddings_endpoint: &str,
         debug: bool,
     ) -> Result<(), Exception> {
         let value_a = Self::read_text(registers, instruction.source_register_1)
@@ -514,13 +526,19 @@ impl Executor {
             })?
             .clone();
 
-        let result = LanguageLogicUnit::cosine_similarity(&value_a, &value_b, embedding_model)
-            .map_err(|e| {
-                Exception::Executor(BaseException::caused_by(
-                    "Cosine similarity computation failed.",
-                    e,
-                ))
-            })?;
+        let result = LanguageLogicUnit::cosine_similarity(
+            &value_a,
+            &value_b,
+            embedding_model,
+            base_url,
+            embeddings_endpoint,
+        )
+        .map_err(|e| {
+            Exception::Executor(BaseException::caused_by(
+                "Cosine similarity computation failed.",
+                e,
+            ))
+        })?;
 
         crate::debug_print!(
             debug,
@@ -928,6 +946,8 @@ impl Executor {
                 i,
                 &config.text_model,
                 &config.text_model_overrides,
+                &config.base_url,
+                &config.chat_completion_endpoint,
                 config.debug_run,
                 config.debug_chat,
             ),
@@ -938,12 +958,20 @@ impl Executor {
                 &config.text_model,
                 &config.embedding_model,
                 &config.text_model_overrides,
+                &config.base_url,
+                &config.chat_completion_endpoint,
+                &config.embeddings_endpoint,
                 config.debug_run,
                 config.debug_chat,
             ),
-            Instruction::Similarity(i) => {
-                Self::similarity(registers, i, &config.embedding_model, config.debug_run)
-            }
+            Instruction::Similarity(i) => Self::similarity(
+                registers,
+                i,
+                &config.embedding_model,
+                &config.base_url,
+                &config.embeddings_endpoint,
+                config.debug_run,
+            ),
             // Context operations.
             Instruction::ContextPush(i) => Self::context_push(registers, i, config.debug_run),
             Instruction::ContextPop(i) => Self::context_pop(registers, i, config.debug_run),

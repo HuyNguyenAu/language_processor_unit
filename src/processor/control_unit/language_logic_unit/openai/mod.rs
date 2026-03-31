@@ -13,20 +13,17 @@ pub mod chat_completion_models;
 pub mod embeddings_models;
 pub mod model_config;
 
-const BASE_URL: &str = "http://127.0.0.1:8080";
-const CHAT_COMPLETION_ENDPOINT: &str = "v1/chat/completions";
-const EMBEDDINGS_ENDPOINT: &str = "v1/embeddings";
-
 pub struct OpenAIClient;
 
 impl OpenAIClient {
     fn post_json<T: miniserde::Deserialize>(
+        base_url: &str,
         endpoint: &str,
         body: String,
         error_variant: fn(BaseException) -> Exception,
         context: &str,
     ) -> Result<T, Exception> {
-        let url = format!("{}/{}", BASE_URL, endpoint);
+        let url = format!("{}/{}", base_url, endpoint);
         let response = post(&url).with_body(body).send().map_err(|e| {
             (error_variant)(BaseException::caused_by(
                 format!("Failed to send {} request.", context),
@@ -60,10 +57,13 @@ impl OpenAIClient {
     }
 
     pub fn chat_completion(
+        base_url: &str,
+        chat_completion_endpoint: &str,
         request: OpenAIChatCompletionRequest,
     ) -> Result<OpenAIChatCompletionResponse, Exception> {
         Self::post_json(
-            CHAT_COMPLETION_ENDPOINT,
+            base_url,
+            chat_completion_endpoint,
             json::to_string(&request),
             Exception::OpenAIChatCompletion,
             "chat",
@@ -71,10 +71,13 @@ impl OpenAIClient {
     }
 
     pub fn embeddings(
+        base_url: &str,
+        embeddings_endpoint: &str,
         request: OpenAIEmbeddingsRequest,
     ) -> Result<OpenAIEmbeddingsResponse, Exception> {
         Self::post_json(
-            EMBEDDINGS_ENDPOINT,
+            base_url,
+            embeddings_endpoint,
             json::to_string(&request),
             Exception::OpenAIEmbeddings,
             "embedding",

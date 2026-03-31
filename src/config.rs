@@ -65,9 +65,15 @@ impl TextModelOverrides {
 
 #[derive(Debug, Clone)]
 pub struct Config {
+    // Model.
     pub text_model: String,
     pub embedding_model: String,
     pub text_model_overrides: TextModelOverrides,
+    // OpenAI API configuration.
+    pub base_url: String,
+    pub chat_completion_endpoint: String,
+    pub embeddings_endpoint: String,
+    // Debug flags.
     pub debug_build: bool,
     pub debug_run: bool,
     pub debug_chat: bool,

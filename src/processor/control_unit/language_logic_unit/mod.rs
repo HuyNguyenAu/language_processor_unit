@@ -166,6 +166,8 @@ impl LanguageLogicUnit {
         context: &[ContextMessage],
         text_model: &str,
         text_model_overrides: &TextModelOverrides,
+        base_url: &str,
+        chat_completion_endpoint: &str,
         debug_chat: bool,
     ) -> Result<String, Exception> {
         let model = Self::default_text_model(text_model, text_model_overrides);
@@ -209,7 +211,8 @@ impl LanguageLogicUnit {
         }
 
         let request = OpenAIChatCompletionRequest::new(messages, model);
-        let response = OpenAIClient::chat_completion(request).map_err(|e| {
+        let response = OpenAIClient::chat_completion(base_url, chat_completion_endpoint, request)
+            .map_err(|e| {
             Exception::LanguageLogic(BaseException::caused_by(
                 "OpenAI chat completion request failed.",
                 e,
@@ -226,15 +229,21 @@ impl LanguageLogicUnit {
         Ok(Self::clean_string(&choice.message.content))
     }
 
-    fn embeddings(content: &str, embedding_model: &str) -> Result<Vec<f32>, Exception> {
+    fn embeddings(
+        content: &str,
+        embedding_model: &str,
+        base_url: &str,
+        embeddings_endpoint: &str,
+    ) -> Result<Vec<f32>, Exception> {
         let model = Self::default_embeddings_model(embedding_model);
         let request = OpenAIEmbeddingsRequest::new(content, model);
-        let response = OpenAIClient::embeddings(request).map_err(|e| {
-            Exception::LanguageLogic(BaseException::caused_by(
-                "OpenAI embeddings request failed.",
-                e,
-            ))
-        })?;
+        let response =
+            OpenAIClient::embeddings(base_url, embeddings_endpoint, request).map_err(|e| {
+                Exception::LanguageLogic(BaseException::caused_by(
+                    "OpenAI embeddings request failed.",
+                    e,
+                ))
+            })?;
 
         let embedding = response.data.first().ok_or_else(|| {
             Exception::LanguageLogic(BaseException::new(
@@ -250,11 +259,25 @@ impl LanguageLogicUnit {
         value_a: &str,
         value_b: &str,
         embedding_model: &str,
+        base_url: &str,
+        embeddings_endpoint: &str,
     ) -> Result<u32, Exception> {
-        let value_a_embeddings = Self::embeddings(value_a, embedding_model).map_err(|e| {
+        let value_a_embeddings = Self::embeddings(
+            value_a,
+            embedding_model,
+            base_url,
+            embeddings_endpoint,
+        )
+        .map_err(|e| {
             Exception::LanguageLogic(BaseException::caused_by("Failed to embed first value.", e))
         })?;
-        let value_b_embeddings = Self::embeddings(value_b, embedding_model).map_err(|e| {
+        let value_b_embeddings = Self::embeddings(
+            value_b,
+            embedding_model,
+            base_url,
+            embeddings_endpoint,
+        )
+        .map_err(|e| {
             Exception::LanguageLogic(BaseException::caused_by("Failed to embed second value.", e))
         })?;
 
@@ -277,6 +300,8 @@ impl LanguageLogicUnit {
         context: &[ContextMessage],
         text_model: &str,
         text_model_overrides: &TextModelOverrides,
+        base_url: &str,
+        chat_completion_endpoint: &str,
         debug_chat: bool,
     ) -> Result<String, Exception> {
         Self::chat(
@@ -284,6 +309,8 @@ impl LanguageLogicUnit {
             context,
             text_model,
             text_model_overrides,
+            base_url,
+            chat_completion_endpoint,
             debug_chat,
         )
         .map_err(|e| {
@@ -295,6 +322,8 @@ impl LanguageLogicUnit {
         value: &str,
         candidates: &[&str],
         embedding_model: &str,
+        base_url: &str,
+        embeddings_endpoint: &str,
     ) -> Result<u32, Exception> {
         candidates
             .iter()
@@ -303,6 +332,8 @@ impl LanguageLogicUnit {
                     &value.to_lowercase(),
                     &candidate.to_lowercase(),
                     embedding_model,
+                    base_url,
+                    embeddings_endpoint,
                 )
                 .map_err(|e| {
                     Exception::LanguageLogic(BaseException::caused_by(
@@ -321,6 +352,9 @@ impl LanguageLogicUnit {
         context: &[ContextMessage],
         text_model: &str,
         text_model_overrides: &TextModelOverrides,
+        base_url: &str,
+        chat_completion_endpoint: &str,
+        embeddings_endpoint: &str,
         debug_chat: bool,
     ) -> Result<u32, Exception> {
         let value = Self::generate_text(
@@ -328,6 +362,8 @@ impl LanguageLogicUnit {
             context,
             text_model,
             text_model_overrides,
+            base_url,
+            chat_completion_endpoint,
             debug_chat,
         )
         .map_err(|e| {
@@ -341,6 +377,8 @@ impl LanguageLogicUnit {
             &value,
             eval_params.true_values,
             eval_params.embedding_model,
+            base_url,
+            embeddings_endpoint,
         )
         .map_err(|e| {
             Exception::LanguageLogic(BaseException::caused_by(
@@ -352,6 +390,8 @@ impl LanguageLogicUnit {
             &value,
             eval_params.false_values,
             eval_params.embedding_model,
+            base_url,
+            embeddings_endpoint,
         )
         .map_err(|e| {
             Exception::LanguageLogic(BaseException::caused_by(

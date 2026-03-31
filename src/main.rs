@@ -37,6 +37,10 @@ fn env_bool(key: &str) -> bool {
     env::var(key).map(|v| v == "true").unwrap_or(false)
 }
 
+fn env_with_default(key: &str, default: &str) -> String {
+    env::var(key).unwrap_or_else(|_| default.to_string())
+}
+
 fn config() -> Result<Config, Exception> {
     if dotenv::dotenv().ok().is_none() {
         return Err(Exception::Program(BaseException::new(
@@ -48,6 +52,18 @@ fn config() -> Result<Config, Exception> {
     Ok(Config {
         text_model: env_required(constants::TEXT_MODEL_ENV)?,
         embedding_model: env_required(constants::EMBEDDING_MODEL_ENV)?,
+        base_url: env_with_default(
+            constants::OPENAI_BASE_URL_ENV,
+            constants::OPENAI_BASE_URL_DEFAULT,
+        ),
+        chat_completion_endpoint: env_with_default(
+            constants::OPENAI_CHAT_COMPLETION_ENDPOINT_ENV,
+            constants::OPENAI_CHAT_COMPLETION_ENDPOINT_DEFAULT,
+        ),
+        embeddings_endpoint: env_with_default(
+            constants::OPENAI_EMBEDDINGS_ENDPOINT_ENV,
+            constants::OPENAI_EMBEDDINGS_ENDPOINT_DEFAULT,
+        ),
         debug_build: env_bool(constants::DEBUG_BUILD_ENV),
         debug_run: env_bool(constants::DEBUG_RUN_ENV),
         debug_chat: env_bool(constants::DEBUG_CHAT_ENV),

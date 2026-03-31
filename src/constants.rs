@@ -6,6 +6,16 @@ pub const HELP_USAGE: &str = "Usage: build <file_path> | run <file_path>";
 pub const TEXT_MODEL_ENV: &str = "TEXT_MODEL";
 pub const EMBEDDING_MODEL_ENV: &str = "EMBEDDING_MODEL";
 
+// OpenAI API endpoint environment variable names.
+pub const OPENAI_BASE_URL_ENV: &str = "OPENAI_BASE_URL";
+pub const OPENAI_CHAT_COMPLETION_ENDPOINT_ENV: &str = "OPENAI_CHAT_COMPLETION_ENDPOINT";
+pub const OPENAI_EMBEDDINGS_ENDPOINT_ENV: &str = "OPENAI_EMBEDDINGS_ENDPOINT";
+
+// OpenAI API endpoint defaults.
+pub const OPENAI_BASE_URL_DEFAULT: &str = "http://127.0.0.1:8080";
+pub const OPENAI_CHAT_COMPLETION_ENDPOINT_DEFAULT: &str = "v1/chat/completions";
+pub const OPENAI_EMBEDDINGS_ENDPOINT_DEFAULT: &str = "v1/embeddings";
+
 // Debug environment variable names.
 pub const DEBUG_BUILD_ENV: &str = "DEBUG_BUILD";
 pub const DEBUG_RUN_ENV: &str = "DEBUG_RUN";

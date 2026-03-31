@@ -13,54 +13,6 @@ const HEADER_SIZE: u32 = 2;
 const WORD_SIZE: usize = 4;
 const MAX_REGISTER: u32 = 32;
 
-impl From<TokenType> for OpCode {
-    fn from(token_type: TokenType) -> Self {
-        match token_type {
-            // Data movement.
-            TokenType::LoadString => OpCode::LoadString,
-            TokenType::LoadImmediate => OpCode::LoadImmediate,
-            TokenType::LoadContent => OpCode::LoadContent,
-            TokenType::Move => OpCode::Move,
-            // Control flow.
-            TokenType::BranchEqual => OpCode::BranchEqual,
-            TokenType::BranchLessEqual => OpCode::BranchLessEqual,
-            TokenType::BranchLess => OpCode::BranchLess,
-            TokenType::BranchGreaterEqual => OpCode::BranchGreaterEqual,
-            TokenType::BranchGreater => OpCode::BranchGreater,
-            TokenType::Exit => OpCode::Exit,
-            // I/O.
-            TokenType::Print => OpCode::Print,
-            TokenType::PrintLine => OpCode::PrintLine,
-            TokenType::PrintContext => OpCode::PrintContext,
-            // Generative operations.
-            TokenType::Inference => OpCode::Inference,
-            // Cognitive operations.
-            TokenType::Evaluate => OpCode::Evaluate,
-            // Guardrails operations.
-            TokenType::Similarity => OpCode::Similarity,
-            // Context operations.
-            TokenType::ContextPush => OpCode::ContextPush,
-            TokenType::ContextPop => OpCode::ContextPop,
-            TokenType::ContextDrop => OpCode::ContextDrop,
-            TokenType::MoveContext => OpCode::MoveContext,
-            // Arithmetic operations.
-            TokenType::AddImmediate => OpCode::AddImmediate,
-            TokenType::SubtractImmediate => OpCode::SubtractImmediate,
-            // CSV operations.
-            TokenType::ReadCSV => OpCode::ReadCSV,
-            TokenType::LineCount => OpCode::LineCount,
-            // Misc.
-            TokenType::Comma
-            | TokenType::Identifier
-            | TokenType::String
-            | TokenType::Number
-            | TokenType::Label
-            | TokenType::Eof
-            | TokenType::Error => OpCode::NoOp,
-        }
-    }
-}
-
 struct UnresolvedLabel {
     indices: Vec<usize>,
     token: Token,

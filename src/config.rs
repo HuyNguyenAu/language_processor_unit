@@ -1,3 +1,5 @@
+use crate::{constants, env};
+
 #[derive(Debug, Clone, Default)]
 pub struct TextModelOverrides {
     pub stream: Option<bool>,
@@ -26,39 +28,29 @@ pub struct TextModelOverrides {
 
 impl TextModelOverrides {
     pub fn from_env() -> Self {
-        use crate::constants;
-
-        fn env_opt_bool(key: &str) -> Option<bool> {
-            std::env::var(key).ok().map(|v| v == "true")
-        }
-
-        fn env_opt<T: std::str::FromStr>(key: &str) -> Option<T> {
-            std::env::var(key).ok().and_then(|v| v.parse().ok())
-        }
-
         TextModelOverrides {
-            stream: env_opt_bool(constants::TEXT_MODEL_STREAM_ENV),
-            return_progress: env_opt_bool(constants::TEXT_MODEL_RETURN_PROGRESS_ENV),
-            reasoning_format: std::env::var(constants::TEXT_MODEL_REASONING_FORMAT_ENV).ok(),
-            temperature: env_opt(constants::TEXT_MODEL_TEMPERATURE_ENV),
-            dynatemp_range: env_opt(constants::TEXT_MODEL_DYNATEMP_RANGE_ENV),
-            dynatemp_exponent: env_opt(constants::TEXT_MODEL_DYNATEMP_EXPONENT_ENV),
-            top_k: env_opt(constants::TEXT_MODEL_TOP_K_ENV),
-            top_p: env_opt(constants::TEXT_MODEL_TOP_P_ENV),
-            min_p: env_opt(constants::TEXT_MODEL_MIN_P_ENV),
-            xtc_probability: env_opt(constants::TEXT_MODEL_XTC_PROBABILITY_ENV),
-            xtc_threshold: env_opt(constants::TEXT_MODEL_XTC_THRESHOLD_ENV),
-            typ_p: env_opt(constants::TEXT_MODEL_TYP_P_ENV),
-            max_tokens: env_opt(constants::TEXT_MODEL_MAX_TOKENS_ENV),
-            repeat_last_n: env_opt(constants::TEXT_MODEL_REPEAT_LAST_N_ENV),
-            repeat_penalty: env_opt(constants::TEXT_MODEL_REPEAT_PENALTY_ENV),
-            presence_penalty: env_opt(constants::TEXT_MODEL_PRESENCE_PENALTY_ENV),
-            frequency_penalty: env_opt(constants::TEXT_MODEL_FREQUENCY_PENALTY_ENV),
-            dry_multiplier: env_opt(constants::TEXT_MODEL_DRY_MULTIPLIER_ENV),
-            dry_base: env_opt(constants::TEXT_MODEL_DRY_BASE_ENV),
-            dry_allowed_length: env_opt(constants::TEXT_MODEL_DRY_ALLOWED_LENGTH_ENV),
-            dry_penalty_last_n: env_opt(constants::TEXT_MODEL_DRY_PENALTY_LAST_N_ENV),
-            timings_per_token: env_opt_bool(constants::TEXT_MODEL_TIMINGS_PER_TOKEN_ENV),
+            stream: env::opt_bool(constants::TEXT_MODEL_STREAM_ENV),
+            return_progress: env::opt_bool(constants::TEXT_MODEL_RETURN_PROGRESS_ENV),
+            reasoning_format: env::opt(constants::TEXT_MODEL_REASONING_FORMAT_ENV),
+            temperature: env::opt(constants::TEXT_MODEL_TEMPERATURE_ENV),
+            dynatemp_range: env::opt(constants::TEXT_MODEL_DYNATEMP_RANGE_ENV),
+            dynatemp_exponent: env::opt(constants::TEXT_MODEL_DYNATEMP_EXPONENT_ENV),
+            top_k: env::opt(constants::TEXT_MODEL_TOP_K_ENV),
+            top_p: env::opt(constants::TEXT_MODEL_TOP_P_ENV),
+            min_p: env::opt(constants::TEXT_MODEL_MIN_P_ENV),
+            xtc_probability: env::opt(constants::TEXT_MODEL_XTC_PROBABILITY_ENV),
+            xtc_threshold: env::opt(constants::TEXT_MODEL_XTC_THRESHOLD_ENV),
+            typ_p: env::opt(constants::TEXT_MODEL_TYP_P_ENV),
+            max_tokens: env::opt(constants::TEXT_MODEL_MAX_TOKENS_ENV),
+            repeat_last_n: env::opt(constants::TEXT_MODEL_REPEAT_LAST_N_ENV),
+            repeat_penalty: env::opt(constants::TEXT_MODEL_REPEAT_PENALTY_ENV),
+            presence_penalty: env::opt(constants::TEXT_MODEL_PRESENCE_PENALTY_ENV),
+            frequency_penalty: env::opt(constants::TEXT_MODEL_FREQUENCY_PENALTY_ENV),
+            dry_multiplier: env::opt(constants::TEXT_MODEL_DRY_MULTIPLIER_ENV),
+            dry_base: env::opt(constants::TEXT_MODEL_DRY_BASE_ENV),
+            dry_allowed_length: env::opt(constants::TEXT_MODEL_DRY_ALLOWED_LENGTH_ENV),
+            dry_penalty_last_n: env::opt(constants::TEXT_MODEL_DRY_PENALTY_LAST_N_ENV),
+            timings_per_token: env::opt_bool(constants::TEXT_MODEL_TIMINGS_PER_TOKEN_ENV),
         }
     }
 }
@@ -73,6 +65,7 @@ pub struct Config {
     pub base_url: String,
     pub chat_completion_endpoint: String,
     pub embeddings_endpoint: String,
+    pub timeout_secs: u64,
     // Debug flags.
     pub debug_build: bool,
     pub debug_run: bool,

@@ -15,6 +15,10 @@ pub const OPENAI_EMBEDDINGS_ENDPOINT_ENV: &str = "OPENAI_EMBEDDINGS_ENDPOINT";
 pub const OPENAI_BASE_URL_DEFAULT: &str = "http://127.0.0.1:8080";
 pub const OPENAI_CHAT_COMPLETION_ENDPOINT_DEFAULT: &str = "v1/chat/completions";
 pub const OPENAI_EMBEDDINGS_ENDPOINT_DEFAULT: &str = "v1/embeddings";
+pub const OPENAI_TIMEOUT_SECS_DEFAULT: u64 = 120;
+
+// OpenAI API timeout environment variable name.
+pub const OPENAI_TIMEOUT_SECS_ENV: &str = "OPENAI_TIMEOUT_SECS";
 
 // Debug environment variable names.
 pub const DEBUG_BUILD_ENV: &str = "DEBUG_BUILD";

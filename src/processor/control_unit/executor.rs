@@ -357,6 +357,7 @@ impl Executor {
         text_model_overrides: &TextModelOverrides,
         base_url: &str,
         chat_completion_endpoint: &str,
+        timeout_secs: u64,
         debug: bool,
         debug_chat: bool,
     ) -> Result<(), Exception> {
@@ -389,6 +390,7 @@ impl Executor {
             text_model_overrides,
             base_url,
             chat_completion_endpoint,
+            timeout_secs,
             debug_chat,
         )
         .map_err(|e| Exception::Executor(BaseException::caused_by("Text generation failed.", e)))?;
@@ -422,6 +424,7 @@ impl Executor {
         base_url: &str,
         chat_completion_endpoint: &str,
         embeddings_endpoint: &str,
+        timeout_secs: u64,
         debug: bool,
         debug_chat: bool,
     ) -> Result<(), Exception> {
@@ -469,6 +472,7 @@ impl Executor {
             base_url,
             chat_completion_endpoint,
             embeddings_endpoint,
+            timeout_secs,
             debug_chat,
         )
         .map_err(|e| {
@@ -501,6 +505,7 @@ impl Executor {
         embedding_model: &str,
         base_url: &str,
         embeddings_endpoint: &str,
+        timeout_secs: u64,
         debug: bool,
     ) -> Result<(), Exception> {
         let value_a = Self::read_text(registers, instruction.source_register_1)
@@ -532,6 +537,7 @@ impl Executor {
             embedding_model,
             base_url,
             embeddings_endpoint,
+            timeout_secs,
         )
         .map_err(|e| {
             Exception::Executor(BaseException::caused_by(
@@ -948,6 +954,7 @@ impl Executor {
                 &config.text_model_overrides,
                 &config.base_url,
                 &config.chat_completion_endpoint,
+                config.timeout_secs,
                 config.debug_run,
                 config.debug_chat,
             ),
@@ -961,6 +968,7 @@ impl Executor {
                 &config.base_url,
                 &config.chat_completion_endpoint,
                 &config.embeddings_endpoint,
+                config.timeout_secs,
                 config.debug_run,
                 config.debug_chat,
             ),
@@ -970,6 +978,7 @@ impl Executor {
                 &config.embedding_model,
                 &config.base_url,
                 &config.embeddings_endpoint,
+                config.timeout_secs,
                 config.debug_run,
             ),
             // Context operations.

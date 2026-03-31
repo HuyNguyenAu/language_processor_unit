@@ -1,11 +1,11 @@
 mod assembler;
 mod config;
 mod constants;
+mod env;
 mod exception;
 mod processor;
 
 use std::{
-    env,
     fs::{read, read_to_string, write},
     path::Path,
 };
@@ -24,23 +24,6 @@ fn start_up() -> Result<(), Exception> {
     })
 }
 
-fn env_required(key: &str) -> Result<String, Exception> {
-    env::var(key).map_err(|e| {
-        Exception::Program(BaseException::caused_by(
-            format!("{} must be set in the .env file", key),
-            format!("{:#?}", e),
-        ))
-    })
-}
-
-fn env_bool(key: &str) -> bool {
-    env::var(key).map(|v| v == "true").unwrap_or(false)
-}
-
-fn env_with_default(key: &str, default: &str) -> String {
-    env::var(key).unwrap_or_else(|_| default.to_string())
-}
-
 fn config() -> Result<Config, Exception> {
     if dotenv::dotenv().ok().is_none() {
         return Err(Exception::Program(BaseException::new(
@@ -50,23 +33,27 @@ fn config() -> Result<Config, Exception> {
     }
 
     Ok(Config {
-        text_model: env_required(constants::TEXT_MODEL_ENV)?,
-        embedding_model: env_required(constants::EMBEDDING_MODEL_ENV)?,
-        base_url: env_with_default(
+        text_model: env::required(constants::TEXT_MODEL_ENV)?,
+        embedding_model: env::required(constants::EMBEDDING_MODEL_ENV)?,
+        base_url: env::with_default(
             constants::OPENAI_BASE_URL_ENV,
             constants::OPENAI_BASE_URL_DEFAULT,
         ),
-        chat_completion_endpoint: env_with_default(
+        chat_completion_endpoint: env::with_default(
             constants::OPENAI_CHAT_COMPLETION_ENDPOINT_ENV,
             constants::OPENAI_CHAT_COMPLETION_ENDPOINT_DEFAULT,
         ),
-        embeddings_endpoint: env_with_default(
+        embeddings_endpoint: env::with_default(
             constants::OPENAI_EMBEDDINGS_ENDPOINT_ENV,
             constants::OPENAI_EMBEDDINGS_ENDPOINT_DEFAULT,
         ),
-        debug_build: env_bool(constants::DEBUG_BUILD_ENV),
-        debug_run: env_bool(constants::DEBUG_RUN_ENV),
-        debug_chat: env_bool(constants::DEBUG_CHAT_ENV),
+        timeout_secs: env::u64_with_default(
+            constants::OPENAI_TIMEOUT_SECS_ENV,
+            constants::OPENAI_TIMEOUT_SECS_DEFAULT,
+        ),
+        debug_build: env::bool(constants::DEBUG_BUILD_ENV),
+        debug_run: env::bool(constants::DEBUG_RUN_ENV),
+        debug_chat: env::bool(constants::DEBUG_CHAT_ENV),
         text_model_overrides: TextModelOverrides::from_env(),
     })
 }
@@ -153,7 +140,7 @@ fn main() {
         }
     };
 
-    let args: Vec<String> = env::args().collect();
+    let args: Vec<String> = env::args();
 
     let result = match (args.get(1).map(String::as_str), args.get(2)) {
         (None, _) => {

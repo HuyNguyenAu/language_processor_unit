@@ -19,17 +19,22 @@ impl OpenAIClient {
     fn post_json<T: miniserde::Deserialize>(
         base_url: &str,
         endpoint: &str,
+        timeout_secs: u64,
         body: String,
         error_variant: fn(BaseException) -> Exception,
         context: &str,
     ) -> Result<T, Exception> {
         let url = format!("{}/{}", base_url, endpoint);
-        let response = post(&url).with_body(body).send().map_err(|e| {
-            (error_variant)(BaseException::caused_by(
-                format!("Failed to send {} request.", context),
-                e,
-            ))
-        })?;
+        let response = post(&url)
+            .with_timeout(timeout_secs)
+            .with_body(body)
+            .send()
+            .map_err(|e| {
+                (error_variant)(BaseException::caused_by(
+                    format!("Failed to send {} request.", context),
+                    e,
+                ))
+            })?;
 
         if response.status_code != 200 {
             return Err((error_variant)(BaseException::new(
@@ -59,11 +64,13 @@ impl OpenAIClient {
     pub fn chat_completion(
         base_url: &str,
         chat_completion_endpoint: &str,
+        timeout_secs: u64,
         request: OpenAIChatCompletionRequest,
     ) -> Result<OpenAIChatCompletionResponse, Exception> {
         Self::post_json(
             base_url,
             chat_completion_endpoint,
+            timeout_secs,
             json::to_string(&request),
             Exception::OpenAIChatCompletion,
             "chat",
@@ -73,11 +80,13 @@ impl OpenAIClient {
     pub fn embeddings(
         base_url: &str,
         embeddings_endpoint: &str,
+        timeout_secs: u64,
         request: OpenAIEmbeddingsRequest,
     ) -> Result<OpenAIEmbeddingsResponse, Exception> {
         Self::post_json(
             base_url,
             embeddings_endpoint,
+            timeout_secs,
             json::to_string(&request),
             Exception::OpenAIEmbeddings,
             "embedding",

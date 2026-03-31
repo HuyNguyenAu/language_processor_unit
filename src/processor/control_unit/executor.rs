@@ -96,7 +96,7 @@ impl Executor {
 
         crate::debug_print!(
             debug,
-            "Executed LI  : r{} = {:?}",
+            "Executed LS  : r{} = {:?}",
             instruction.destination_register,
             value
         );
@@ -356,16 +356,15 @@ impl Executor {
         instruction: &InferenceInstruction,
         config: &Config,
     ) -> Result<(), Exception> {
-        let value = Self::read_text(registers, instruction.source_register)
-            .map_err(|e| {
-                Exception::Executor(BaseException::caused_by(
-                    format!(
-                        "Failed to read prompt from source register r{}.",
-                        instruction.source_register
-                    ),
-                    e,
-                ))
-            })?;
+        let value = Self::read_text(registers, instruction.source_register).map_err(|e| {
+            Exception::Executor(BaseException::caused_by(
+                format!(
+                    "Failed to read prompt from source register r{}.",
+                    instruction.source_register
+                ),
+                e,
+            ))
+        })?;
         let conversation_history = registers
             .get_context(instruction.context_register)
             .map_err(|e| {
@@ -416,16 +415,15 @@ impl Executor {
         instruction: &EvaluateInstruction,
         config: &Config,
     ) -> Result<(), Exception> {
-        let value = Self::read_text(registers, instruction.source_register)
-            .map_err(|e| {
-                Exception::Executor(BaseException::caused_by(
-                    format!(
-                        "Failed to read prompt from source register r{}.",
-                        instruction.source_register
-                    ),
-                    e,
-                ))
-            })?;
+        let value = Self::read_text(registers, instruction.source_register).map_err(|e| {
+            Exception::Executor(BaseException::caused_by(
+                format!(
+                    "Failed to read prompt from source register r{}.",
+                    instruction.source_register
+                ),
+                e,
+            ))
+        })?;
         let micro_prompt = format!(
             "{}\nAnswer with exactly one word: YES or NO, TRUE or FALSE.\n\nAnswer only:",
             value
@@ -494,26 +492,24 @@ impl Executor {
         instruction: &SimilarityInstruction,
         config: &Config,
     ) -> Result<(), Exception> {
-        let value_a = Self::read_text(registers, instruction.source_register_1)
-            .map_err(|e| {
-                Exception::Executor(BaseException::caused_by(
-                    format!(
-                        "Failed to read first operand from register r{}.",
-                        instruction.source_register_1
-                    ),
-                    e,
-                ))
-            })?;
-        let value_b = Self::read_text(registers, instruction.source_register_2)
-            .map_err(|e| {
-                Exception::Executor(BaseException::caused_by(
-                    format!(
-                        "Failed to read second operand from register r{}.",
-                        instruction.source_register_2
-                    ),
-                    e,
-                ))
-            })?;
+        let value_a = Self::read_text(registers, instruction.source_register_1).map_err(|e| {
+            Exception::Executor(BaseException::caused_by(
+                format!(
+                    "Failed to read first operand from register r{}.",
+                    instruction.source_register_1
+                ),
+                e,
+            ))
+        })?;
+        let value_b = Self::read_text(registers, instruction.source_register_2).map_err(|e| {
+            Exception::Executor(BaseException::caused_by(
+                format!(
+                    "Failed to read second operand from register r{}.",
+                    instruction.source_register_2
+                ),
+                e,
+            ))
+        })?;
 
         let result = LanguageLogicUnit::cosine_similarity(
             value_a,
@@ -722,7 +718,17 @@ impl Executor {
                 ))
             })?;
 
-        let new_value = Value::Number(value + instruction.value);
+        let new_value = value.checked_add(instruction.value).ok_or_else(|| {
+            Exception::Executor(BaseException::new(
+                format!(
+                    "Cannot add {} to register r{} because it would overflow.",
+                    instruction.value, instruction.destination_register
+                ),
+                None,
+            ))
+        })?;
+        let new_value = Value::Number(new_value);
+
         registers
             .set_register(instruction.destination_register, &new_value)
             .map_err(|e| {
@@ -762,17 +768,17 @@ impl Executor {
                 ))
             })?;
 
-        if value < instruction.value {
-            return Err(Exception::Executor(BaseException::new(
+        let new_value = value.checked_sub(instruction.value).ok_or_else(|| {
+            Exception::Executor(BaseException::new(
                 format!(
-                    "Cannot subtract {} from register r{} because it would result in a negative value.",
+                    "Cannot subtract {} from register r{} because it would underflow.",
                     instruction.value, instruction.destination_register
                 ),
                 None,
-            )));
-        }
+            ))
+        })?;
+        let new_value = Value::Number(new_value);
 
-        let new_value = Value::Number(value - instruction.value);
         registers
             .set_register(instruction.destination_register, &new_value)
             .map_err(|e| {

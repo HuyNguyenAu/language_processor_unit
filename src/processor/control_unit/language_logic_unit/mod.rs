@@ -295,6 +295,11 @@ impl LanguageLogicUnit {
             .sum();
         let x_euclidean_length: f32 = value_a_embeddings.iter().map(|x| x * x).sum::<f32>().sqrt();
         let y_euclidean_length: f32 = value_b_embeddings.iter().map(|y| y * y).sum::<f32>().sqrt();
+
+        if x_euclidean_length == 0.0 || y_euclidean_length == 0.0 {
+            return Ok(0);
+        }
+
         let similarity = dot_product / (x_euclidean_length * y_euclidean_length);
         let percentage_similarity = similarity.clamp(0.0, 1.0) * 100.0;
 

@@ -28,33 +28,47 @@ pub enum OpCode {
     MoveContext = 0x13,
     // Arithmetic operations.
     SubtractImmediate = 0x14,
+    // CSV operations.
+    ReadCsvRow = 0x15,
+    EndOfCsv = 0x16,
     // Misc.
     NoOp = 0xFF,
 }
 
 impl OpCode {
     const ALL: &[OpCode] = &[
+        // Data movement.
         OpCode::LoadString,
         OpCode::LoadContent,
         OpCode::LoadImmediate,
         OpCode::Move,
+        // Control flow.
         OpCode::BranchEqual,
         OpCode::BranchLessEqual,
         OpCode::BranchLess,
         OpCode::BranchGreaterEqual,
         OpCode::BranchGreater,
+        // I/O.
         OpCode::Exit,
         OpCode::Print,
         OpCode::PrintLine,
         OpCode::PrintContext,
+        // Generative operations.
         OpCode::Inference,
+        // Guardrails operations.
         OpCode::Evaluate,
         OpCode::Similarity,
+        // Context operations.
         OpCode::ContextPush,
         OpCode::ContextPop,
         OpCode::ContextDrop,
         OpCode::MoveContext,
+        // Arithmetic operations.
         OpCode::SubtractImmediate,
+        // CSV operations.
+        OpCode::ReadCsvRow,
+        OpCode::EndOfCsv,
+        // Misc.
         OpCode::NoOp,
     ];
 

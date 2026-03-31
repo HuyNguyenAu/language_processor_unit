@@ -4,10 +4,11 @@ use crate::{
     processor::{
         control_unit::instruction::{
             BranchInstruction, BranchType, ContextDropInstruction, ContextPopInstruction,
-            ContextPushInstruction, EvalulateInstruction, ExitInstruction, InferenceInstruction,
-            Instruction, LoadContentInstruction, LoadImmediateInstruction, LoadStringInstruction,
-            MoveContextInstruction, MoveInstruction, PrintContextInstruction, PrintInstruction,
-            PrintLineInstruction, SimilarityInstruction, SubtractImmediateInstruction,
+            ContextPushInstruction, EndOfCsvInstruction, EvalulateInstruction, ExitInstruction,
+            InferenceInstruction, Instruction, LoadContentInstruction, LoadImmediateInstruction,
+            LoadStringInstruction, MoveContextInstruction, MoveInstruction,
+            PrintContextInstruction, PrintInstruction, PrintLineInstruction, ReadCsvRowInstruction,
+            SimilarityInstruction, SubtractImmediateInstruction,
         },
         memory::Memory,
         registers::Registers,
@@ -204,6 +205,7 @@ impl Decoder {
         let source_register = u32::from_be_bytes(instruction_bytes[2]);
 
         match op_code {
+            // Context operations.
             OpCode::ContextPop => Ok(Instruction::ContextPop(ContextPopInstruction {
                 destination_register,
                 source_context_register: source_register,
@@ -211,6 +213,15 @@ impl Decoder {
             OpCode::MoveContext => Ok(Instruction::MoveContext(MoveContextInstruction {
                 destination_context_register: destination_register,
                 source_context_register: source_register,
+            })),
+            // CSV operations.
+            OpCode::ReadCsvRow => Ok(Instruction::ReadCsvRow(ReadCsvRowInstruction {
+                destination_register,
+                source_register,
+            })),
+            OpCode::EndOfCsv => Ok(Instruction::EndOfCsv(EndOfCsvInstruction {
+                destination_register,
+                source_register,
             })),
             _ => Err(Exception::Decoder(BaseException::new(
                 format!(
@@ -333,6 +344,10 @@ impl Decoder {
             // Generative, cognitive, and guardrails operations.
             OpCode::Inference | OpCode::Evaluate | OpCode::Similarity => {
                 Self::triple_register(op_code, instruction_bytes)
+            }
+            // CSV operations.
+            OpCode::ReadCsvRow | OpCode::EndOfCsv => {
+                Self::double_register(op_code, instruction_bytes)
             }
             OpCode::NoOp => unreachable!(),
         }

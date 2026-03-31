@@ -105,6 +105,18 @@ pub struct PrintContextInstruction {
 }
 
 #[derive(Debug)]
+pub struct ReadCsvRowInstruction {
+    pub destination_register: u32,
+    pub source_register: u32,
+}
+
+#[derive(Debug)]
+pub struct EndOfCsvInstruction {
+    pub destination_register: u32,
+    pub source_register: u32,
+}
+
+#[derive(Debug)]
 pub struct ExitInstruction;
 
 #[derive(Debug)]
@@ -133,4 +145,7 @@ pub enum Instruction {
     MoveContext(MoveContextInstruction),
     // Arithmetic operations.
     SubtractImmediate(SubtractImmediateInstruction),
+    // CSV operations.
+    ReadCsvRow(ReadCsvRowInstruction),
+    EndOfCsv(EndOfCsvInstruction),
 }

@@ -34,6 +34,9 @@ pub enum TokenType {
     MoveContext,
     // Arithmetic operations keywords.
     SubtractImmediate,
+    // CSV operations keywords.
+    ReadCsvRow,
+    EndOfCsv,
     // Misc keywords.
     Label,
     Eof,
@@ -71,8 +74,11 @@ impl TryFrom<&str> for TokenType {
             "pop" => Ok(TokenType::ContextPop),
             "drp" => Ok(TokenType::ContextDrop),
             "mvc" => Ok(TokenType::MoveContext),
-            // Misc operations.
+            // Arithmetic operations.
             "subi" => Ok(TokenType::SubtractImmediate),
+            // CSV operations.
+            "rcsv" => Ok(TokenType::ReadCsvRow),
+            "ecsv" => Ok(TokenType::EndOfCsv),
             _ => Err("String does not correspond to any known token type.".to_string()),
         }
     }

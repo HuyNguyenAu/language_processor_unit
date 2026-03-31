@@ -31,7 +31,7 @@ pub enum OpCode {
     SubtractImmediate = 0x15,
     // CSV operations.
     ReadCSV = 0x16,
-    StatusCSV = 0x17,
+    LineCount = 0x17,
     // Misc.
     NoOp = 0xFF,
 }
@@ -69,7 +69,7 @@ impl OpCode {
         OpCode::SubtractImmediate,
         // CSV operations.
         OpCode::ReadCSV,
-        OpCode::StatusCSV,
+        OpCode::LineCount,
         // Misc.
         OpCode::NoOp,
     ];

@@ -37,7 +37,7 @@ pub enum TokenType {
     SubtractImmediate,
     // CSV operations keywords.
     ReadCSV,
-    StatusCSV,
+    LineCount,
     // Misc keywords.
     Label,
     Eof,
@@ -80,7 +80,7 @@ impl TryFrom<&str> for TokenType {
             "subi" => Ok(TokenType::SubtractImmediate),
             // CSV operations.
             "rcsv" => Ok(TokenType::ReadCSV),
-            "scsv" => Ok(TokenType::StatusCSV),
+            "lcnt" => Ok(TokenType::LineCount),
             _ => Err("String does not correspond to any known token type.".to_string()),
         }
     }

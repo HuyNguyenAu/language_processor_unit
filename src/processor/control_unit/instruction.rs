@@ -118,7 +118,7 @@ pub struct ReadCSVInstruction {
 }
 
 #[derive(Debug)]
-pub struct StatusCSVInstruction {
+pub struct LineCountInstruction {
     pub destination_register: u32,
     pub source_register: u32,
 }
@@ -155,5 +155,5 @@ pub enum Instruction {
     SubtractImmediate(SubtractImmediateInstruction),
     // CSV operations.
     ReadCSV(ReadCSVInstruction),
-    StatusCSV(StatusCSVInstruction),
+    LineCount(LineCountInstruction),
 }

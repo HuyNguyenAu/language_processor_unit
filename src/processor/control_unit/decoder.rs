@@ -5,10 +5,10 @@ use crate::{
         control_unit::instruction::{
             AddImmediateInstruction, BranchInstruction, BranchType, ContextDropInstruction,
             ContextPopInstruction, ContextPushInstruction, EvalulateInstruction, ExitInstruction,
-            InferenceInstruction, Instruction, LoadContentInstruction, LoadImmediateInstruction,
-            LoadStringInstruction, MoveContextInstruction, MoveInstruction,
-            PrintContextInstruction, PrintInstruction, PrintLineInstruction, ReadCSVInstruction,
-            SimilarityInstruction, StatusCSVInstruction, SubtractImmediateInstruction,
+            InferenceInstruction, Instruction, LineCountInstruction, LoadContentInstruction,
+            LoadImmediateInstruction, LoadStringInstruction, MoveContextInstruction,
+            MoveInstruction, PrintContextInstruction, PrintInstruction, PrintLineInstruction,
+            ReadCSVInstruction, SimilarityInstruction, SubtractImmediateInstruction,
         },
         memory::Memory,
         registers::Registers,
@@ -221,7 +221,7 @@ impl Decoder {
                 source_context_register: source_register,
             })),
             // CSV operations.
-            OpCode::StatusCSV => Ok(Instruction::StatusCSV(StatusCSVInstruction {
+            OpCode::LineCount => Ok(Instruction::LineCount(LineCountInstruction {
                 destination_register,
                 source_register,
             })),
@@ -357,7 +357,8 @@ impl Decoder {
             }
             // CSV operations.
             OpCode::ReadCSV => Self::triple_register(op_code, instruction_bytes),
-            OpCode::StatusCSV => Self::double_register(op_code, instruction_bytes),
+            OpCode::LineCount => Self::double_register(op_code, instruction_bytes),
+            // Misc.
             OpCode::NoOp => unreachable!(),
         }
     }

@@ -48,3 +48,7 @@ pub const TEXT_MODEL_DRY_BASE_ENV: &str = "TEXT_MODEL_DRY_BASE";
 pub const TEXT_MODEL_DRY_ALLOWED_LENGTH_ENV: &str = "TEXT_MODEL_DRY_ALLOWED_LENGTH";
 pub const TEXT_MODEL_DRY_PENALTY_LAST_N_ENV: &str = "TEXT_MODEL_DRY_PENALTY_LAST_N";
 pub const TEXT_MODEL_TIMINGS_PER_TOKEN_ENV: &str = "TEXT_MODEL_TIMINGS_PER_TOKEN";
+
+// Language logic unit constants.
+pub const SYSTEM_PROMPT: &str =
+    "Provide exactly the requested output. Follow structural markers strictly.";

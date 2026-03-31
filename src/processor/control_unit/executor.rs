@@ -1,7 +1,7 @@
 use std::fs::read_to_string;
 
 use crate::{
-    config::{Config, TextModelOverrides},
+    config::Config,
     exception::{BaseException, Exception},
     processor::{
         control_unit::{
@@ -13,7 +13,7 @@ use crate::{
                 MoveInstruction, PrintContextInstruction, PrintInstruction, PrintLineInstruction,
                 ReadCSVInstruction, SimilarityInstruction, SubtractImmediateInstruction,
             },
-            language_logic_unit::{BooleanEvalParams, LanguageLogicUnit},
+            language_logic_unit::{BooleanEvalParams, LanguageLogicUnit, TextGenerationConfig},
         },
         memory::Memory,
         registers::{ContextMessage, Registers, Value},
@@ -353,13 +353,7 @@ impl Executor {
     fn inference(
         registers: &mut Registers,
         instruction: &InferenceInstruction,
-        text_model: &str,
-        text_model_overrides: &TextModelOverrides,
-        base_url: &str,
-        chat_completion_endpoint: &str,
-        timeout_secs: u64,
-        debug: bool,
-        debug_chat: bool,
+        config: &Config,
     ) -> Result<(), Exception> {
         let value = Self::read_text(registers, instruction.source_register)
             .map_err(|e| {
@@ -383,20 +377,21 @@ impl Executor {
                     e,
                 ))
             })?;
-        let result = LanguageLogicUnit::generate_text(
-            &value,
-            context,
-            text_model,
-            text_model_overrides,
-            base_url,
-            chat_completion_endpoint,
-            timeout_secs,
-            debug_chat,
-        )
-        .map_err(|e| Exception::Executor(BaseException::caused_by("Text generation failed.", e)))?;
+        let text_generation_config = TextGenerationConfig {
+            text_model: config.text_model.clone(),
+            text_model_overrides: config.text_model_overrides.clone(),
+            base_url: config.base_url.clone(),
+            chat_completion_endpoint: config.chat_completion_endpoint.clone(),
+            timeout_secs: config.timeout_secs,
+            debug_chat: config.debug_chat,
+        };
+        let result = LanguageLogicUnit::generate_text(&value, context, &text_generation_config)
+            .map_err(|e| {
+                Exception::Executor(BaseException::caused_by("Text generation failed.", e))
+            })?;
 
         crate::debug_print!(
-            debug,
+            config.debug_run,
             "Executed INF  : r{} = '{:?}'",
             instruction.destination_register,
             result
@@ -418,15 +413,7 @@ impl Executor {
     fn evaluate(
         registers: &mut Registers,
         instruction: &EvaluateInstruction,
-        text_model: &str,
-        embedding_model: &str,
-        text_model_overrides: &TextModelOverrides,
-        base_url: &str,
-        chat_completion_endpoint: &str,
-        embeddings_endpoint: &str,
-        timeout_secs: u64,
-        debug: bool,
-        debug_chat: bool,
+        config: &Config,
     ) -> Result<(), Exception> {
         let value = Self::read_text(registers, instruction.source_register)
             .map_err(|e| {
@@ -443,8 +430,8 @@ impl Executor {
             "{}\nAnswer with exactly one word: YES or NO, TRUE or FALSE.\n\nAnswer only:",
             value
         );
-        let true_values = vec!["YES", "TRUE"];
-        let false_values = vec!["NO", "FALSE"];
+        let true_values = vec!["YES".to_string(), "TRUE".to_string()];
+        let false_values = vec!["NO".to_string(), "FALSE".to_string()];
         let context = registers
             .get_context(instruction.context_register)
             .map_err(|e| {
@@ -458,29 +445,32 @@ impl Executor {
             })?;
 
         let eval_params = BooleanEvalParams {
-            true_values: &true_values,
-            false_values: &false_values,
-            embedding_model,
+            true_values: true_values,
+            false_values: false_values,
+            embedding_model: config.embedding_model.clone(),
+        };
+        let text_generation_config = TextGenerationConfig {
+            text_model: config.text_model.clone(),
+            text_model_overrides: config.text_model_overrides.clone(),
+            base_url: config.base_url.clone(),
+            chat_completion_endpoint: config.chat_completion_endpoint.clone(),
+            timeout_secs: config.timeout_secs,
+            debug_chat: config.debug_chat,
         };
 
         let result = LanguageLogicUnit::evaluate_boolean(
             &micro_prompt,
             &eval_params,
             context,
-            text_model,
-            text_model_overrides,
-            base_url,
-            chat_completion_endpoint,
-            embeddings_endpoint,
-            timeout_secs,
-            debug_chat,
+            &text_generation_config,
+            &config.embeddings_endpoint,
         )
         .map_err(|e| {
             Exception::Executor(BaseException::caused_by("Boolean evaluation failed.", e))
         })?;
 
         crate::debug_print!(
-            debug,
+            config.debug_run,
             "Executed EVAL: r{} = '{:?}'",
             instruction.destination_register,
             result
@@ -947,31 +937,9 @@ impl Executor {
             Instruction::PrintLine(i) => Self::print_line(registers, i, config.debug_run),
             Instruction::PrintContext(i) => Self::print_context(registers, i, config.debug_run),
             // Generative operations.
-            Instruction::Inference(i) => Self::inference(
-                registers,
-                i,
-                &config.text_model,
-                &config.text_model_overrides,
-                &config.base_url,
-                &config.chat_completion_endpoint,
-                config.timeout_secs,
-                config.debug_run,
-                config.debug_chat,
-            ),
+            Instruction::Inference(i) => Self::inference(registers, i, config),
             // Guardrails operations.
-            Instruction::Evaluate(i) => Self::evaluate(
-                registers,
-                i,
-                &config.text_model,
-                &config.embedding_model,
-                &config.text_model_overrides,
-                &config.base_url,
-                &config.chat_completion_endpoint,
-                &config.embeddings_endpoint,
-                config.timeout_secs,
-                config.debug_run,
-                config.debug_chat,
-            ),
+            Instruction::Evaluate(i) => Self::evaluate(registers, i, config),
             Instruction::Similarity(i) => Self::similarity(
                 registers,
                 i,

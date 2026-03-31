@@ -1,6 +1,7 @@
 use crate::{
     assembler::roles,
     config::TextModelOverrides,
+    constants::SYSTEM_PROMPT,
     exception::{BaseException, Exception},
     processor::{
         control_unit::language_logic_unit::openai::{
@@ -17,13 +18,19 @@ use crate::{
 
 mod openai;
 
-const SYSTEM_PROMPT: &str =
-    "Provide exactly the requested output. Follow structural markers strictly.";
+pub struct BooleanEvalParams {
+    pub true_values: Vec<String>,
+    pub false_values: Vec<String>,
+    pub embedding_model: String,
+}
 
-pub struct BooleanEvalParams<'a> {
-    pub true_values: &'a [&'a str],
-    pub false_values: &'a [&'a str],
-    pub embedding_model: &'a str,
+pub struct TextGenerationConfig {
+    pub text_model: String,
+    pub text_model_overrides: TextModelOverrides,
+    pub base_url: String,
+    pub chat_completion_endpoint: String,
+    pub timeout_secs: u64,
+    pub debug_chat: bool,
 }
 
 pub struct LanguageLogicUnit;
@@ -164,14 +171,12 @@ impl LanguageLogicUnit {
     fn chat(
         content: &str,
         context: &[ContextMessage],
-        text_model: &str,
-        text_model_overrides: &TextModelOverrides,
-        base_url: &str,
-        chat_completion_endpoint: &str,
-        timeout_secs: u64,
-        debug_chat: bool,
+        text_generation_config: &TextGenerationConfig,
     ) -> Result<String, Exception> {
-        let model = Self::default_text_model(text_model, text_model_overrides);
+        let model = Self::default_text_model(
+            &text_generation_config.text_model,
+            &text_generation_config.text_model_overrides,
+        );
         let messages = std::iter::once(OpenAIChatCompletionRequestText {
             role: roles::SYSTEM_ROLE.to_string(),
             content: SYSTEM_PROMPT.to_string(),
@@ -203,7 +208,7 @@ impl LanguageLogicUnit {
             ))
         })?;
 
-        if debug_chat {
+        if text_generation_config.debug_chat {
             println!("--- Chat Messages ---");
             for message in &messages {
                 println!("Role: {}, Content: {}", message.role, message.content);
@@ -213,9 +218,9 @@ impl LanguageLogicUnit {
 
         let request = OpenAIChatCompletionRequest::new(messages, model);
         let response = OpenAIClient::chat_completion(
-            base_url,
-            chat_completion_endpoint,
-            timeout_secs,
+            &text_generation_config.base_url,
+            &text_generation_config.chat_completion_endpoint,
+            text_generation_config.timeout_secs,
             request,
         )
         .map_err(|e| {
@@ -309,31 +314,16 @@ impl LanguageLogicUnit {
     pub fn generate_text(
         micro_prompt: &str,
         context: &[ContextMessage],
-        text_model: &str,
-        text_model_overrides: &TextModelOverrides,
-        base_url: &str,
-        chat_completion_endpoint: &str,
-        timeout_secs: u64,
-        debug_chat: bool,
+        text_generation_config: &TextGenerationConfig,
     ) -> Result<String, Exception> {
-        Self::chat(
-            micro_prompt,
-            context,
-            text_model,
-            text_model_overrides,
-            base_url,
-            chat_completion_endpoint,
-            timeout_secs,
-            debug_chat,
-        )
-        .map_err(|e| {
+        Self::chat(micro_prompt, context, text_generation_config).map_err(|e| {
             Exception::LanguageLogic(BaseException::caused_by("Chat completion failed.", e))
         })
     }
 
     fn max_similarity_score(
         value: &str,
-        candidates: &[&str],
+        candidates: &Vec<String>,
         embedding_model: &str,
         base_url: &str,
         embeddings_endpoint: &str,
@@ -365,38 +355,24 @@ impl LanguageLogicUnit {
         micro_prompt: &str,
         eval_params: &BooleanEvalParams,
         context: &[ContextMessage],
-        text_model: &str,
-        text_model_overrides: &TextModelOverrides,
-        base_url: &str,
-        chat_completion_endpoint: &str,
+        text_generation_config: &TextGenerationConfig,
         embeddings_endpoint: &str,
-        timeout_secs: u64,
-        debug_chat: bool,
     ) -> Result<u32, Exception> {
-        let value = Self::generate_text(
-            micro_prompt,
-            context,
-            text_model,
-            text_model_overrides,
-            base_url,
-            chat_completion_endpoint,
-            timeout_secs,
-            debug_chat,
-        )
-        .map_err(|e| {
-            Exception::LanguageLogic(BaseException::caused_by(
-                "Text generation for boolean evaluation failed.",
-                e,
-            ))
-        })?;
+        let value =
+            Self::generate_text(micro_prompt, context, text_generation_config).map_err(|e| {
+                Exception::LanguageLogic(BaseException::caused_by(
+                    "Text generation for boolean evaluation failed.",
+                    e,
+                ))
+            })?;
 
         let max_true_score = Self::max_similarity_score(
             &value,
-            eval_params.true_values,
-            eval_params.embedding_model,
-            base_url,
+            &eval_params.true_values,
+            &eval_params.embedding_model,
+            &text_generation_config.base_url,
             embeddings_endpoint,
-            timeout_secs,
+            text_generation_config.timeout_secs,
         )
         .map_err(|e| {
             Exception::LanguageLogic(BaseException::caused_by(
@@ -406,11 +382,11 @@ impl LanguageLogicUnit {
         })?;
         let max_false_score = Self::max_similarity_score(
             &value,
-            eval_params.false_values,
-            eval_params.embedding_model,
-            base_url,
+            &eval_params.false_values,
+            &eval_params.embedding_model,
+            &text_generation_config.base_url,
             embeddings_endpoint,
-            timeout_secs,
+            text_generation_config.timeout_secs,
         )
         .map_err(|e| {
             Exception::LanguageLogic(BaseException::caused_by(

@@ -3,10 +3,10 @@ use std::collections::HashMap;
 use crate::assembler::opcode::OpCode;
 use crate::assembler::scanner::Scanner;
 use crate::assembler::scanner::token::{Token, TokenType};
+use crate::constants::{ASSISTANT_ROLE, USER_ROLE};
 use crate::exception::{BaseException, Exception};
 
 pub mod opcode;
-pub mod roles;
 mod scanner;
 
 const HEADER_SIZE: u32 = 2;
@@ -389,12 +389,10 @@ impl Assembler {
         }
 
         let lower = role.to_lowercase();
-        if !matches!(lower.as_str(), roles::USER_ROLE | roles::ASSISTANT_ROLE) {
+        if !matches!(lower.as_str(), USER_ROLE | ASSISTANT_ROLE) {
             let message = format!(
                 "Invalid role name '{}'. Expected '{}' or '{}'.",
-                role,
-                roles::USER_ROLE,
-                roles::ASSISTANT_ROLE
+                role, USER_ROLE, ASSISTANT_ROLE
             );
             self.error_at_previous(&message)?;
             return Err(Exception::Assembler(BaseException::new(message, None)));

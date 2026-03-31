@@ -3,6 +3,7 @@ mod config;
 mod constants;
 mod env;
 mod exception;
+mod opcodes;
 mod processor;
 
 use std::{
@@ -12,13 +13,20 @@ use std::{
 
 use crate::{
     config::{Config, TextModelOverrides},
+    constants::{
+        BUILD_DIR, DEBUG_BUILD_ENV, DEBUG_CHAT_ENV, DEBUG_RUN_ENV, EMBEDDING_MODEL_ENV, HELP_USAGE,
+        OPENAI_BASE_URL_DEFAULT, OPENAI_BASE_URL_ENV, OPENAI_CHAT_COMPLETION_ENDPOINT_DEFAULT,
+        OPENAI_CHAT_COMPLETION_ENDPOINT_ENV, OPENAI_EMBEDDINGS_ENDPOINT_DEFAULT,
+        OPENAI_EMBEDDINGS_ENDPOINT_ENV, OPENAI_TIMEOUT_SECS_DEFAULT, OPENAI_TIMEOUT_SECS_ENV,
+        TEXT_MODEL_ENV,
+    },
     exception::{BaseException, Exception},
 };
 
 fn start_up() -> Result<(), Exception> {
-    std::fs::create_dir_all(constants::BUILD_DIR).map_err(|e| {
+    std::fs::create_dir_all(BUILD_DIR).map_err(|e| {
         Exception::Program(BaseException::caused_by(
-            format!("Failed to create build directory: {}", constants::BUILD_DIR),
+            format!("Failed to create build directory: {}", BUILD_DIR),
             e,
         ))
     })
@@ -33,27 +41,21 @@ fn load_config() -> Result<Config, Exception> {
     }
 
     Ok(Config {
-        text_model: env::required(constants::TEXT_MODEL_ENV)?,
-        embedding_model: env::required(constants::EMBEDDING_MODEL_ENV)?,
-        base_url: env::with_default(
-            constants::OPENAI_BASE_URL_ENV,
-            constants::OPENAI_BASE_URL_DEFAULT,
-        ),
+        text_model: env::required(TEXT_MODEL_ENV)?,
+        embedding_model: env::required(EMBEDDING_MODEL_ENV)?,
+        base_url: env::with_default(OPENAI_BASE_URL_ENV, OPENAI_BASE_URL_DEFAULT),
         chat_completion_endpoint: env::with_default(
-            constants::OPENAI_CHAT_COMPLETION_ENDPOINT_ENV,
-            constants::OPENAI_CHAT_COMPLETION_ENDPOINT_DEFAULT,
+            OPENAI_CHAT_COMPLETION_ENDPOINT_ENV,
+            OPENAI_CHAT_COMPLETION_ENDPOINT_DEFAULT,
         ),
         embeddings_endpoint: env::with_default(
-            constants::OPENAI_EMBEDDINGS_ENDPOINT_ENV,
-            constants::OPENAI_EMBEDDINGS_ENDPOINT_DEFAULT,
+            OPENAI_EMBEDDINGS_ENDPOINT_ENV,
+            OPENAI_EMBEDDINGS_ENDPOINT_DEFAULT,
         ),
-        timeout_secs: env::u64_with_default(
-            constants::OPENAI_TIMEOUT_SECS_ENV,
-            constants::OPENAI_TIMEOUT_SECS_DEFAULT,
-        ),
-        debug_build: env::bool(constants::DEBUG_BUILD_ENV),
-        debug_run: env::bool(constants::DEBUG_RUN_ENV),
-        debug_chat: env::bool(constants::DEBUG_CHAT_ENV),
+        timeout_secs: env::u64_with_default(OPENAI_TIMEOUT_SECS_ENV, OPENAI_TIMEOUT_SECS_DEFAULT),
+        debug_build: env::bool(DEBUG_BUILD_ENV),
+        debug_run: env::bool(DEBUG_RUN_ENV),
+        debug_chat: env::bool(DEBUG_CHAT_ENV),
         text_model_overrides: TextModelOverrides::from_env(),
     })
 }
@@ -90,7 +92,7 @@ fn build(file_path: &str, config: &Config) -> Result<(), Exception> {
         ))
     })?;
 
-    let output_file_name = format!("{}/{}.lpu", constants::BUILD_DIR, stem);
+    let output_file_name = format!("{}/{}.lpu", BUILD_DIR, stem);
 
     write(&output_file_name, byte_code).map_err(|e| {
         Exception::Program(BaseException::caused_by(
@@ -144,17 +146,17 @@ fn main() {
 
     let result = match (args.get(1).map(String::as_str), args.get(2)) {
         (None, _) => {
-            println!("No command provided. {}", constants::HELP_USAGE);
+            println!("No command provided. {}", HELP_USAGE);
             return;
         }
         (_, None) => {
-            println!("No file path provided. {}", constants::HELP_USAGE);
+            println!("No file path provided. {}", HELP_USAGE);
             return;
         }
         (Some("build"), Some(file_path)) => build(file_path, &config),
         (Some("run"), Some(file_path)) => run(file_path, &config),
         (Some(other), _) => {
-            println!("Unknown command: {}. {}", other, constants::HELP_USAGE);
+            println!("Unknown command: {}. {}", other, HELP_USAGE);
             return;
         }
     };

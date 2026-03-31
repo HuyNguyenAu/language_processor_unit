@@ -52,3 +52,8 @@ pub const TEXT_MODEL_TIMINGS_PER_TOKEN_ENV: &str = "TEXT_MODEL_TIMINGS_PER_TOKEN
 // Language logic unit constants.
 pub const SYSTEM_PROMPT: &str =
     "Provide exactly the requested output. Follow structural markers strictly.";
+
+// Chat role constants.
+pub const SYSTEM_ROLE: &str = "system";
+pub const USER_ROLE: &str = "user";
+pub const ASSISTANT_ROLE: &str = "assistant";

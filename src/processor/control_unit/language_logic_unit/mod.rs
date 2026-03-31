@@ -1,7 +1,6 @@
 use crate::{
-    assembler::roles,
     config::TextModelOverrides,
-    constants::SYSTEM_PROMPT,
+    constants::{ASSISTANT_ROLE, SYSTEM_PROMPT, SYSTEM_ROLE, USER_ROLE},
     exception::{BaseException, Exception},
     processor::{
         control_unit::language_logic_unit::{
@@ -122,15 +121,15 @@ impl LanguageLogicUnit {
             );
         }
 
-        if messages[0].role != roles::SYSTEM_ROLE {
+        if messages[0].role != SYSTEM_ROLE {
             return validation_err("The first message must be a system message.".to_string());
         }
 
-        if messages[1].role != roles::USER_ROLE {
+        if messages[1].role != USER_ROLE {
             return validation_err("The second message must be a user message.".to_string());
         }
 
-        let mut expected_role = roles::ASSISTANT_ROLE;
+        let mut expected_role = ASSISTANT_ROLE;
         for message in messages.iter().skip(2) {
             if message.role != expected_role {
                 return validation_err(format!(
@@ -139,14 +138,14 @@ impl LanguageLogicUnit {
                 ));
             }
 
-            expected_role = if expected_role == roles::ASSISTANT_ROLE {
-                roles::USER_ROLE
+            expected_role = if expected_role == ASSISTANT_ROLE {
+                USER_ROLE
             } else {
-                roles::ASSISTANT_ROLE
+                ASSISTANT_ROLE
             };
         }
 
-        if messages.last().map(|m| m.role.as_str()) != Some(roles::USER_ROLE) {
+        if messages.last().map(|m| m.role.as_str()) != Some(USER_ROLE) {
             return validation_err(format!(
                 "Messages must end with a user message, but the last message has role '{}'.",
                 messages
@@ -169,7 +168,7 @@ impl LanguageLogicUnit {
             &text_generation_config.text_model_overrides,
         );
         let messages = std::iter::once(OpenAIChatCompletionRequestText {
-            role: roles::SYSTEM_ROLE.to_string(),
+            role: SYSTEM_ROLE.to_string(),
             content: SYSTEM_PROMPT.to_string(),
         })
         .chain(
@@ -181,7 +180,7 @@ impl LanguageLogicUnit {
                 }),
         )
         .chain(std::iter::once(OpenAIChatCompletionRequestText {
-            role: roles::USER_ROLE.to_string(),
+            role: USER_ROLE.to_string(),
             content: content.to_string(),
         }))
         .collect::<Vec<OpenAIChatCompletionRequestText>>();

@@ -207,7 +207,7 @@ impl Assembler {
             Ok(value) => Ok(value),
             Err(error) => {
                 let message = format!("Failed to parse number from lexeme '{}'.", previous_lexeme);
-                let _ = self.error_at_current(&message);
+                self.error_at_current(&message)?;
                 Err(Exception::Assembler(BaseException::caused_by(
                     message, error,
                 )))
@@ -234,7 +234,7 @@ impl Assembler {
             Ok(v) => v,
             Err(_) => {
                 let err = format!("Failed to parse register number from '{}'.", lexeme);
-                let _ = self.error_at_previous(&err);
+                self.error_at_previous(&err)?;
                 return Err(Exception::Assembler(BaseException::new(err, None)));
             }
         };
@@ -316,7 +316,7 @@ impl Assembler {
             };
 
             let bytes = (HEADER_SIZE + index).to_be_bytes();
-            
+
             for &idx in &unresolved.indices {
                 self.text_segment[idx] = bytes;
             }
@@ -325,7 +325,7 @@ impl Assembler {
         });
 
         if let Some(message) = error {
-            let _ = self.error_at_current(&message);
+            self.error_at_current(&message)?;
             return Err(Exception::Assembler(BaseException::new(message, None)));
         }
 
@@ -353,7 +353,11 @@ impl Assembler {
                 u32::MAX,
                 self.data_segment.len()
             );
-            let _ = self.error_at_current(&message);
+
+            if let Err(e) = self.error_at_current(&message) {
+                return e;
+            }
+
             Exception::Assembler(BaseException::new(message, None))
         })?;
 
@@ -631,9 +635,7 @@ impl Assembler {
             TokenType::LoadString | TokenType::LoadContent => {
                 self.single_register_string(token_type, op_code, false)
             }
-            TokenType::LoadImmediate => {
-                self.single_register_number(token_type, op_code)
-            }
+            TokenType::LoadImmediate => self.single_register_number(token_type, op_code),
             TokenType::Move => self.double_register(token_type, op_code, false, false),
             // Control flow.
             TokenType::BranchEqual
@@ -714,7 +716,11 @@ impl Assembler {
                 u32::MAX,
                 self.text_segment.len()
             );
-            let _ = self.error_at_current(&message);
+
+            if let Err(e) = self.error_at_current(&message) {
+                return e;
+            }
+
             Exception::Assembler(BaseException::new(message, None))
         })?;
 

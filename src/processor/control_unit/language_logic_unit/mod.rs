@@ -323,7 +323,7 @@ impl LanguageLogicUnit {
 
     fn max_similarity_score(
         value: &str,
-        candidates: &Vec<String>,
+        candidates: &[String],
         embedding_model: &str,
         base_url: &str,
         embeddings_endpoint: &str,

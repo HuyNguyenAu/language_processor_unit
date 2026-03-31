@@ -445,8 +445,8 @@ impl Executor {
             })?;
 
         let eval_params = BooleanEvalParams {
-            true_values: true_values,
-            false_values: false_values,
+            true_values,
+            false_values,
             embedding_model: config.embedding_model.clone(),
         };
         let text_generation_config = TextGenerationConfig {

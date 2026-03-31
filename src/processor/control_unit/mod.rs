@@ -107,19 +107,11 @@ impl ControlUnit {
         })
     }
 
-    pub fn execute(
-        &mut self,
-        instruction: Instruction,
-        config: &Config,
-    ) -> Result<(), Exception> {
-        Executor::execute(
-            &mut self.memory,
-            &mut self.registers,
-            &instruction,
-            config,
+    pub fn execute(&mut self, instruction: Instruction, config: &Config) -> Result<(), Exception> {
+        Executor::execute(&mut self.memory, &mut self.registers, &instruction, config).map_err(
+            |e| {
+                Exception::ControlUnit(BaseException::caused_by("Failed to execute instruction", e))
+            },
         )
-        .map_err(|e| {
-            Exception::ControlUnit(BaseException::caused_by("Failed to execute instruction", e))
-        })
     }
 }

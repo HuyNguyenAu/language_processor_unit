@@ -264,6 +264,24 @@ impl LanguageLogicUnit {
         )
     }
 
+    fn max_similarity_score(
+        value: &str,
+        candidates: &[&str],
+        embedding_model: &str,
+    ) -> Result<u32, Exception> {
+        candidates
+            .iter()
+            .map(|candidate| {
+                Self::cosine_similarity(
+                    &value.to_lowercase(),
+                    &candidate.to_lowercase(),
+                    embedding_model,
+                )
+            })
+            .collect::<Result<Vec<_>, _>>()
+            .map(|scores| scores.into_iter().max().unwrap_or(0))
+    }
+
     pub fn boolean(
         micro_prompt: &str,
         eval_params: &BooleanEvalParams,
@@ -280,27 +298,16 @@ impl LanguageLogicUnit {
             debug_chat,
         )?;
 
-        let max_true_score = eval_params
-            .true_values
-            .iter()
-            .map(|tv| {
-                Self::cosine_similarity(&value.to_lowercase(), &tv.to_lowercase(), eval_params.embedding_model)
-            })
-            .collect::<Result<Vec<_>, _>>()?
-            .into_iter()
-            .max()
-            .unwrap_or(0);
-
-        let max_false_score = eval_params
-            .false_values
-            .iter()
-            .map(|fv| {
-                Self::cosine_similarity(&value.to_lowercase(), &fv.to_lowercase(), eval_params.embedding_model)
-            })
-            .collect::<Result<Vec<_>, _>>()?
-            .into_iter()
-            .max()
-            .unwrap_or(0);
+        let max_true_score = Self::max_similarity_score(
+            &value,
+            eval_params.true_values,
+            eval_params.embedding_model,
+        )?;
+        let max_false_score = Self::max_similarity_score(
+            &value,
+            eval_params.false_values,
+            eval_params.embedding_model,
+        )?;
 
         if max_true_score > max_false_score {
             Ok(100)

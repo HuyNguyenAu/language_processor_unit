@@ -152,12 +152,12 @@ impl Executor {
         let value_a = Self::read_number(registers, instruction.source_register_1)?;
         let value_b = Self::read_number(registers, instruction.source_register_2)?;
 
-        let is_true = match instruction.branch_type {
-            BranchType::Equal => value_a == value_b,
-            BranchType::Less => value_a < value_b,
-            BranchType::LessEqual => value_a <= value_b,
-            BranchType::Greater => value_a > value_b,
-            BranchType::GreaterEqual => value_a >= value_b,
+        let (is_true, label) = match instruction.branch_type {
+            BranchType::Equal => (value_a == value_b, "BEQ"),
+            BranchType::Less => (value_a < value_b, "BLT"),
+            BranchType::LessEqual => (value_a <= value_b, "BLE"),
+            BranchType::Greater => (value_a > value_b, "BGT"),
+            BranchType::GreaterEqual => (value_a >= value_b, "BGE"),
         };
 
         if is_true {
@@ -170,14 +170,6 @@ impl Executor {
                 })?;
             registers.set_instruction_pointer(pointer);
         }
-
-        let label = match instruction.branch_type {
-            BranchType::Equal => "BEQ",
-            BranchType::Less => "BLT",
-            BranchType::LessEqual => "BLE",
-            BranchType::Greater => "BGT",
-            BranchType::GreaterEqual => "BGE",
-        };
 
         crate::debug_print!(
             debug,

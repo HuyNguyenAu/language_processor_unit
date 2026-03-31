@@ -26,7 +26,7 @@ impl Scanner {
     }
 
     fn is_alpha(ch: char) -> bool {
-        ch.is_ascii_alphabetic() || ch == '_' || ch == ':'
+        ch.is_ascii_alphabetic()
     }
 
     fn is_digit(ch: char) -> bool {
@@ -110,18 +110,14 @@ impl Scanner {
     }
 
     fn label(&mut self) -> Token {
-        let token = self.make_token(TokenType::Label);
-
-        // Consume the ':'.
-        self.advance();
-
-        token
+        // The ':' is already consumed in the identifier.
+        self.make_token(TokenType::Label)
     }
 
     fn identifier(&mut self) -> Token {
         while !self.is_at_end()
             && let char = self.peek()
-            && (Self::is_alpha(char) || Self::is_digit(char))
+            && (Self::is_alpha(char) || Self::is_digit(char) || char == '_' || char == ':')
         {
             self.advance();
         }

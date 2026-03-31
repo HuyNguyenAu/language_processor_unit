@@ -5,9 +5,7 @@ pub fn args() -> Vec<String> {
 }
 
 pub fn required(key: &str) -> Result<String, String> {
-    env::var(key).map_err(|e| {
-        format!("{} must be set in the .env file: {:#?}", key, e)
-    })
+    env::var(key).map_err(|e| format!("{} must be set in the .env file: {:#?}", key, e))
 }
 
 pub fn bool(key: &str) -> bool {

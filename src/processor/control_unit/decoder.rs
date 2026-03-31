@@ -1,6 +1,6 @@
 use crate::{
-    opcodes::OpCode,
     exception::{BaseException, Exception},
+    opcodes::OpCode,
     processor::{
         control_unit::instruction::{
             AddImmediateInstruction, BranchInstruction, BranchType, ContextDropInstruction,

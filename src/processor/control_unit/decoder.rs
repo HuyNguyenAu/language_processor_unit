@@ -3,12 +3,7 @@ use crate::{
     exception::{BaseException, Exception},
     processor::{
         control_unit::instruction::{
-            BranchInstruction, BranchType, ContextDropInstruction, ContextPopInstruction,
-            ContextPushInstruction, EndOfCsvInstruction, EvalulateInstruction, ExitInstruction,
-            InferenceInstruction, Instruction, LoadContentInstruction, LoadImmediateInstruction,
-            LoadStringInstruction, MoveContextInstruction, MoveInstruction,
-            PrintContextInstruction, PrintInstruction, PrintLineInstruction, ReadCsvRowInstruction,
-            SimilarityInstruction, SubtractImmediateInstruction,
+            BranchInstruction, BranchType, ContextDropInstruction, ContextPopInstruction, ContextPushInstruction, EvalulateInstruction, ExitInstruction, InferenceInstruction, Instruction, LoadContentInstruction, LoadImmediateInstruction, LoadStringInstruction, MoveContextInstruction, MoveInstruction, PrintContextInstruction, PrintInstruction, PrintLineInstruction, ReadCSVInstruction, SimilarityInstruction, StatusCSVInstruction, SubtractImmediateInstruction
         },
         memory::Memory,
         registers::Registers,
@@ -215,11 +210,11 @@ impl Decoder {
                 source_context_register: source_register,
             })),
             // CSV operations.
-            OpCode::ReadCsvRow => Ok(Instruction::ReadCsvRow(ReadCsvRowInstruction {
+            OpCode::ReadCSV => Ok(Instruction::ReadCSV(ReadCSVInstruction {
                 destination_register,
                 source_register,
             })),
-            OpCode::EndOfCsv => Ok(Instruction::EndOfCsv(EndOfCsvInstruction {
+            OpCode::StatusCSV => Ok(Instruction::StatusCSV(StatusCSVInstruction {
                 destination_register,
                 source_register,
             })),
@@ -346,7 +341,7 @@ impl Decoder {
                 Self::triple_register(op_code, instruction_bytes)
             }
             // CSV operations.
-            OpCode::ReadCsvRow | OpCode::EndOfCsv => {
+            OpCode::ReadCSV | OpCode::StatusCSV => {
                 Self::double_register(op_code, instruction_bytes)
             }
             OpCode::NoOp => unreachable!(),

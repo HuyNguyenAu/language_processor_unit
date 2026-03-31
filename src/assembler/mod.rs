@@ -198,8 +198,12 @@ impl Assembler {
     }
 
     fn number(&mut self, message: &str) -> Result<u32, Exception> {
-        self.consume(&TokenType::Number, message)?;
-        let previous_lexeme = self.previous_lexeme()?;
+        self.consume(&TokenType::Number, message).map_err(|e| {
+            Exception::Assembler(BaseException::caused_by("Expected a number literal.", e))
+        })?;
+        let previous_lexeme = self.previous_lexeme().map_err(|e| {
+            Exception::Assembler(BaseException::caused_by("Failed to read number lexeme.", e))
+        })?;
 
         match previous_lexeme.parse::<u32>() {
             Ok(value) => Ok(value),
@@ -214,8 +218,18 @@ impl Assembler {
     }
 
     fn register(&mut self, message: &str, context: bool) -> Result<u32, Exception> {
-        self.consume(&TokenType::Identifier, message)?;
-        let lexeme = self.previous_lexeme()?;
+        self.consume(&TokenType::Identifier, message).map_err(|e| {
+            Exception::Assembler(BaseException::caused_by(
+                "Expected a register identifier.",
+                e,
+            ))
+        })?;
+        let lexeme = self.previous_lexeme().map_err(|e| {
+            Exception::Assembler(BaseException::caused_by(
+                "Failed to read register lexeme.",
+                e,
+            ))
+        })?;
 
         let expected_prefixes = if context { 'c' } else { 'x' };
 
@@ -238,7 +252,10 @@ impl Assembler {
         };
 
         if register_number > MAX_REGISTER {
-            let err = format!("Register number {} out of range (0-{}).", register_number, MAX_REGISTER);
+            let err = format!(
+                "Register number {} out of range (0-{}).",
+                register_number, MAX_REGISTER
+            );
             self.error_at_previous(&err)?;
             return Err(Exception::Assembler(BaseException::new(err, None)));
         }
@@ -247,21 +264,39 @@ impl Assembler {
     }
 
     fn string(&mut self, message: &str) -> Result<String, Exception> {
-        self.consume(&TokenType::String, message)?;
-        let lexeme = self.previous_lexeme()?;
+        self.consume(&TokenType::String, message).map_err(|e| {
+            Exception::Assembler(BaseException::caused_by("Expected a string literal.", e))
+        })?;
+        let lexeme = self.previous_lexeme().map_err(|e| {
+            Exception::Assembler(BaseException::caused_by("Failed to read string lexeme.", e))
+        })?;
 
         let inner = &lexeme[1..lexeme.len() - 1];
         Ok(inner.replace("\\n", "\n").replace("\\\"", "\""))
     }
 
     fn identifier(&mut self, message: &str) -> Result<&str, Exception> {
-        self.consume(&TokenType::Identifier, message)?;
-        self.previous_lexeme()
+        self.consume(&TokenType::Identifier, message).map_err(|e| {
+            Exception::Assembler(BaseException::caused_by("Expected an identifier.", e))
+        })?;
+        self.previous_lexeme().map_err(|e| {
+            Exception::Assembler(BaseException::caused_by(
+                "Failed to read identifier lexeme.",
+                e,
+            ))
+        })
     }
 
     fn label(&mut self) -> Result<(), Exception> {
-        self.consume(&TokenType::Label, "Expected label name.")?;
-        let label_name = self.previous_lexeme()?.trim_end_matches(':').to_string();
+        self.consume(&TokenType::Label, "Expected label name.")
+            .map_err(|e| Exception::Assembler(BaseException::caused_by("Expected a label.", e)))?;
+        let label_name = self
+            .previous_lexeme()
+            .map_err(|e| {
+                Exception::Assembler(BaseException::caused_by("Failed to read label lexeme.", e))
+            })?
+            .trim_end_matches(':')
+            .to_string();
         let byte_code_index = self.text_segment.len();
         self.labels.insert(label_name, byte_code_index);
         Ok(())
@@ -365,7 +400,12 @@ impl Assembler {
 
     fn emit_label(&mut self, key: String) -> Result<(), Exception> {
         self.emit_number(0);
-        self.track_unresolved_label(key)
+        self.track_unresolved_label(key).map_err(|e| {
+            Exception::Assembler(BaseException::caused_by(
+                "Failed to track unresolved label.",
+                e,
+            ))
+        })
     }
 
     fn emit_padding(&mut self, words: usize) {
@@ -670,7 +710,12 @@ impl Assembler {
     }
 
     pub fn assemble(&mut self) -> Result<Vec<u8>, Exception> {
-        self.advance()?;
+        self.advance().map_err(|e| {
+            Exception::Assembler(BaseException::caused_by(
+                "Failed to advance to first token.",
+                e,
+            ))
+        })?;
 
         while !self.panic_mode {
             let token_type = self
@@ -683,7 +728,9 @@ impl Assembler {
                 break;
             }
 
-            self.parse_instruction(&token_type)?;
+            self.parse_instruction(&token_type).map_err(|e| {
+                Exception::Assembler(BaseException::caused_by("Failed to parse instruction.", e))
+            })?;
         }
 
         if self.had_error {
@@ -693,7 +740,12 @@ impl Assembler {
             )));
         }
 
-        self.backpatch_labels()?;
+        self.backpatch_labels().map_err(|e| {
+            Exception::Assembler(BaseException::caused_by(
+                "Failed to backpatch label references.",
+                e,
+            ))
+        })?;
 
         if let Some((_, unresolved_label)) = self.unresolved_labels.iter().next() {
             let token = unresolved_label.token.clone();

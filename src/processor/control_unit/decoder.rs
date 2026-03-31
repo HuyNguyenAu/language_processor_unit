@@ -85,7 +85,13 @@ impl Decoder {
                     registers,
                     string_pointer,
                     &format!("Decoding string for {:?}", op_code),
-                )?;
+                )
+                .map_err(|e| {
+                    Exception::Decoder(BaseException::caused_by(
+                        format!("immediate: failed to read data string for {:?}", op_code),
+                        e,
+                    ))
+                })?;
 
                 if op_code == OpCode::LoadString {
                     Ok(Instruction::LoadString(LoadStringInstruction {
@@ -250,7 +256,16 @@ impl Decoder {
             registers,
             string_pointer,
             &format!("Decoding role string for {:?}", op_code),
-        )?;
+        )
+        .map_err(|e| {
+            Exception::Decoder(BaseException::caused_by(
+                format!(
+                    "double_register_string: failed to read role string for {:?}",
+                    op_code
+                ),
+                e,
+            ))
+        })?;
 
         match op_code {
             // Context operations.
@@ -315,7 +330,9 @@ impl Decoder {
         registers: &Registers,
         instruction_bytes: [[u8; 4]; 4],
     ) -> Result<Instruction, Exception> {
-        let op_code = Self::op_code(&instruction_bytes[0])?;
+        let op_code = Self::op_code(&instruction_bytes[0]).map_err(|e| {
+            Exception::Decoder(BaseException::caused_by("Failed to decode opcode.", e))
+        })?;
 
         if op_code == OpCode::NoOp {
             return Err(Exception::Decoder(BaseException::new(
@@ -324,7 +341,7 @@ impl Decoder {
             )));
         }
 
-        match op_code {
+        let result = match op_code {
             // Data movement.
             OpCode::LoadString | OpCode::LoadImmediate | OpCode::LoadContent | OpCode::Move => {
                 Self::immediate(memory, registers, op_code, instruction_bytes)
@@ -360,6 +377,12 @@ impl Decoder {
             OpCode::LineCount => Self::double_register(op_code, instruction_bytes),
             // Misc.
             OpCode::NoOp => unreachable!(),
-        }
+        };
+        result.map_err(|e| {
+            Exception::Decoder(BaseException::caused_by(
+                format!("Failed to decode {:?} instruction.", op_code),
+                e,
+            ))
+        })
     }
 }

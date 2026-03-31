@@ -187,8 +187,18 @@ impl LanguageLogicUnit {
         }))
         .collect::<Vec<OpenAIChatCompletionRequestText>>();
 
-        let messages = Self::merge_messages_by_role(&messages)?;
-        Self::validate_messages(&messages)?;
+        let messages = Self::merge_messages_by_role(&messages).map_err(|e| {
+            Exception::LanguageLogic(BaseException::caused_by(
+                "Failed to merge consecutive messages by role.",
+                e,
+            ))
+        })?;
+        Self::validate_messages(&messages).map_err(|e| {
+            Exception::LanguageLogic(BaseException::caused_by(
+                "Message sequence validation failed.",
+                e,
+            ))
+        })?;
 
         if debug_chat {
             println!("--- Chat Messages ---");
@@ -199,7 +209,12 @@ impl LanguageLogicUnit {
         }
 
         let request = OpenAIChatCompletionRequest::new(messages, model);
-        let response = OpenAIClient::chat_completion(request)?;
+        let response = OpenAIClient::chat_completion(request).map_err(|e| {
+            Exception::LanguageLogic(BaseException::caused_by(
+                "OpenAI chat completion request failed.",
+                e,
+            ))
+        })?;
 
         let choice = response.choices.first().ok_or_else(|| {
             Exception::LanguageLogic(BaseException::new(
@@ -214,7 +229,12 @@ impl LanguageLogicUnit {
     fn embeddings(content: &str, embedding_model: &str) -> Result<Vec<f32>, Exception> {
         let model = Self::default_embeddings_model(embedding_model);
         let request = OpenAIEmbeddingsRequest::new(content, model);
-        let response = OpenAIClient::embeddings(request)?;
+        let response = OpenAIClient::embeddings(request).map_err(|e| {
+            Exception::LanguageLogic(BaseException::caused_by(
+                "OpenAI embeddings request failed.",
+                e,
+            ))
+        })?;
 
         let embedding = response.data.first().ok_or_else(|| {
             Exception::LanguageLogic(BaseException::new(
@@ -231,8 +251,12 @@ impl LanguageLogicUnit {
         value_b: &str,
         embedding_model: &str,
     ) -> Result<u32, Exception> {
-        let value_a_embeddings = Self::embeddings(value_a, embedding_model)?;
-        let value_b_embeddings = Self::embeddings(value_b, embedding_model)?;
+        let value_a_embeddings = Self::embeddings(value_a, embedding_model).map_err(|e| {
+            Exception::LanguageLogic(BaseException::caused_by("Failed to embed first value.", e))
+        })?;
+        let value_b_embeddings = Self::embeddings(value_b, embedding_model).map_err(|e| {
+            Exception::LanguageLogic(BaseException::caused_by("Failed to embed second value.", e))
+        })?;
 
         // Compute cosine similarity.
         let dot_product: f32 = value_a_embeddings
@@ -262,6 +286,9 @@ impl LanguageLogicUnit {
             text_model_overrides,
             debug_chat,
         )
+        .map_err(|e| {
+            Exception::LanguageLogic(BaseException::caused_by("Chat completion failed.", e))
+        })
     }
 
     fn max_similarity_score(
@@ -277,6 +304,12 @@ impl LanguageLogicUnit {
                     &candidate.to_lowercase(),
                     embedding_model,
                 )
+                .map_err(|e| {
+                    Exception::LanguageLogic(BaseException::caused_by(
+                        "Failed to compute cosine similarity.",
+                        e,
+                    ))
+                })
             })
             .collect::<Result<Vec<_>, _>>()
             .map(|scores| scores.into_iter().max().unwrap_or(0))
@@ -296,18 +329,36 @@ impl LanguageLogicUnit {
             text_model,
             text_model_overrides,
             debug_chat,
-        )?;
+        )
+        .map_err(|e| {
+            Exception::LanguageLogic(BaseException::caused_by(
+                "Text generation for boolean evaluation failed.",
+                e,
+            ))
+        })?;
 
         let max_true_score = Self::max_similarity_score(
             &value,
             eval_params.true_values,
             eval_params.embedding_model,
-        )?;
+        )
+        .map_err(|e| {
+            Exception::LanguageLogic(BaseException::caused_by(
+                "Failed to compute similarity score for true candidates.",
+                e,
+            ))
+        })?;
         let max_false_score = Self::max_similarity_score(
             &value,
             eval_params.false_values,
             eval_params.embedding_model,
-        )?;
+        )
+        .map_err(|e| {
+            Exception::LanguageLogic(BaseException::caused_by(
+                "Failed to compute similarity score for false candidates.",
+                e,
+            ))
+        })?;
 
         if max_true_score > max_false_score {
             Ok(100)

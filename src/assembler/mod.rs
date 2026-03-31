@@ -1,12 +1,11 @@
 use std::collections::HashMap;
 
-use crate::assembler::opcode::OpCode;
 use crate::assembler::scanner::Scanner;
 use crate::assembler::scanner::token::{Token, TokenType};
 use crate::constants::{ASSISTANT_ROLE, USER_ROLE};
 use crate::exception::{BaseException, Exception};
+use crate::opcodes::OpCode;
 
-pub mod opcode;
 mod scanner;
 
 const HEADER_SIZE: u32 = 2;

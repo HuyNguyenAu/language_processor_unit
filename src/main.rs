@@ -3,6 +3,7 @@ mod config;
 mod constants;
 mod env;
 mod exception;
+mod opcodes;
 mod processor;
 
 use std::{

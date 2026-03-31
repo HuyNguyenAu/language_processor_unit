@@ -1,5 +1,5 @@
 use crate::{
-    assembler::opcode::OpCode,
+    opcodes::OpCode,
     exception::{BaseException, Exception},
     processor::{
         control_unit::instruction::{

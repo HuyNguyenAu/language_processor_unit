@@ -29,8 +29,8 @@ pub enum OpCode {
     // Arithmetic operations.
     SubtractImmediate = 0x14,
     // CSV operations.
-    ReadCsvRow = 0x15,
-    EndOfCsv = 0x16,
+    ReadCSV = 0x15,
+    StatusCSV = 0x16,
     // Misc.
     NoOp = 0xFF,
 }
@@ -66,8 +66,8 @@ impl OpCode {
         // Arithmetic operations.
         OpCode::SubtractImmediate,
         // CSV operations.
-        OpCode::ReadCsvRow,
-        OpCode::EndOfCsv,
+        OpCode::ReadCSV,
+        OpCode::StatusCSV,
         // Misc.
         OpCode::NoOp,
     ];

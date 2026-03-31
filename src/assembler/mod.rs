@@ -44,8 +44,8 @@ impl From<TokenType> for OpCode {
             // Arithmetic operations.
             TokenType::SubtractImmediate => OpCode::SubtractImmediate,
             // CSV operations.
-            TokenType::ReadCsvRow => OpCode::ReadCsvRow,
-            TokenType::EndOfCsv => OpCode::EndOfCsv,
+            TokenType::ReadCSV => OpCode::ReadCSV,
+            TokenType::StatusCSV => OpCode::StatusCSV,
             // Misc.
             TokenType::Comma
             | TokenType::Identifier
@@ -658,8 +658,8 @@ impl Assembler {
             TokenType::ContextDrop => self.single_register(token_type, op_code, true),
             TokenType::MoveContext => self.double_register(token_type, op_code, true, true),
             // CSV operations.
-            TokenType::ReadCsvRow => self.double_register(token_type, op_code, false, false),
-            TokenType::EndOfCsv => self.double_register(token_type, op_code, false, false),
+            TokenType::ReadCSV => self.double_register(token_type, op_code, false, false),
+            TokenType::StatusCSV => self.double_register(token_type, op_code, false, false),
             _ => self.error_at_current("Unexpected keyword."),
         }
     }

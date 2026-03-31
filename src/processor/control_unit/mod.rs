@@ -41,7 +41,11 @@ impl ControlUnit {
         Ok(buffer)
     }
 
-    fn header_pointer(&self, index: usize, byte_code: &[[u8; 4]]) -> Result<usize, Exception> {
+    fn parse_header_pointer(
+        &self,
+        index: usize,
+        byte_code: &[[u8; 4]],
+    ) -> Result<usize, Exception> {
         let pointer_bytes = byte_code.get(index).ok_or_else(|| {
             Exception::ControlUnit(BaseException::new(
                 format!("Header pointer at index {} not found", index),
@@ -58,13 +62,13 @@ impl ControlUnit {
     }
 
     pub fn load(&mut self, byte_code: &[[u8; 4]]) -> Result<(), Exception> {
-        let instruction_section_pointer = self.header_pointer(0, byte_code).map_err(|e| {
+        let instruction_section_pointer = self.parse_header_pointer(0, byte_code).map_err(|e| {
             Exception::ControlUnit(BaseException::caused_by(
                 "Invalid instruction section pointer",
                 e,
             ))
         })?;
-        let data_section_pointer = self.header_pointer(1, byte_code).map_err(|e| {
+        let data_section_pointer = self.parse_header_pointer(1, byte_code).map_err(|e| {
             Exception::ControlUnit(BaseException::caused_by("Invalid data section pointer", e))
         })?;
 

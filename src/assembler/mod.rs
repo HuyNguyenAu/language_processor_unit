@@ -79,8 +79,8 @@ pub struct Assembler {
     labels: HashMap<String, usize>,
     unresolved_labels: HashMap<String, UnresolvedLabel>,
 
-    had_error: bool,
-    panic_mode: bool,
+    halted: bool,
+    error_occurred: bool,
 }
 
 impl Assembler {
@@ -96,8 +96,8 @@ impl Assembler {
             current: None,
             labels: HashMap::new(),
             unresolved_labels: HashMap::new(),
-            had_error: false,
-            panic_mode: false,
+            halted: false,
+            error_occurred: false,
         }
     }
 
@@ -124,11 +124,11 @@ impl Assembler {
     }
 
     fn error_at(&mut self, token: &Token, message: &str) {
-        if self.panic_mode {
+        if self.halted {
             return;
         }
 
-        self.panic_mode = true;
+        self.halted = true;
         eprint!("[Line {}:{}] Error:", token.line(), token.column());
 
         if token.token_type() == &TokenType::Error
@@ -139,7 +139,7 @@ impl Assembler {
 
         eprint!(" at '{}'.", self.lexeme(token));
         eprintln!(" {}", message);
-        self.had_error = true;
+        self.error_occurred = true;
     }
 
     fn error_at_current(&mut self, message: &str) -> Result<(), Exception> {
@@ -717,7 +717,7 @@ impl Assembler {
             ))
         })?;
 
-        while !self.panic_mode {
+        while !self.halted {
             let token_type = self
                 .current
                 .as_ref()
@@ -733,7 +733,7 @@ impl Assembler {
             })?;
         }
 
-        if self.had_error {
+        if self.error_occurred {
             return Err(Exception::Assembler(BaseException::new(
                 "Assembly failed due to errors.".to_string(),
                 None,

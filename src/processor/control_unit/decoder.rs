@@ -68,7 +68,7 @@ impl Decoder {
         }
     }
 
-    fn immediate(
+    fn decode_immediate(
         memory: &Memory,
         registers: &Registers,
         op_code: OpCode,
@@ -134,7 +134,10 @@ impl Decoder {
         }
     }
 
-    fn branch(op_code: OpCode, instruction_bytes: [[u8; 4]; 4]) -> Result<Instruction, Exception> {
+    fn decode_branch(
+        op_code: OpCode,
+        instruction_bytes: [[u8; 4]; 4],
+    ) -> Result<Instruction, Exception> {
         let source_register_1 = u32::from_be_bytes(instruction_bytes[1]);
         let source_register_2 = u32::from_be_bytes(instruction_bytes[2]);
         let instruction_pointer_jump_index = u32::from_be_bytes(instruction_bytes[3]);
@@ -164,7 +167,7 @@ impl Decoder {
         }))
     }
 
-    fn no_register(op_code: OpCode) -> Result<Instruction, Exception> {
+    fn decode_no_register(op_code: OpCode) -> Result<Instruction, Exception> {
         match op_code {
             // Control flow.
             OpCode::Exit => Ok(Instruction::Exit(ExitInstruction)),
@@ -178,7 +181,7 @@ impl Decoder {
         }
     }
 
-    fn single_register(
+    fn decode_single_register(
         op_code: OpCode,
         instruction_bytes: [[u8; 4]; 4],
     ) -> Result<Instruction, Exception> {
@@ -209,7 +212,7 @@ impl Decoder {
         }
     }
 
-    fn double_register(
+    fn decode_double_register(
         op_code: OpCode,
         instruction_bytes: [[u8; 4]; 4],
     ) -> Result<Instruction, Exception> {
@@ -241,7 +244,7 @@ impl Decoder {
         }
     }
 
-    fn double_register_string(
+    fn decode_double_register_string(
         memory: &Memory,
         registers: &Registers,
         op_code: OpCode,
@@ -284,7 +287,7 @@ impl Decoder {
         }
     }
 
-    fn triple_register(
+    fn decode_triple_register(
         op_code: OpCode,
         instruction_bytes: [[u8; 4]; 4],
     ) -> Result<Instruction, Exception> {
@@ -344,37 +347,37 @@ impl Decoder {
         let result = match op_code {
             // Data movement.
             OpCode::LoadString | OpCode::LoadImmediate | OpCode::LoadContent | OpCode::Move => {
-                Self::immediate(memory, registers, op_code, instruction_bytes)
+                Self::decode_immediate(memory, registers, op_code, instruction_bytes)
             }
             // Control flow.
             OpCode::BranchEqual
             | OpCode::BranchLess
             | OpCode::BranchLessEqual
             | OpCode::BranchGreater
-            | OpCode::BranchGreaterEqual => Self::branch(op_code, instruction_bytes),
-            OpCode::Exit => Self::no_register(op_code),
+            | OpCode::BranchGreaterEqual => Self::decode_branch(op_code, instruction_bytes),
+            OpCode::Exit => Self::decode_no_register(op_code),
             // I/O.
             OpCode::Print | OpCode::PrintLine | OpCode::PrintContext | OpCode::ContextDrop => {
-                Self::single_register(op_code, instruction_bytes)
+                Self::decode_single_register(op_code, instruction_bytes)
             }
             // Context operations.
             OpCode::ContextPush => {
-                Self::double_register_string(memory, registers, op_code, instruction_bytes)
+                Self::decode_double_register_string(memory, registers, op_code, instruction_bytes)
             }
             OpCode::ContextPop | OpCode::MoveContext => {
-                Self::double_register(op_code, instruction_bytes)
+                Self::decode_double_register(op_code, instruction_bytes)
             }
             // Generative, cognitive, and guardrails operations.
             OpCode::Inference | OpCode::Evaluate | OpCode::Similarity => {
-                Self::triple_register(op_code, instruction_bytes)
+                Self::decode_triple_register(op_code, instruction_bytes)
             }
             // Arithmetic operations.
             OpCode::AddImmediate | OpCode::SubtractImmediate => {
-                Self::immediate(memory, registers, op_code, instruction_bytes)
+                Self::decode_immediate(memory, registers, op_code, instruction_bytes)
             }
             // CSV operations.
-            OpCode::ReadCSV => Self::triple_register(op_code, instruction_bytes),
-            OpCode::LineCount => Self::double_register(op_code, instruction_bytes),
+            OpCode::ReadCSV => Self::decode_triple_register(op_code, instruction_bytes),
+            OpCode::LineCount => Self::decode_double_register(op_code, instruction_bytes),
             // Misc.
             OpCode::NoOp => unreachable!(),
         };

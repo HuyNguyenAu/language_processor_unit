@@ -366,7 +366,7 @@ impl Executor {
                 ))
             })?
             .clone();
-        let context = registers
+        let conversation_history = registers
             .get_context(instruction.context_register)
             .map_err(|e| {
                 Exception::Executor(BaseException::caused_by(
@@ -385,10 +385,11 @@ impl Executor {
             timeout_secs: config.timeout_secs,
             debug_chat: config.debug_chat,
         };
-        let result = LanguageLogicUnit::generate_text(&value, context, &text_generation_config)
-            .map_err(|e| {
-                Exception::Executor(BaseException::caused_by("Text generation failed.", e))
-            })?;
+        let result =
+            LanguageLogicUnit::generate_text(&value, conversation_history, &text_generation_config)
+                .map_err(|e| {
+                    Exception::Executor(BaseException::caused_by("Text generation failed.", e))
+                })?;
 
         crate::debug_print!(
             config.debug_run,
@@ -432,7 +433,7 @@ impl Executor {
         );
         let true_values = vec!["YES".to_string(), "TRUE".to_string()];
         let false_values = vec!["NO".to_string(), "FALSE".to_string()];
-        let context = registers
+        let conversation_history = registers
             .get_context(instruction.context_register)
             .map_err(|e| {
                 Exception::Executor(BaseException::caused_by(
@@ -461,7 +462,7 @@ impl Executor {
         let result = LanguageLogicUnit::evaluate_boolean(
             &micro_prompt,
             &eval_params,
-            context,
+            conversation_history,
             &text_generation_config,
             &config.embeddings_endpoint,
         )
@@ -492,11 +493,7 @@ impl Executor {
     fn similarity(
         registers: &mut Registers,
         instruction: &SimilarityInstruction,
-        embedding_model: &str,
-        base_url: &str,
-        embeddings_endpoint: &str,
-        timeout_secs: u64,
-        debug: bool,
+        config: &Config,
     ) -> Result<(), Exception> {
         let value_a = Self::read_text(registers, instruction.source_register_1)
             .map_err(|e| {
@@ -524,10 +521,10 @@ impl Executor {
         let result = LanguageLogicUnit::cosine_similarity(
             &value_a,
             &value_b,
-            embedding_model,
-            base_url,
-            embeddings_endpoint,
-            timeout_secs,
+            &config.embedding_model,
+            &config.base_url,
+            &config.embeddings_endpoint,
+            config.timeout_secs,
         )
         .map_err(|e| {
             Exception::Executor(BaseException::caused_by(
@@ -537,7 +534,7 @@ impl Executor {
         })?;
 
         crate::debug_print!(
-            debug,
+            config.debug_run,
             "Executed SIM : '{:?}' vs '{:?}' -> r{} = {}",
             value_a,
             value_b,
@@ -940,15 +937,7 @@ impl Executor {
             Instruction::Inference(i) => Self::inference(registers, i, config),
             // Guardrails operations.
             Instruction::Evaluate(i) => Self::evaluate(registers, i, config),
-            Instruction::Similarity(i) => Self::similarity(
-                registers,
-                i,
-                &config.embedding_model,
-                &config.base_url,
-                &config.embeddings_endpoint,
-                config.timeout_secs,
-                config.debug_run,
-            ),
+            Instruction::Similarity(i) => Self::similarity(registers, i, config),
             // Context operations.
             Instruction::ContextPush(i) => Self::context_push(registers, i, config.debug_run),
             Instruction::ContextPop(i) => Self::context_pop(registers, i, config.debug_run),

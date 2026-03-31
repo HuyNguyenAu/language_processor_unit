@@ -24,7 +24,7 @@ fn start_up() -> Result<(), Exception> {
     })
 }
 
-fn config() -> Result<Config, Exception> {
+fn load_config() -> Result<Config, Exception> {
     if dotenv::dotenv().ok().is_none() {
         return Err(Exception::Program(BaseException::new(
             "Failed to load .env file".to_string(),
@@ -132,7 +132,7 @@ fn main() {
         return;
     }
 
-    let config = match config() {
+    let config = match load_config() {
         Ok(config) => config,
         Err(e) => {
             println!("Configuration error: {}", e);

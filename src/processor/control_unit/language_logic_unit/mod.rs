@@ -85,7 +85,7 @@ impl LanguageLogicUnit {
         }
     }
 
-    fn clean_string(value: &str) -> String {
+    fn trim_response(value: &str) -> String {
         value.trim().replace("\n", "").to_string()
     }
 
@@ -168,7 +168,7 @@ impl LanguageLogicUnit {
         Ok(())
     }
 
-    fn chat(
+    fn call_chat_api(
         content: &str,
         context: &[ContextMessage],
         text_generation_config: &TextGenerationConfig,
@@ -237,10 +237,10 @@ impl LanguageLogicUnit {
             ))
         })?;
 
-        Ok(Self::clean_string(&choice.message.content))
+        Ok(Self::trim_response(&choice.message.content))
     }
 
-    fn embeddings(
+    fn fetch_embeddings(
         content: &str,
         embedding_model: &str,
         base_url: &str,
@@ -276,7 +276,7 @@ impl LanguageLogicUnit {
         embeddings_endpoint: &str,
         timeout_secs: u64,
     ) -> Result<u32, Exception> {
-        let value_a_embeddings = Self::embeddings(
+        let value_a_embeddings = Self::fetch_embeddings(
             value_a,
             embedding_model,
             base_url,
@@ -286,7 +286,7 @@ impl LanguageLogicUnit {
         .map_err(|e| {
             Exception::LanguageLogic(BaseException::caused_by("Failed to embed first value.", e))
         })?;
-        let value_b_embeddings = Self::embeddings(
+        let value_b_embeddings = Self::fetch_embeddings(
             value_b,
             embedding_model,
             base_url,
@@ -316,12 +316,12 @@ impl LanguageLogicUnit {
         context: &[ContextMessage],
         text_generation_config: &TextGenerationConfig,
     ) -> Result<String, Exception> {
-        Self::chat(micro_prompt, context, text_generation_config).map_err(|e| {
+        Self::call_chat_api(micro_prompt, context, text_generation_config).map_err(|e| {
             Exception::LanguageLogic(BaseException::caused_by("Chat completion failed.", e))
         })
     }
 
-    fn max_similarity_score(
+    fn best_similarity_match(
         value: &str,
         candidates: &[String],
         embedding_model: &str,
@@ -366,7 +366,7 @@ impl LanguageLogicUnit {
                 ))
             })?;
 
-        let max_true_score = Self::max_similarity_score(
+        let max_true_score = Self::best_similarity_match(
             &value,
             &eval_params.true_values,
             &eval_params.embedding_model,
@@ -380,7 +380,7 @@ impl LanguageLogicUnit {
                 e,
             ))
         })?;
-        let max_false_score = Self::max_similarity_score(
+        let max_false_score = Self::best_similarity_match(
             &value,
             &eval_params.false_values,
             &eval_params.embedding_model,

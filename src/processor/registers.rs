@@ -55,7 +55,7 @@ impl Registers {
         }
     }
 
-    fn to_index(register_number: u32) -> Result<usize, Exception> {
+    fn register_number_to_index(register_number: u32) -> Result<usize, Exception> {
         let idx = usize::try_from(register_number).map_err(|_| {
             Exception::Register(BaseException::new(
                 format!("Invalid register number: {}", register_number),
@@ -74,7 +74,7 @@ impl Registers {
     }
 
     pub fn get_register(&self, register_number: u32) -> Result<&Value, Exception> {
-        let idx = Self::to_index(register_number).map_err(|e| {
+        let idx = Self::register_number_to_index(register_number).map_err(|e| {
             Exception::Register(BaseException::caused_by(
                 "Failed to resolve register index.",
                 e,
@@ -84,7 +84,7 @@ impl Registers {
     }
 
     pub fn set_register(&mut self, register_number: u32, value: &Value) -> Result<(), Exception> {
-        let idx = Self::to_index(register_number).map_err(|e| {
+        let idx = Self::register_number_to_index(register_number).map_err(|e| {
             Exception::Register(BaseException::caused_by(
                 "Failed to resolve register index.",
                 e,
@@ -103,7 +103,7 @@ impl Registers {
     }
 
     pub fn get_context(&self, register_number: u32) -> Result<&[ContextMessage], Exception> {
-        let idx = Self::to_index(register_number).map_err(|e| {
+        let idx = Self::register_number_to_index(register_number).map_err(|e| {
             Exception::Register(BaseException::caused_by(
                 "Failed to resolve context register index.",
                 e,
@@ -117,7 +117,7 @@ impl Registers {
         register_number: u32,
         messages: &[ContextMessage],
     ) -> Result<(), Exception> {
-        let idx = Self::to_index(register_number).map_err(|e| {
+        let idx = Self::register_number_to_index(register_number).map_err(|e| {
             Exception::Register(BaseException::caused_by(
                 "Failed to resolve context register index.",
                 e,
@@ -140,7 +140,7 @@ impl Registers {
         message: ContextMessage,
         register_number: u32,
     ) -> Result<(), Exception> {
-        let idx = Self::to_index(register_number).map_err(|e| {
+        let idx = Self::register_number_to_index(register_number).map_err(|e| {
             Exception::Register(BaseException::caused_by(
                 "Failed to resolve context register index.",
                 e,
@@ -159,7 +159,7 @@ impl Registers {
     }
 
     pub fn pop_context(&mut self, register_number: u32) -> Result<ContextMessage, Exception> {
-        let idx = Self::to_index(register_number).map_err(|e| {
+        let idx = Self::register_number_to_index(register_number).map_err(|e| {
             Exception::Register(BaseException::caused_by(
                 "Failed to resolve context register index.",
                 e,

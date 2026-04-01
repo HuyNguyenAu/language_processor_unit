@@ -183,9 +183,9 @@ A dream state for this project would be to have other frameworks and languages c
 
 ## Registers
 
-There are 33 general-purpose registers, named X0 to X32. These registers can hold text and positive numbers (currently working on support images and audio).
+There are 33 general-purpose registers, named X0 to X32. These registers can hold text and positive numbers (currently working on support images and audio). Register X0 is a special read-only register that always holds the value 0.
 
-Similary, there are 33 context registers, named C0 to C32. These registers are used to manage the context stack, which is a FILO (First In, Last Out) structure that holds a sequence of messages that certain instructions use to maintain context.
+Similary, there are 33 context registers, named C0 to C32. These registers are used to manage the context stack, which is a FILO (First In, Last Out) structure that holds a sequence of messages that certain instructions use to maintain context. The context register C0 is a special read-only register that always holds an empty context stack.
 
 ## Context Stack
 

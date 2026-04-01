@@ -80,6 +80,12 @@ impl Registers {
                 e,
             ))
         })?;
+
+        // Register 0 is reserved for zero value.
+        if idx == 0 {
+            return Ok(&Value::Number(0));
+        }
+
         Ok(&self.general_purpose[idx])
     }
 

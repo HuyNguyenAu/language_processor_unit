@@ -183,9 +183,9 @@ A dream state for this project would be to have other frameworks and languages c
 
 ## Registers
 
-There are 33 general-purpose registers, named X0 to X32. These registers can hold text and positive numbers (currently working on support images and audio).
+There are 33 general-purpose registers, named X0 to X32. These registers can hold text and positive numbers (currently working on support images and audio). Register X0 is a special read-only register that always holds the value 0.
 
-Similary, there are 33 context registers, named C0 to C32. These registers are used to manage the context stack, which is a FILO (First In, Last Out) structure that holds a sequence of messages that certain instructions use to maintain context.
+Similary, there are 33 context registers, named C0 to C32. These registers are used to manage the context stack, which is a FILO (First In, Last Out) structure that holds a sequence of messages that certain instructions use to maintain context. The context register C0 is a special read-only register that always holds an empty context stack.
 
 ## Context Stack
 
@@ -215,6 +215,7 @@ The instruction set is loosely inspired by RISC-V assembly language:
 | MV          | Copy `rs` into `rd`                                                                                                              | `mv rd, rs`                        |
 | MVC         | Copy `rsc` into `rdc`                                                                                                            | `mvc rdc, rsc`                     |
 | BEQ         | Go to label if `rs1` = `rs2`                                                                                                     | `beq rs1, rs2, label_name`         |
+| BNE         | Go to label if `rs1` != `rs2`                                                                                                    | `bne rs1, rs2, label_name`         |
 | BLT         | Go to label if `rs1` < `rs2`                                                                                                     | `blt rs1, rs2, label_name`         |
 | BLE         | Go to label if `rs1` <= `rs2`                                                                                                    | `ble rs1, rs2, label_name`         |
 | BGT         | Go to label if `rs1` > `rs2`                                                                                                     | `bgt rs1, rs2, label_name`         |
@@ -225,11 +226,14 @@ The instruction set is loosely inspired by RISC-V assembly language:
 | INF         | Use `rs` as the next message and store the response in `rd` using context register `rsc`                                         | `inf rd, rs, rsc`                  |
 | EVAL        | Boolean evaluation of the question `rs` and store the response in `rd` (0 = false/no, 1 = true/yes) using context register `rsc` | `eval rd, rs, rsc`                 |
 | SIM         | Cosine similarity between `rs` and `rs` and store the result in `rd` (0 - 100)                                                   | `sim rd, rs`                       |
-| LABEL       | Define a label. Required for branching instructions                                                                              | `label_name:`                      |
+| RLN         | Read from `rs1` with line index `rs2` and store line in `rd`                                                                     | `rln rd, rs1, rs2`                 |
+| CLN         | Get the line count of `rs` and store in `rd`                                                                                     | `cln rd, rs`                       |
 | PUT         | Print the value of `rs`                                                                                                          | `put rs`                           |
 | PLN         | Print the value of `rs` followed by a newline                                                                                    | `pln rs`                           |
 | PCX         | Print the content of the context register `rsc`                                                                                  | `pcx rsc`                          |
-| SUBI        | Decrement the value in `rs` by `num`                                                                                             | `sub rd, num`                      |
+| ADDI        | Increment the value in `rs` by `num`                                                                                             | `addi rd, num`                     |
+| SUBI        | Decrement the value in `rs` by `num`                                                                                             | `subi rd, num`                     |
+| LABEL       | Define a label. Required for branching instructions                                                                              | `label_name:`                      |
 | EXIT        | Exit the program                                                                                                                 | `exit`                             |
 
 ## Smaller Models

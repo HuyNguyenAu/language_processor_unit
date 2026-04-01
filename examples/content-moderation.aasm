@@ -2,6 +2,13 @@
 ; Objective: Filter out content that may be AI-generated.
 ; Output: A status of "ACCEPTED" or "REJECTED" along with reasons for rejection if applicable.
 
+; Registers:
+; X1 - Candidate content for moderation
+; X2 - Temporary register for messages and results
+; X3 - Result of the AI generation audit (similarity score)
+; X4 - Threshold for AI-generated content (100)
+; X5 - Detailed information on reasons for rejection (e.g., detected buzzwords)
+
 ; Load the candidate content and the AI standard.
 LC   X1, "examples/data/user_post.txt"
 

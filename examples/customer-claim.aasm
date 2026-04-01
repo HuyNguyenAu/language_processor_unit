@@ -2,6 +2,12 @@
 ; Objective: Determine if a customer's claim about a damaged package is valid.
 ; Output: A statement indicating whether the claim is valid or invalid.
 
+; Registers:
+; X1 - Customer's statement about the package
+; X2 - Temporary register for messages and results
+; X3 - Result of the claim assessment (valid or invalid)
+; X4 - Expected result for a valid claim (100)
+
 ; Load the customer's statement about the package.
 LS   X1, "The package arrived, but it looks like it didn't go through a blender."
 

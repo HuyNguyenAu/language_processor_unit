@@ -1,13 +1,14 @@
 use crate::{
-    assembler::opcode::OpCode,
     exception::{BaseException, Exception},
+    opcodes::OpCode,
     processor::{
         control_unit::instruction::{
-            BranchInstruction, BranchType, ContextDropInstruction, ContextPopInstruction,
-            ContextPushInstruction, EvalulateInstruction, ExitInstruction, InferenceInstruction,
-            Instruction, LoadContentInstruction, LoadImmediateInstruction, LoadStringInstruction,
-            MoveContextInstruction, MoveInstruction, PrintContextInstruction, PrintInstruction,
-            PrintLineInstruction, SimilarityInstruction, SubtractImmediateInstruction,
+            AddImmediateInstruction, BranchInstruction, BranchType, ContextDropInstruction,
+            ContextPopInstruction, ContextPushInstruction, EvaluateInstruction, ExitInstruction,
+            InferenceInstruction, Instruction, CountLinesInstruction, LoadContentInstruction,
+            LoadImmediateInstruction, LoadStringInstruction, MoveContextInstruction,
+            MoveInstruction, PrintContextInstruction, PrintInstruction, PrintLineInstruction,
+            ReadLineInstruction, SimilarityInstruction, SubtractImmediateInstruction,
         },
         memory::Memory,
         registers::Registers,
@@ -27,7 +28,7 @@ impl Decoder {
         })
     }
 
-    fn string(
+    fn read_data_string(
         memory: &Memory,
         registers: &Registers,
         pointer: usize,
@@ -67,7 +68,7 @@ impl Decoder {
         }
     }
 
-    fn immediate(
+    fn decode_immediate(
         memory: &Memory,
         registers: &Registers,
         op_code: OpCode,
@@ -76,14 +77,21 @@ impl Decoder {
         let register = u32::from_be_bytes(instruction_bytes[1]);
 
         match op_code {
+            // Data movement.
             OpCode::LoadString | OpCode::LoadContent => {
                 let string_pointer = u32::from_be_bytes(instruction_bytes[2]) as usize;
-                let string = Self::string(
+                let string = Self::read_data_string(
                     memory,
                     registers,
                     string_pointer,
                     &format!("Decoding string for {:?}", op_code),
-                )?;
+                )
+                .map_err(|e| {
+                    Exception::Decoder(BaseException::caused_by(
+                        format!("immediate: failed to read data string for {:?}", op_code),
+                        e,
+                    ))
+                })?;
 
                 if op_code == OpCode::LoadString {
                     Ok(Instruction::LoadString(LoadStringInstruction {
@@ -105,9 +113,14 @@ impl Decoder {
                 destination_register: register,
                 source_register: u32::from_be_bytes(instruction_bytes[2]),
             })),
+            // Arithmetic operations.
+            OpCode::AddImmediate => Ok(Instruction::AddImmediate(AddImmediateInstruction {
+                destination_register: register,
+                value: u32::from_be_bytes(instruction_bytes[2]),
+            })),
             OpCode::SubtractImmediate => Ok(Instruction::SubtractImmediate(
                 SubtractImmediateInstruction {
-                    source_register: register,
+                    destination_register: register,
                     value: u32::from_be_bytes(instruction_bytes[2]),
                 },
             )),
@@ -121,7 +134,10 @@ impl Decoder {
         }
     }
 
-    fn branch(op_code: OpCode, instruction_bytes: [[u8; 4]; 4]) -> Result<Instruction, Exception> {
+    fn decode_branch(
+        op_code: OpCode,
+        instruction_bytes: [[u8; 4]; 4],
+    ) -> Result<Instruction, Exception> {
         let source_register_1 = u32::from_be_bytes(instruction_bytes[1]);
         let source_register_2 = u32::from_be_bytes(instruction_bytes[2]);
         let instruction_pointer_jump_index = u32::from_be_bytes(instruction_bytes[3]);
@@ -132,6 +148,7 @@ impl Decoder {
             OpCode::BranchLessEqual => BranchType::LessEqual,
             OpCode::BranchGreater => BranchType::Greater,
             OpCode::BranchGreaterEqual => BranchType::GreaterEqual,
+            OpCode::BranchNotEqual => BranchType::NotEqual,
             _ => {
                 return Err(Exception::Decoder(BaseException::new(
                     format!(
@@ -151,7 +168,7 @@ impl Decoder {
         }))
     }
 
-    fn no_register(op_code: OpCode) -> Result<Instruction, Exception> {
+    fn decode_no_register(op_code: OpCode) -> Result<Instruction, Exception> {
         match op_code {
             // Control flow.
             OpCode::Exit => Ok(Instruction::Exit(ExitInstruction)),
@@ -165,7 +182,7 @@ impl Decoder {
         }
     }
 
-    fn single_register(
+    fn decode_single_register(
         op_code: OpCode,
         instruction_bytes: [[u8; 4]; 4],
     ) -> Result<Instruction, Exception> {
@@ -196,7 +213,7 @@ impl Decoder {
         }
     }
 
-    fn double_register(
+    fn decode_double_register(
         op_code: OpCode,
         instruction_bytes: [[u8; 4]; 4],
     ) -> Result<Instruction, Exception> {
@@ -204,6 +221,7 @@ impl Decoder {
         let source_register = u32::from_be_bytes(instruction_bytes[2]);
 
         match op_code {
+            // Context operations.
             OpCode::ContextPop => Ok(Instruction::ContextPop(ContextPopInstruction {
                 destination_register,
                 source_context_register: source_register,
@@ -211,6 +229,11 @@ impl Decoder {
             OpCode::MoveContext => Ok(Instruction::MoveContext(MoveContextInstruction {
                 destination_context_register: destination_register,
                 source_context_register: source_register,
+            })),
+            // Line operations.
+            OpCode::CountLines => Ok(Instruction::CountLines(CountLinesInstruction {
+                destination_register,
+                source_register,
             })),
             _ => Err(Exception::Decoder(BaseException::new(
                 format!(
@@ -222,26 +245,36 @@ impl Decoder {
         }
     }
 
-    fn double_register_string(
+    fn decode_double_register_string(
         memory: &Memory,
         registers: &Registers,
         op_code: OpCode,
         instruction_bytes: [[u8; 4]; 4],
     ) -> Result<Instruction, Exception> {
-        let destination_context_register = u32::from_be_bytes(instruction_bytes[1]);
+        let destination_register = u32::from_be_bytes(instruction_bytes[1]);
         let source_register = u32::from_be_bytes(instruction_bytes[2]);
         let string_pointer = u32::from_be_bytes(instruction_bytes[3]) as usize;
 
-        let string = Self::string(
+        let string = Self::read_data_string(
             memory,
             registers,
             string_pointer,
             &format!("Decoding role string for {:?}", op_code),
-        )?;
+        )
+        .map_err(|e| {
+            Exception::Decoder(BaseException::caused_by(
+                format!(
+                    "double_register_string: failed to read role string for {:?}",
+                    op_code
+                ),
+                e,
+            ))
+        })?;
 
         match op_code {
+            // Context operations.
             OpCode::ContextPush => Ok(Instruction::ContextPush(ContextPushInstruction {
-                destination_context_register,
+                destination_context_register: destination_register,
                 source_register,
                 role: string,
             })),
@@ -255,7 +288,7 @@ impl Decoder {
         }
     }
 
-    fn triple_register(
+    fn decode_triple_register(
         op_code: OpCode,
         instruction_bytes: [[u8; 4]; 4],
     ) -> Result<Instruction, Exception> {
@@ -264,12 +297,13 @@ impl Decoder {
         let source_register_2 = u32::from_be_bytes(instruction_bytes[3]);
 
         match op_code {
+            // Generative, cognitive, and guardrails operations.
             OpCode::Inference => Ok(Instruction::Inference(InferenceInstruction {
                 destination_register,
                 source_register: source_register_1,
                 context_register: source_register_2,
             })),
-            OpCode::Evaluate => Ok(Instruction::Evaluate(EvalulateInstruction {
+            OpCode::Evaluate => Ok(Instruction::Evaluate(EvaluateInstruction {
                 destination_register,
                 source_register: source_register_1,
                 context_register: source_register_2,
@@ -278,6 +312,12 @@ impl Decoder {
                 destination_register,
                 source_register_1,
                 source_register_2,
+            })),
+            // Line operations.
+            OpCode::ReadLine => Ok(Instruction::ReadLine(ReadLineInstruction {
+                destination_register,
+                source_register: source_register_1,
+                line_number_register: source_register_2,
             })),
             _ => Err(Exception::Decoder(BaseException::new(
                 format!(
@@ -294,7 +334,9 @@ impl Decoder {
         registers: &Registers,
         instruction_bytes: [[u8; 4]; 4],
     ) -> Result<Instruction, Exception> {
-        let op_code = Self::op_code(&instruction_bytes[0])?;
+        let op_code = Self::op_code(&instruction_bytes[0]).map_err(|e| {
+            Exception::Decoder(BaseException::caused_by("Failed to decode opcode.", e))
+        })?;
 
         if op_code == OpCode::NoOp {
             return Err(Exception::Decoder(BaseException::new(
@@ -303,38 +345,49 @@ impl Decoder {
             )));
         }
 
-        match op_code {
+        let result = match op_code {
             // Data movement.
-            OpCode::LoadString
-            | OpCode::LoadImmediate
-            | OpCode::LoadContent
-            | OpCode::Move
-            | OpCode::SubtractImmediate => {
-                Self::immediate(memory, registers, op_code, instruction_bytes)
+            OpCode::LoadString | OpCode::LoadImmediate | OpCode::LoadContent | OpCode::Move => {
+                Self::decode_immediate(memory, registers, op_code, instruction_bytes)
             }
             // Control flow.
             OpCode::BranchEqual
             | OpCode::BranchLess
             | OpCode::BranchLessEqual
             | OpCode::BranchGreater
-            | OpCode::BranchGreaterEqual => Self::branch(op_code, instruction_bytes),
-            OpCode::Exit => Self::no_register(op_code),
+            | OpCode::BranchGreaterEqual
+            | OpCode::BranchNotEqual => Self::decode_branch(op_code, instruction_bytes),
+            OpCode::Exit => Self::decode_no_register(op_code),
             // I/O.
             OpCode::Print | OpCode::PrintLine | OpCode::PrintContext | OpCode::ContextDrop => {
-                Self::single_register(op_code, instruction_bytes)
+                Self::decode_single_register(op_code, instruction_bytes)
             }
             // Context operations.
             OpCode::ContextPush => {
-                Self::double_register_string(memory, registers, op_code, instruction_bytes)
+                Self::decode_double_register_string(memory, registers, op_code, instruction_bytes)
             }
             OpCode::ContextPop | OpCode::MoveContext => {
-                Self::double_register(op_code, instruction_bytes)
+                Self::decode_double_register(op_code, instruction_bytes)
             }
             // Generative, cognitive, and guardrails operations.
             OpCode::Inference | OpCode::Evaluate | OpCode::Similarity => {
-                Self::triple_register(op_code, instruction_bytes)
+                Self::decode_triple_register(op_code, instruction_bytes)
             }
+            // Arithmetic operations.
+            OpCode::AddImmediate | OpCode::SubtractImmediate => {
+                Self::decode_immediate(memory, registers, op_code, instruction_bytes)
+            }
+            // Text operations.
+            OpCode::ReadLine => Self::decode_triple_register(op_code, instruction_bytes),
+            OpCode::CountLines => Self::decode_double_register(op_code, instruction_bytes),
+            // Misc.
             OpCode::NoOp => unreachable!(),
-        }
+        };
+        result.map_err(|e| {
+            Exception::Decoder(BaseException::caused_by(
+                format!("Failed to decode {:?} instruction.", op_code),
+                e,
+            ))
+        })
     }
 }

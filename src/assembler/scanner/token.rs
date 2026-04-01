@@ -17,6 +17,7 @@ pub enum TokenType {
     BranchLess,
     BranchGreaterEqual,
     BranchGreater,
+    BranchNotEqual,
     Exit,
     // I/O keywords.
     Print,
@@ -33,7 +34,11 @@ pub enum TokenType {
     ContextDrop,
     MoveContext,
     // Arithmetic operations keywords.
+    AddImmediate,
     SubtractImmediate,
+    // Line operations keywords.
+    ReadLine,
+    CountLines,
     // Misc keywords.
     Label,
     Eof,
@@ -56,6 +61,7 @@ impl TryFrom<&str> for TokenType {
             "blt" => Ok(TokenType::BranchLess),
             "bge" => Ok(TokenType::BranchGreaterEqual),
             "bgt" => Ok(TokenType::BranchGreater),
+            "bne" => Ok(TokenType::BranchNotEqual),
             "exit" => Ok(TokenType::Exit),
             // I/O.
             "put" => Ok(TokenType::Print),
@@ -71,8 +77,12 @@ impl TryFrom<&str> for TokenType {
             "pop" => Ok(TokenType::ContextPop),
             "drp" => Ok(TokenType::ContextDrop),
             "mvc" => Ok(TokenType::MoveContext),
-            // Misc operations.
+            // Arithmetic operations.
+            "addi" => Ok(TokenType::AddImmediate),
             "subi" => Ok(TokenType::SubtractImmediate),
+            // Line operations.
+            "rln" => Ok(TokenType::ReadLine),
+            "cln" => Ok(TokenType::CountLines),
             _ => Err("String does not correspond to any known token type.".to_string()),
         }
     }

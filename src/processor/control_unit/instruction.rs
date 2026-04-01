@@ -29,7 +29,7 @@ pub struct InferenceInstruction {
 }
 
 #[derive(Debug)]
-pub struct EvalulateInstruction {
+pub struct EvaluateInstruction {
     pub destination_register: u32,
     pub source_register: u32,
     pub context_register: u32,
@@ -49,6 +49,7 @@ pub enum BranchType {
     Less,
     GreaterEqual,
     Greater,
+    NotEqual,
 }
 
 #[derive(Debug)]
@@ -84,8 +85,14 @@ pub struct MoveContextInstruction {
 }
 
 #[derive(Debug)]
+pub struct AddImmediateInstruction {
+    pub destination_register: u32,
+    pub value: u32,
+}
+
+#[derive(Debug)]
 pub struct SubtractImmediateInstruction {
-    pub source_register: u32,
+    pub destination_register: u32,
     pub value: u32,
 }
 
@@ -102,6 +109,19 @@ pub struct PrintLineInstruction {
 #[derive(Debug)]
 pub struct PrintContextInstruction {
     pub source_context_register: u32,
+}
+
+#[derive(Debug)]
+pub struct ReadLineInstruction {
+    pub destination_register: u32,
+    pub source_register: u32,
+    pub line_number_register: u32,
+}
+
+#[derive(Debug)]
+pub struct CountLinesInstruction {
+    pub destination_register: u32,
+    pub source_register: u32,
 }
 
 #[derive(Debug)]
@@ -124,7 +144,7 @@ pub enum Instruction {
     // Generative operations.
     Inference(InferenceInstruction),
     // Guardrails operations.
-    Evaluate(EvalulateInstruction),
+    Evaluate(EvaluateInstruction),
     Similarity(SimilarityInstruction),
     // Context operations.
     ContextPush(ContextPushInstruction),
@@ -132,5 +152,9 @@ pub enum Instruction {
     ContextDrop(ContextDropInstruction),
     MoveContext(MoveContextInstruction),
     // Arithmetic operations.
+    AddImmediate(AddImmediateInstruction),
     SubtractImmediate(SubtractImmediateInstruction),
+    // Line operations.
+    ReadLine(ReadLineInstruction),
+    CountLines(CountLinesInstruction),
 }

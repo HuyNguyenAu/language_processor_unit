@@ -1,51 +1,38 @@
 mod assembler;
 mod config;
 mod constants;
+mod env;
 mod exception;
+mod opcodes;
 mod processor;
 
 use std::{
-    env,
     fs::{read, read_to_string, write},
     path::Path,
 };
 
 use crate::{
     config::{Config, TextModelOverrides},
+    constants::{
+        BUILD_DIR, DEBUG_BUILD_ENV, DEBUG_CHAT_ENV, DEBUG_RUN_ENV, EMBEDDING_MODEL_ENV, HELP_USAGE,
+        OPENAI_BASE_URL_DEFAULT, OPENAI_BASE_URL_ENV, OPENAI_CHAT_COMPLETION_ENDPOINT_DEFAULT,
+        OPENAI_CHAT_COMPLETION_ENDPOINT_ENV, OPENAI_EMBEDDINGS_ENDPOINT_DEFAULT,
+        OPENAI_EMBEDDINGS_ENDPOINT_ENV, OPENAI_TIMEOUT_SECS_DEFAULT, OPENAI_TIMEOUT_SECS_ENV,
+        TEXT_MODEL_ENV,
+    },
     exception::{BaseException, Exception},
 };
 
 fn start_up() -> Result<(), Exception> {
-    std::fs::create_dir_all(constants::BUILD_DIR).map_err(|e| {
+    std::fs::create_dir_all(BUILD_DIR).map_err(|e| {
         Exception::Program(BaseException::caused_by(
-            format!("Failed to create build directory: {}", constants::BUILD_DIR),
+            format!("Failed to create build directory: {}", BUILD_DIR),
             e,
         ))
     })
 }
 
-fn env_required(key: &str) -> Result<String, Exception> {
-    env::var(key).map_err(|e| {
-        Exception::Program(BaseException::caused_by(
-            format!("{} must be set in the .env file", key),
-            format!("{:#?}", e),
-        ))
-    })
-}
-
-fn env_bool(key: &str) -> bool {
-    env::var(key).map(|v| v == "true").unwrap_or(false)
-}
-
-fn env_opt_bool(key: &str) -> Option<bool> {
-    env::var(key).ok().map(|v| v == "true")
-}
-
-fn env_opt<T: std::str::FromStr>(key: &str) -> Option<T> {
-    env::var(key).ok().and_then(|v| v.parse().ok())
-}
-
-fn config() -> Result<Config, Exception> {
+fn load_config() -> Result<Config, Exception> {
     if dotenv::dotenv().ok().is_none() {
         return Err(Exception::Program(BaseException::new(
             "Failed to load .env file".to_string(),
@@ -53,36 +40,36 @@ fn config() -> Result<Config, Exception> {
         )));
     }
 
+    let text_model = env::required(TEXT_MODEL_ENV).map_err(|e| {
+        Exception::Config(BaseException::caused_by(
+            "Failed to load text model configuration from environment.".to_string(),
+            e,
+        ))
+    })?;
+    let embedding_model = env::required(EMBEDDING_MODEL_ENV).map_err(|e| {
+        Exception::Config(BaseException::caused_by(
+            "Failed to load embedding model configuration from environment.".to_string(),
+            e,
+        ))
+    })?;
+
     Ok(Config {
-        text_model: env_required(constants::TEXT_MODEL_ENV)?,
-        embedding_model: env_required(constants::EMBEDDING_MODEL_ENV)?,
-        debug_build: env_bool(constants::DEBUG_BUILD_ENV),
-        debug_run: env_bool(constants::DEBUG_RUN_ENV),
-        debug_chat: env_bool(constants::DEBUG_CHAT_ENV),
-        text_model_overrides: TextModelOverrides {
-            stream: env_opt_bool(constants::TEXT_MODEL_STREAM_ENV),
-            return_progress: env_opt_bool(constants::TEXT_MODEL_RETURN_PROGRESS_ENV),
-            reasoning_format: env::var(constants::TEXT_MODEL_REASONING_FORMAT_ENV).ok(),
-            temperature: env_opt(constants::TEXT_MODEL_TEMPERATURE_ENV),
-            dynatemp_range: env_opt(constants::TEXT_MODEL_DYNATEMP_RANGE_ENV),
-            dynatemp_exponent: env_opt(constants::TEXT_MODEL_DYNATEMP_EXPONENT_ENV),
-            top_k: env_opt(constants::TEXT_MODEL_TOP_K_ENV),
-            top_p: env_opt(constants::TEXT_MODEL_TOP_P_ENV),
-            min_p: env_opt(constants::TEXT_MODEL_MIN_P_ENV),
-            xtc_probability: env_opt(constants::TEXT_MODEL_XTC_PROBABILITY_ENV),
-            xtc_threshold: env_opt(constants::TEXT_MODEL_XTC_THRESHOLD_ENV),
-            typ_p: env_opt(constants::TEXT_MODEL_TYP_P_ENV),
-            max_tokens: env_opt(constants::TEXT_MODEL_MAX_TOKENS_ENV),
-            repeat_last_n: env_opt(constants::TEXT_MODEL_REPEAT_LAST_N_ENV),
-            repeat_penalty: env_opt(constants::TEXT_MODEL_REPEAT_PENALTY_ENV),
-            presence_penalty: env_opt(constants::TEXT_MODEL_PRESENCE_PENALTY_ENV),
-            frequency_penalty: env_opt(constants::TEXT_MODEL_FREQUENCY_PENALTY_ENV),
-            dry_multiplier: env_opt(constants::TEXT_MODEL_DRY_MULTIPLIER_ENV),
-            dry_base: env_opt(constants::TEXT_MODEL_DRY_BASE_ENV),
-            dry_allowed_length: env_opt(constants::TEXT_MODEL_DRY_ALLOWED_LENGTH_ENV),
-            dry_penalty_last_n: env_opt(constants::TEXT_MODEL_DRY_PENALTY_LAST_N_ENV),
-            timings_per_token: env_opt_bool(constants::TEXT_MODEL_TIMINGS_PER_TOKEN_ENV),
-        },
+        text_model,
+        embedding_model,
+        base_url: env::with_default(OPENAI_BASE_URL_ENV, OPENAI_BASE_URL_DEFAULT),
+        chat_completion_endpoint: env::with_default(
+            OPENAI_CHAT_COMPLETION_ENDPOINT_ENV,
+            OPENAI_CHAT_COMPLETION_ENDPOINT_DEFAULT,
+        ),
+        embeddings_endpoint: env::with_default(
+            OPENAI_EMBEDDINGS_ENDPOINT_ENV,
+            OPENAI_EMBEDDINGS_ENDPOINT_DEFAULT,
+        ),
+        timeout_secs: env::u64_with_default(OPENAI_TIMEOUT_SECS_ENV, OPENAI_TIMEOUT_SECS_DEFAULT),
+        debug_build: env::bool(DEBUG_BUILD_ENV),
+        debug_run: env::bool(DEBUG_RUN_ENV),
+        debug_chat: env::bool(DEBUG_CHAT_ENV),
+        text_model_overrides: TextModelOverrides::from_env(),
     })
 }
 
@@ -118,7 +105,7 @@ fn build(file_path: &str, config: &Config) -> Result<(), Exception> {
         ))
     })?;
 
-    let output_file_name = format!("{}/{}.lpu", constants::BUILD_DIR, stem);
+    let output_file_name = format!("{}/{}.lpu", BUILD_DIR, stem);
 
     write(&output_file_name, byte_code).map_err(|e| {
         Exception::Program(BaseException::caused_by(
@@ -160,7 +147,7 @@ fn main() {
         return;
     }
 
-    let config = match config() {
+    let config = match load_config() {
         Ok(config) => config,
         Err(e) => {
             println!("Configuration error: {}", e);
@@ -168,21 +155,21 @@ fn main() {
         }
     };
 
-    let args: Vec<String> = env::args().collect();
+    let args: Vec<String> = env::args();
 
     let result = match (args.get(1).map(String::as_str), args.get(2)) {
         (None, _) => {
-            println!("No command provided. {}", constants::HELP_USAGE);
+            println!("No command provided. {}", HELP_USAGE);
             return;
         }
         (_, None) => {
-            println!("No file path provided. {}", constants::HELP_USAGE);
+            println!("No file path provided. {}", HELP_USAGE);
             return;
         }
         (Some("build"), Some(file_path)) => build(file_path, &config),
         (Some("run"), Some(file_path)) => run(file_path, &config),
         (Some(other), _) => {
-            println!("Unknown command: {}. {}", other, constants::HELP_USAGE);
+            println!("Unknown command: {}. {}", other, HELP_USAGE);
             return;
         }
     };

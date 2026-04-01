@@ -6,6 +6,20 @@ pub const HELP_USAGE: &str = "Usage: build <file_path> | run <file_path>";
 pub const TEXT_MODEL_ENV: &str = "TEXT_MODEL";
 pub const EMBEDDING_MODEL_ENV: &str = "EMBEDDING_MODEL";
 
+// OpenAI API endpoint environment variable names.
+pub const OPENAI_BASE_URL_ENV: &str = "OPENAI_BASE_URL";
+pub const OPENAI_CHAT_COMPLETION_ENDPOINT_ENV: &str = "OPENAI_CHAT_COMPLETION_ENDPOINT";
+pub const OPENAI_EMBEDDINGS_ENDPOINT_ENV: &str = "OPENAI_EMBEDDINGS_ENDPOINT";
+
+// OpenAI API endpoint defaults.
+pub const OPENAI_BASE_URL_DEFAULT: &str = "http://127.0.0.1:8080";
+pub const OPENAI_CHAT_COMPLETION_ENDPOINT_DEFAULT: &str = "v1/chat/completions";
+pub const OPENAI_EMBEDDINGS_ENDPOINT_DEFAULT: &str = "v1/embeddings";
+pub const OPENAI_TIMEOUT_SECS_DEFAULT: u64 = 120;
+
+// OpenAI API timeout environment variable name.
+pub const OPENAI_TIMEOUT_SECS_ENV: &str = "OPENAI_TIMEOUT_SECS";
+
 // Debug environment variable names.
 pub const DEBUG_BUILD_ENV: &str = "DEBUG_BUILD";
 pub const DEBUG_RUN_ENV: &str = "DEBUG_RUN";
@@ -34,3 +48,12 @@ pub const TEXT_MODEL_DRY_BASE_ENV: &str = "TEXT_MODEL_DRY_BASE";
 pub const TEXT_MODEL_DRY_ALLOWED_LENGTH_ENV: &str = "TEXT_MODEL_DRY_ALLOWED_LENGTH";
 pub const TEXT_MODEL_DRY_PENALTY_LAST_N_ENV: &str = "TEXT_MODEL_DRY_PENALTY_LAST_N";
 pub const TEXT_MODEL_TIMINGS_PER_TOKEN_ENV: &str = "TEXT_MODEL_TIMINGS_PER_TOKEN";
+
+// Language logic unit constants.
+pub const SYSTEM_PROMPT: &str =
+    "Provide exactly the requested output. Follow structural markers strictly.";
+
+// Chat role constants.
+pub const SYSTEM_ROLE: &str = "system";
+pub const USER_ROLE: &str = "user";
+pub const ASSISTANT_ROLE: &str = "assistant";

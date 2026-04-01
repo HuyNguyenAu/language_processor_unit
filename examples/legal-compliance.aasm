@@ -2,6 +2,13 @@
 ; Objective: Assess if a contract draft complies with GDPR Article 6 standards.
 ; Output: Compliance result and identified non-compliant sections if applicable.
 
+; Registers:
+; X1 - Contract draft text
+; X2 - GDPR Article 6 text
+; X3 - Temporary register for messages and results
+; X4 - Compliance score from the evaluation
+; X5 - Detailed information on non-compliant sections
+
 ; Load the contract draft and the relevant GDPR article for analysis.
 LC   X1, "examples/data/msa_draft_v2.txt"
 LC   X2, "examples/data/gdpr_article_6.txt"

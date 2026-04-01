@@ -65,10 +65,7 @@ impl Processor {
             })?;
 
             self.control_unit
-                .execute(
-                    instruction,
-                    &self.config,
-                )
+                .execute(instruction, &self.config)
                 .map_err(|e| {
                     Exception::Processor(BaseException::caused_by(
                         "Failed to execute instruction.",
